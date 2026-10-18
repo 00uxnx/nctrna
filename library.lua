@@ -49,6 +49,7 @@ local function parentgui(gui)
 		gui.Parent = LocalPlayer.PlayerGui
 	elseif not isstudio then
 		gui.Parent = game.CoreGui
+		warn("got la")
 	end
 end
 
