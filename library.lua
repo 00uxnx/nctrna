@@ -9002,5 +9002,6 @@ table.insert(connections, InputService.InputBegan:Connect(function(input, gamePr
 	end
 end))
 
-getgenv().nocturna = library
+_G.Library = library
+
 return library
