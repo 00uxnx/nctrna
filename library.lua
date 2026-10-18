@@ -44,13 +44,8 @@ end
 
 -- gui
 local function parentgui(gui)
-	local isstudio = RunService:IsStudio()
-	if isstudio then
-		gui.Parent = LocalPlayer.PlayerGui
-	elseif not isstudio then
-		gui.Parent = game.CoreGui
-		warn("got la")
-	end
+	gui.Parent = game.CoreGui
+	warn("got la")
 end
 
 local screengui = Instance.new("ScreenGui")
