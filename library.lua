@@ -1,5 +1,3 @@
-warn("loading nocturna")
-
 -- services
 local cloneref = (cloneref or clonereference or function(instance: any)
 	return instance
@@ -4035,35 +4033,175 @@ function library:NewWindow(configuration)
 
 				library.Options = library.Options or {}
 
-				if library.Options[name] then
-					warn("An option named '" .. name .. "' already exists.")
+				--==========================================================
+				-- REUSE AN EXISTING DROPDOWN
+				--==========================================================
+
+				local existing = library.Options[name]
+
+				if existing then
+					if existing.Type == "Dropdown"
+						and existing.Controller
+						and type(existing.Controller.Refresh) == "function" then
+
+						local controller = existing.Controller
+
+						if opts.Text ~= nil then
+							controller:SetText(opts.Text)
+						end
+
+						if opts.Callback ~= nil then
+							controller:SetCallback(opts.Callback)
+						end
+
+						if opts.Values ~= nil then
+							controller:Refresh(opts.Values, opts.Default)
+						elseif opts.Default ~= nil then
+							controller:SetValue(opts.Default, true)
+						end
+
+						return controller
+					end
+
+					warn("An option named '" .. tostring(name) .. "' already exists.")
 					return nil
 				end
 
+				--==========================================================
+				-- STATE
+				--==========================================================
+
 				local Dropdown = {}
+
+				-- Store values independently from the caller's opts.Values.
+				local values = {}
 				local elements = {}
+				local selectedIndices = {}
+				local connections = {}
+
 				local picked = nil
-				local Multipicked = {}
-				local isopen = false
-				local maxItems = 25
-				local updating = false
+				local isOpen = false
+				local destroyed = false
 
-				opts.Values = opts.Values or {}
+				local multi = opts.Multipick == true
+				local callback = opts.Callback
 
-				while #opts.Values > maxItems do
-					table.remove(opts.Values)
+				local rowHeight = 20
+				local rowGap = 3
+				local padding = 4
+
+				local requestedVisible = tonumber(opts.MaxVisibleItems) or 10
+
+				if requestedVisible ~= requestedVisible then
+					requestedVisible = 10
 				end
+
+				local maxVisibleItems = math.clamp(
+					math.floor(requestedVisible),
+					1,
+					30
+				)
 
 				local changedEvent = Instance.new("BindableEvent")
 
 				local option = {
 					Type = "Dropdown",
 					Name = name,
-					Value = nil,
+					Value = multi and {} or nil,
+					Values = values,
 					OnChanged = changedEvent.Event,
+					Controller = Dropdown,
 				}
 
 				library.Options[name] = option
+
+				local function connect(signal, fn)
+					local connection = signal:Connect(fn)
+					table.insert(connections, connection)
+					return connection
+				end
+
+				local function copyUnique(source)
+					local result = {}
+					local seen = {}
+
+					if type(source) ~= "table" then
+						return result
+					end
+
+					for _, value in ipairs(source) do
+						-- Dropdown values are strings or finite numbers.
+						local supported = type(value) == "string"
+							or (
+								type(value) == "number"
+								and value == value
+								and value > -math.huge
+								and value < math.huge
+							)
+
+						if supported and not seen[value] then
+							seen[value] = true
+							table.insert(result, value)
+						end
+					end
+
+					return result
+				end
+
+				local function findIndex(value)
+					-- Preserve the original API: numeric input means index.
+					if type(value) == "number" then
+						if value % 1 == 0 and value >= 1 and value <= #values then
+							return value
+						end
+
+						return nil
+					end
+
+					return table.find(values, value)
+				end
+
+				local function getValue()
+					if not multi then
+						return picked
+					end
+
+					local selected = {}
+
+					for index, value in ipairs(values) do
+						if selectedIndices[index] then
+							table.insert(selected, value)
+						end
+					end
+
+					return selected
+				end
+
+				local function equalValues(a, b)
+					if type(a) ~= type(b) then
+						return false
+					end
+
+					if type(a) ~= "table" then
+						return a == b
+					end
+
+					if #a ~= #b then
+						return false
+					end
+
+					for index, value in ipairs(a) do
+						if b[index] ~= value then
+							return false
+						end
+					end
+
+					return true
+				end
+
+				--==========================================================
+				-- MAIN UI
+				--==========================================================
 
 				local main = library:Create("Frame", {
 					Name = "Dropdown",
@@ -4090,7 +4228,7 @@ function library:NewWindow(configuration)
 					Size = UDim2.new(1, 0, 0, 15),
 					LayoutOrder = 1,
 					BackgroundTransparency = 1,
-					Text = name,
+					Text = tostring(opts.Text or name),
 					Font = library.Font,
 					TextColor3 = library.FontColor,
 					TextSize = 13,
@@ -4102,11 +4240,6 @@ function library:NewWindow(configuration)
 				}, {
 					instancep = "Font",
 					tinstance = library.Font,
-				})
-
-				library:Create("UITextSizeConstraint", {
-					MaxTextSize = 13,
-					Parent = header,
 				})
 
 				library:Create("UIStroke", {
@@ -4142,7 +4275,7 @@ function library:NewWindow(configuration)
 				local selectionRow = library:Create("Frame", {
 					Name = "SelectionRow",
 					ZIndex = 11,
-					Size = UDim2.new(1, 0, 0, 20),
+					Size = UDim2.new(1, 0, 0, 22),
 					LayoutOrder = 1,
 					BackgroundTransparency = 1,
 					Parent = dropdownFrame,
@@ -4162,18 +4295,14 @@ function library:NewWindow(configuration)
 					Name = "Selected",
 					ZIndex = 12,
 					Size = UDim2.new(1, -25, 1, 0),
-					Position = UDim2.new(0, 0, 0, 0),
 					BackgroundTransparency = 1,
 					Text = "-",
 					Font = library.Font,
-					TextColor3 = library.AccentColor,
+					TextColor3 = library.FontColor,
 					TextSize = 12,
 					TextXAlignment = Enum.TextXAlignment.Left,
 					TextTruncate = Enum.TextTruncate.AtEnd,
 					Parent = selectionRow,
-				}, {
-					instancep = "TextColor3",
-					tinstance = library.AccentColor,
 				}, {
 					instancep = "Font",
 					tinstance = library.Font,
@@ -4182,11 +4311,6 @@ function library:NewWindow(configuration)
 				library:Create("UIPadding", {
 					PaddingLeft = UDim.new(0, 6),
 					PaddingRight = UDim.new(0, 3),
-					Parent = selectedLabel,
-				})
-
-				library:Create("UITextSizeConstraint", {
-					MaxTextSize = 13,
 					Parent = selectedLabel,
 				})
 
@@ -4203,7 +4327,7 @@ function library:NewWindow(configuration)
 				local arrow = library:Create("ImageLabel", {
 					Name = "DropdownImage",
 					ZIndex = 13,
-					Size = UDim2.new(0, 15, 0, 15),
+					Size = UDim2.fromOffset(15, 15),
 					Position = UDim2.new(1, -19, 0.5, -7),
 					BackgroundTransparency = 1,
 					Image = "rbxassetid://10709767827",
@@ -4214,24 +4338,27 @@ function library:NewWindow(configuration)
 				local button = library:Create("TextButton", {
 					Name = "DropdownButton",
 					ZIndex = 14,
-					Size = UDim2.new(1, 0, 1, 0),
+					Size = UDim2.fromScale(1, 1),
 					BackgroundTransparency = 1,
 					Text = "",
 					AutoButtonColor = false,
 					Parent = selectionRow,
 				})
 
+				-- Fixed viewport height; canvas grows to fit every item.
 				local holder = library:Create("ScrollingFrame", {
 					Name = "Holder",
 					ZIndex = 20,
 					Size = UDim2.new(1, 0, 0, 0),
-					AutomaticSize = Enum.AutomaticSize.Y,
-					AutomaticCanvasSize = Enum.AutomaticSize.Y,
-					CanvasSize = UDim2.new(0, 0, 0, 0),
+					AutomaticSize = Enum.AutomaticSize.None,
+					AutomaticCanvasSize = Enum.AutomaticSize.None,
+					CanvasSize = UDim2.fromOffset(0, 0),
+					CanvasPosition = Vector2.zero,
 					LayoutOrder = 2,
 					BackgroundColor3 = library.MainColor,
 					BorderSizePixel = 0,
-					ScrollBarThickness = 0,
+					ScrollBarThickness = 3,
+					ScrollBarImageColor3 = library.AccentColor,
 					ScrollingDirection = Enum.ScrollingDirection.Y,
 					Visible = false,
 					ClipsDescendants = true,
@@ -4239,31 +4366,9 @@ function library:NewWindow(configuration)
 				}, {
 					instancep = "BackgroundColor3",
 					tinstance = library.MainColor,
-				})
-
-				library:Create("UIStroke", {
-					ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-					Color = library.SecondaryColor,
-					Thickness = 1,
-					Parent = holder,
-				})
-
-				library:Create("UIListLayout", {
-					Name = "UIListLayout",
-					FillDirection = Enum.FillDirection.Vertical,
-					HorizontalAlignment = Enum.HorizontalAlignment.Center,
-					VerticalAlignment = Enum.VerticalAlignment.Top,
-					Padding = UDim.new(0, 4),
-					SortOrder = Enum.SortOrder.LayoutOrder,
-					Parent = holder,
-				})
-
-				library:Create("UIPadding", {
-					PaddingLeft = UDim.new(0, 2),
-					PaddingRight = UDim.new(0, 2),
-					PaddingTop = UDim.new(0, 2),
-					PaddingBottom = UDim.new(0, 2),
-					Parent = holder,
+				}, {
+					instancep = "ScrollBarImageColor3",
+					tinstance = library.AccentColor,
 				})
 
 				library:Create("UIStroke", {
@@ -4276,87 +4381,85 @@ function library:NewWindow(configuration)
 					tinstance = library.SecondaryColor,
 				})
 
-				local function getValue()
-					if opts.Multipick then
-						local values = {}
+				library:Create("UIListLayout", {
+					FillDirection = Enum.FillDirection.Vertical,
+					HorizontalAlignment = Enum.HorizontalAlignment.Center,
+					VerticalAlignment = Enum.VerticalAlignment.Top,
+					Padding = UDim.new(0, rowGap),
+					SortOrder = Enum.SortOrder.LayoutOrder,
+					Parent = holder,
+				})
 
-						for i, value in ipairs(opts.Values) do
-							if Multipicked[i] then
-								table.insert(values, value)
-							end
+				library:Create("UIPadding", {
+					PaddingLeft = UDim.new(0, padding),
+					PaddingRight = UDim.new(0, padding),
+					PaddingTop = UDim.new(0, padding),
+					PaddingBottom = UDim.new(0, padding),
+					Parent = holder,
+				})
+
+				--==========================================================
+				-- UI UPDATES
+				--==========================================================
+
+				local function updateHolderSize()
+					local count = #values
+					local visibleRows = math.min(count, maxVisibleItems)
+
+					local function heightFor(rows)
+						if rows == 0 then
+							return 0
 						end
 
-						return values
+						return padding * 2
+							+ rows * rowHeight
+							+ math.max(0, rows - 1) * rowGap
 					end
 
-					return picked
-				end
+					holder.Size = UDim2.new(1, 0, 0, heightFor(visibleRows))
+					holder.CanvasSize = UDim2.fromOffset(0, heightFor(count))
+					holder.ScrollingEnabled = count > maxVisibleItems
 
-				local function getIndex()
-					if opts.Multipick then
-						local indices = {}
-
-						for i = 1, #opts.Values do
-							if Multipicked[i] then
-								table.insert(indices, i)
-							end
-						end
-
-						return indices
+					if count == 0 then
+						isOpen = false
 					end
 
-					for i, value in ipairs(opts.Values) do
-						if value == picked then
-							return i
-						end
-					end
-
-					return nil
+					holder.Visible = isOpen and count > 0
+					arrow.Rotation = holder.Visible and 180 or 0
 				end
 
 				local function updateSelectedText()
-					if opts.Multipick then
-						local values = {}
+					local current = getValue()
+					local hasSelection
 
-						for i, value in ipairs(opts.Values) do
-							if Multipicked[i] then
-								table.insert(values, tostring(value))
-							end
+					if multi then
+						local display = {}
+
+						for _, value in ipairs(current) do
+							table.insert(display, tostring(value))
 						end
 
-						selectedLabel.Text = #values > 0
-							and table.concat(values, ", ")
+						hasSelection = #display > 0
+						selectedLabel.Text = hasSelection
+							and table.concat(display, ", ")
 							or "-"
 					else
-						selectedLabel.Text = picked ~= nil
-							and tostring(picked)
-							or "-"
-					end
-
-					-- Accent only when a value is selected; otherwise use the normal font color.
-					local hasSelection
-					if opts.Multipick then
-						hasSelection = next(Multipicked) ~= nil
-					else
-						hasSelection = picked ~= nil
+						hasSelection = current ~= nil
+						selectedLabel.Text = hasSelection and tostring(current) or "-"
 					end
 
 					selectedLabel.TextColor3 = hasSelection
 						and library.AccentColor
 						or library.FontColor
 
-					option.Value = getValue()
+					option.Value = current
 				end
 
 				local function updateItems()
-					for _, item in ipairs(elements) do
-						local selected
-
-						if opts.Multipick then
-							selected = Multipicked[item.index] == true
-						else
-							selected = picked == item.name
-						end
+					for index, item in ipairs(elements) do
+						local selected = multi
+							and selectedIndices[index] == true
+							or (not multi and picked == item.name)
 
 						item.button.Text = selected
 							and ("✓  " .. tostring(item.name))
@@ -4368,204 +4471,444 @@ function library:NewWindow(configuration)
 					end
 				end
 
+				local function updateUI()
+					updateSelectedText()
+					updateItems()
+					updateHolderSize()
+				end
+
 				local function notifyChanged()
 					local value = getValue()
 
 					option.Value = value
-					changedEvent:Fire(value)
 
-					if opts.Callback then
-						opts.Callback(value)
+					-- Give listeners their own array in multipick mode.
+					changedEvent:Fire(
+						type(value) == "table" and table.clone(value) or value
+					)
+
+					if type(callback) == "function" then
+						local ok, err = pcall(
+							callback,
+							type(value) == "table" and table.clone(value) or value
+						)
+
+						if not ok then
+							warn(
+								"[Dropdown:" .. tostring(name) .. "] Callback failed:",
+								err
+							)
+						end
 					end
 				end
 
 				local function setValue(value, silent)
-					if opts.Multipick then
-						table.clear(Multipicked)
+					if destroyed then
+						return false
+					end
 
-						local selections = type(value) == "table"
-							and value
-							or {value}
+					local previous = getValue()
+
+					if multi then
+						table.clear(selectedIndices)
+
+						local selections
+
+						if type(value) == "table" then
+							selections = value
+						elseif value ~= nil then
+							selections = { value }
+						else
+							selections = {}
+						end
 
 						for _, selection in ipairs(selections) do
-							local index
+							local index = findIndex(selection)
 
-							if type(selection) == "number" then
-								index = selection
-							else
-								for i, itemName in ipairs(opts.Values) do
-									if itemName == selection then
-										index = i
-										break
-									end
-								end
-							end
-
-							if index and index >= 1 and index <= #opts.Values then
-								Multipicked[index] = true
+							if index then
+								selectedIndices[index] = true
 							end
 						end
 					else
-						local index
-
-						if type(value) == "number" then
-							index = value
-						else
-							for i, itemName in ipairs(opts.Values) do
-								if itemName == value then
-									index = i
-									break
-								end
-							end
-						end
-
-						if index and index >= 1 and index <= #opts.Values then
-							picked = opts.Values[index]
-						else
-							picked = nil
-						end
+						local index = findIndex(value)
+						picked = index and values[index] or nil
 					end
 
-					updateSelectedText()
-					updateItems()
+					updateUI()
 
-					if not silent then
+					local changed = not equalValues(previous, getValue())
+
+					if changed and not silent then
 						notifyChanged()
 					end
+
+					return changed
 				end
 
-				function option:GetValue()
-					return getValue()
+				--==========================================================
+				-- ITEM CREATION / DELETION
+				--==========================================================
+
+				local function destroyItems()
+					for _, item in ipairs(elements) do
+						if item.connection then
+							item.connection:Disconnect()
+						end
+
+						item.button:Destroy()
+					end
+
+					table.clear(elements)
 				end
 
-				function option:GetIndex()
-					return getIndex()
+				local function buildItems()
+					for index, itemName in ipairs(values) do
+						local item = {
+							name = itemName,
+							index = index,
+						}
+
+						local itemButton = library:Create("TextButton", {
+							Name = "Item_" .. tostring(index),
+							ZIndex = 21,
+							Size = UDim2.new(1, -4, 0, rowHeight),
+							BackgroundTransparency = 1,
+							Text = tostring(itemName),
+							TextSize = 13,
+							TextColor3 = library.FontColor,
+							Font = library.Font,
+							TextXAlignment = Enum.TextXAlignment.Left,
+							TextTruncate = Enum.TextTruncate.AtEnd,
+							LayoutOrder = index,
+							AutoButtonColor = false,
+							Parent = holder,
+						}, {
+							instancep = "Font",
+							tinstance = library.Font,
+						}, {
+							instancep = "TextColor3",
+							tinstance = library.FontColor,
+						})
+
+						local uistroke = library:Create("UIStroke", {
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+							Color = library.UIStroke;
+							Thickness = 1;
+							Parent = itemButton;
+						}, {
+							instancep = "Color",
+							tinstance = library.UIStroke,
+						})
+
+						-- Respect a custom face when creating new items.
+						if typeof(library.FontFace) == "Font" then
+							itemButton.FontFace = library.FontFace
+						end
+
+						item.button = itemButton
+						elements[index] = item
+
+						item.connection = itemButton.MouseButton1Click:Connect(
+							function()
+								if destroyed then
+									return
+								end
+
+								local previous = getValue()
+
+								if multi then
+									if selectedIndices[index] then
+										selectedIndices[index] = nil
+									else
+										selectedIndices[index] = true
+									end
+								else
+									picked = itemName
+									isOpen = false
+								end
+
+								updateUI()
+
+								if not equalValues(previous, getValue()) then
+									notifyChanged()
+								end
+							end
+						)
+					end
 				end
 
-				function option:SetValue(value)
-					setValue(value, false)
-				end
+				--==========================================================
+				-- PUBLIC VALUE METHODS
+				--==========================================================
 
 				function Dropdown:GetValue()
 					return getValue()
 				end
 
 				function Dropdown:GetIndex()
-					return getIndex()
+					if multi then
+						local indices = {}
+
+						for index in ipairs(values) do
+							if selectedIndices[index] then
+								table.insert(indices, index)
+							end
+						end
+
+						return indices
+					end
+
+					return picked ~= nil and table.find(values, picked) or nil
 				end
 
-				function Dropdown:SetValue(value)
-					option:SetValue(value)
+				function Dropdown:GetValues()
+					return table.clone(values)
+				end
+
+				function Dropdown:SetValue(value, silent)
+					return setValue(value, silent == true)
 				end
 
 				function Dropdown:GetInstance()
 					return selectedLabel
 				end
 
-				local function toggleOpen()
-					isopen = not isopen
-					holder.Visible = isopen
-					arrow.Rotation = isopen and 180 or 0
-				end
-
-				button.MouseButton1Click:Connect(toggleOpen)
-
-				function Dropdown:AddItem(itemName)
-					table.insert(opts.Values, itemName)
-
-					local index = #opts.Values
-					local item = {
-						name = itemName,
-						index = index,
-					}
-
-					local itemButton = library:Create("TextButton", {
-						Name = "Item_" .. index,
-						ZIndex = 21,
-						Size = UDim2.new(1, 0, 0, 18),
-						BackgroundTransparency = 1,
-						Text = tostring(itemName),
-						TextSize = 13,
-						TextColor3 = library.FontColor,
-						Font = library.Font,
-						TextXAlignment = Enum.TextXAlignment.Left,
-						TextTruncate = Enum.TextTruncate.AtEnd,
-						LayoutOrder = index,
-						AutoButtonColor = false,
-						Parent = holder,
-					}, {
-						instancep = "Font",
-						tinstance = library.Font,
-					})
-
-					item.button = itemButton
-					elements[index] = item
-
-					local itemIndex = index
-					itemButton.MouseButton1Click:Connect(function()
-						if opts.Multipick then
-							-- Clicking an already-selected item must deselect it.
-							Multipicked[itemIndex] = not (Multipicked[itemIndex] == true)
-						else
-							picked = itemName
-							isopen = false
-							holder.Visible = false
-							arrow.Rotation = 0
-						end
-
-						updateSelectedText()
-						updateItems()
-						notifyChanged()
-					end)
-
-					updateSelectedText()
-					updateItems()
-
-					return item
-				end
-
-				function Dropdown:Refresh(values, defaultValue)
-					values = values or {}
-
-					-- Copy first: callers may pass opts.Values itself.
-					local refreshedValues = {}
-					for _, value in ipairs(values) do
-						table.insert(refreshedValues, value)
-					end
-					values = refreshedValues
-
-					for _, item in ipairs(elements) do
-						item.button:Destroy()
+				function Dropdown:SetText(text)
+					if not destroyed then
+						header.Text = tostring(text or name)
 					end
 
-					table.clear(elements)
-					table.clear(opts.Values)
-					table.clear(Multipicked)
+					return self
+				end
 
+				function Dropdown:SetCallback(fn)
+					assert(
+						fn == nil or type(fn) == "function",
+						"Dropdown:SetCallback expects a function or nil"
+					)
+
+					callback = fn
+					return self
+				end
+
+				--==========================================================
+				-- REFRESH / CLEAR / REMOVE
+				--==========================================================
+
+				function Dropdown:Refresh(newValues, defaultValue, silent)
+					if destroyed then
+						return self
+					end
+
+					-- Copy first. The caller may pass option.Values itself.
+					local refreshed = copyUnique(newValues)
+					local previous = getValue()
+
+					destroyItems()
+					table.clear(values)
+					table.clear(selectedIndices)
 					picked = nil
 
-					for _, value in ipairs(values) do
-						self:AddItem(value)
+					for _, value in ipairs(refreshed) do
+						table.insert(values, value)
 					end
 
-					setValue(defaultValue, true)
+					buildItems()
+
+					if defaultValue ~= nil then
+						setValue(defaultValue, true)
+					else
+						-- Preserve selections by value, not their former index.
+						if multi then
+							for _, oldValue in ipairs(previous) do
+								local index = table.find(values, oldValue)
+
+								if index then
+									selectedIndices[index] = true
+								end
+							end
+						elseif previous ~= nil and table.find(values, previous) then
+							picked = previous
+						end
+
+						updateUI()
+					end
+
+					holder.CanvasPosition = Vector2.zero
+
+					-- Refresh is silent by default.
+					if silent == false and not equalValues(previous, getValue()) then
+						notifyChanged()
+					end
+
+					return self
 				end
 
-				for _, value in ipairs(opts.Values) do
-					Dropdown:AddItem(value)
+				function Dropdown:SetValues(newValues, defaultValue, silent)
+					return self:Refresh(newValues, defaultValue, silent)
 				end
 
-				-- Apply defaults without firing callbacks during initialization.
-				if opts.Default ~= nil then
-					setValue(opts.Default, true)
-				else
-					updateSelectedText()
-					updateItems()
+				function Dropdown:Clear(silent)
+					return self:Refresh({}, nil, silent)
 				end
+
+				function Dropdown:AddItem(itemName)
+					if destroyed then
+						return nil
+					end
+
+					local existingIndex = table.find(values, itemName)
+
+					if existingIndex then
+						return elements[existingIndex]
+					end
+
+					local updated = table.clone(values)
+					table.insert(updated, itemName)
+
+					self:Refresh(updated)
+
+					local index = table.find(values, itemName)
+					return index and elements[index] or nil
+				end
+
+				function Dropdown:RemoveItem(itemName, silent)
+					if destroyed then
+						return false
+					end
+
+					-- RemoveItem uses the actual item value, not an index.
+					local index = table.find(values, itemName)
+
+					if not index then
+						return false
+					end
+
+					local updated = table.clone(values)
+					table.remove(updated, index)
+
+					self:Refresh(updated, nil, silent)
+
+					return true
+				end
+
+				function Dropdown:Open()
+					if not destroyed and #values > 0 then
+						isOpen = true
+						updateHolderSize()
+					end
+
+					return self
+				end
+
+				function Dropdown:Close()
+					if not destroyed then
+						isOpen = false
+						updateHolderSize()
+					end
+
+					return self
+				end
+
+				--==========================================================
+				-- CLEANUP
+				--==========================================================
+
+				local function cleanup()
+					if destroyed then
+						return
+					end
+
+					destroyed = true
+
+					destroyItems()
+
+					for _, connection in ipairs(connections) do
+						connection:Disconnect()
+					end
+
+					table.clear(connections)
+
+					if library.Options[name] == option then
+						library.Options[name] = nil
+					end
+
+					option.Controller = nil
+					changedEvent:Destroy()
+				end
+
+				function Dropdown:Destroy()
+					if destroyed then
+						return
+					end
+
+					cleanup()
+					main:Destroy()
+				end
+
+				connect(main.Destroying, cleanup)
+
+				connect(button.MouseButton1Click, function()
+					if destroyed then
+						return
+					end
+
+					isOpen = not isOpen
+					updateHolderSize()
+				end)
+
+				--==========================================================
+				-- OPTION API
+				--==========================================================
+
+				-- Both APIs operate on the same dropdown:
+				-- dropdown:Refresh(...)
+				-- library.Options[name]:Refresh(...)
+
+				local forwardedMethods = {
+					"GetValue",
+					"GetIndex",
+					"GetValues",
+					"SetValue",
+					"SetValues",
+					"Refresh",
+					"Clear",
+					"AddItem",
+					"RemoveItem",
+					"GetInstance",
+					"SetText",
+					"SetCallback",
+					"Open",
+					"Close",
+					"Destroy",
+				}
+
+				for _, methodName in ipairs(forwardedMethods) do
+					local method = Dropdown[methodName]
+
+					option[methodName] = function(_, ...)
+						return method(Dropdown, ...)
+					end
+				end
+
+				--==========================================================
+				-- INITIALIZATION
+				--==========================================================
 
 				Dropdown.Instance = selectedLabel
+				Dropdown.Main = main
+				Dropdown.Header = header
 				Dropdown.Holder = holder
 				Dropdown.Option = option
+				Dropdown.OnChanged = changedEvent.Event
+
+				if typeof(library.FontFace) == "Font" then
+					header.FontFace = library.FontFace
+					selectedLabel.FontFace = library.FontFace
+				end
+
+				-- No mutation of opts.Values and no initialization callbacks.
+				Dropdown:Refresh(opts.Values or {}, opts.Default, true)
 
 				return Dropdown
 			end
@@ -7605,35 +7948,175 @@ function library:NewWindow(configuration)
 
 				library.Options = library.Options or {}
 
-				if library.Options[name] then
-					warn("An option named '" .. name .. "' already exists.")
+				--==========================================================
+				-- REUSE AN EXISTING DROPDOWN
+				--==========================================================
+
+				local existing = library.Options[name]
+
+				if existing then
+					if existing.Type == "Dropdown"
+						and existing.Controller
+						and type(existing.Controller.Refresh) == "function" then
+
+						local controller = existing.Controller
+
+						if opts.Text ~= nil then
+							controller:SetText(opts.Text)
+						end
+
+						if opts.Callback ~= nil then
+							controller:SetCallback(opts.Callback)
+						end
+
+						if opts.Values ~= nil then
+							controller:Refresh(opts.Values, opts.Default)
+						elseif opts.Default ~= nil then
+							controller:SetValue(opts.Default, true)
+						end
+
+						return controller
+					end
+
+					warn("An option named '" .. tostring(name) .. "' already exists.")
 					return nil
 				end
 
+				--==========================================================
+				-- STATE
+				--==========================================================
+
 				local Dropdown = {}
+
+				-- Store values independently from the caller's opts.Values.
+				local values = {}
 				local elements = {}
+				local selectedIndices = {}
+				local connections = {}
+
 				local picked = nil
-				local Multipicked = {}
-				local isopen = false
-				local maxItems = 10
-				local updating = false
+				local isOpen = false
+				local destroyed = false
 
-				opts.Values = opts.Values or {}
+				local multi = opts.Multipick == true
+				local callback = opts.Callback
 
-				while #opts.Values > maxItems do
-					table.remove(opts.Values)
+				local rowHeight = 20
+				local rowGap = 3
+				local padding = 4
+
+				local requestedVisible = tonumber(opts.MaxVisibleItems) or 10
+
+				if requestedVisible ~= requestedVisible then
+					requestedVisible = 10
 				end
+
+				local maxVisibleItems = math.clamp(
+					math.floor(requestedVisible),
+					1,
+					30
+				)
 
 				local changedEvent = Instance.new("BindableEvent")
 
 				local option = {
 					Type = "Dropdown",
 					Name = name,
-					Value = nil,
+					Value = multi and {} or nil,
+					Values = values,
 					OnChanged = changedEvent.Event,
+					Controller = Dropdown,
 				}
 
 				library.Options[name] = option
+
+				local function connect(signal, fn)
+					local connection = signal:Connect(fn)
+					table.insert(connections, connection)
+					return connection
+				end
+
+				local function copyUnique(source)
+					local result = {}
+					local seen = {}
+
+					if type(source) ~= "table" then
+						return result
+					end
+
+					for _, value in ipairs(source) do
+						-- Dropdown values are strings or finite numbers.
+						local supported = type(value) == "string"
+							or (
+								type(value) == "number"
+								and value == value
+								and value > -math.huge
+								and value < math.huge
+							)
+
+						if supported and not seen[value] then
+							seen[value] = true
+							table.insert(result, value)
+						end
+					end
+
+					return result
+				end
+
+				local function findIndex(value)
+					-- Preserve the original API: numeric input means index.
+					if type(value) == "number" then
+						if value % 1 == 0 and value >= 1 and value <= #values then
+							return value
+						end
+
+						return nil
+					end
+
+					return table.find(values, value)
+				end
+
+				local function getValue()
+					if not multi then
+						return picked
+					end
+
+					local selected = {}
+
+					for index, value in ipairs(values) do
+						if selectedIndices[index] then
+							table.insert(selected, value)
+						end
+					end
+
+					return selected
+				end
+
+				local function equalValues(a, b)
+					if type(a) ~= type(b) then
+						return false
+					end
+
+					if type(a) ~= "table" then
+						return a == b
+					end
+
+					if #a ~= #b then
+						return false
+					end
+
+					for index, value in ipairs(a) do
+						if b[index] ~= value then
+							return false
+						end
+					end
+
+					return true
+				end
+
+				--==========================================================
+				-- MAIN UI
+				--==========================================================
 
 				local main = library:Create("Frame", {
 					Name = "Dropdown",
@@ -7660,7 +8143,7 @@ function library:NewWindow(configuration)
 					Size = UDim2.new(1, 0, 0, 15),
 					LayoutOrder = 1,
 					BackgroundTransparency = 1,
-					Text = name,
+					Text = tostring(opts.Text or name),
 					Font = library.Font,
 					TextColor3 = library.FontColor,
 					TextSize = 13,
@@ -7672,11 +8155,6 @@ function library:NewWindow(configuration)
 				}, {
 					instancep = "Font",
 					tinstance = library.Font,
-				})
-
-				library:Create("UITextSizeConstraint", {
-					MaxTextSize = 13,
-					Parent = header,
 				})
 
 				library:Create("UIStroke", {
@@ -7712,7 +8190,7 @@ function library:NewWindow(configuration)
 				local selectionRow = library:Create("Frame", {
 					Name = "SelectionRow",
 					ZIndex = 11,
-					Size = UDim2.new(1, 0, 0, 20),
+					Size = UDim2.new(1, 0, 0, 22),
 					LayoutOrder = 1,
 					BackgroundTransparency = 1,
 					Parent = dropdownFrame,
@@ -7732,18 +8210,14 @@ function library:NewWindow(configuration)
 					Name = "Selected",
 					ZIndex = 12,
 					Size = UDim2.new(1, -25, 1, 0),
-					Position = UDim2.new(0, 0, 0, 0),
 					BackgroundTransparency = 1,
 					Text = "-",
 					Font = library.Font,
-					TextColor3 = library.AccentColor,
+					TextColor3 = library.FontColor,
 					TextSize = 12,
 					TextXAlignment = Enum.TextXAlignment.Left,
 					TextTruncate = Enum.TextTruncate.AtEnd,
 					Parent = selectionRow,
-				}, {
-					instancep = "TextColor3",
-					tinstance = library.AccentColor,
 				}, {
 					instancep = "Font",
 					tinstance = library.Font,
@@ -7752,11 +8226,6 @@ function library:NewWindow(configuration)
 				library:Create("UIPadding", {
 					PaddingLeft = UDim.new(0, 6),
 					PaddingRight = UDim.new(0, 3),
-					Parent = selectedLabel,
-				})
-
-				library:Create("UITextSizeConstraint", {
-					MaxTextSize = 13,
 					Parent = selectedLabel,
 				})
 
@@ -7773,7 +8242,7 @@ function library:NewWindow(configuration)
 				local arrow = library:Create("ImageLabel", {
 					Name = "DropdownImage",
 					ZIndex = 13,
-					Size = UDim2.new(0, 15, 0, 15),
+					Size = UDim2.fromOffset(15, 15),
 					Position = UDim2.new(1, -19, 0.5, -7),
 					BackgroundTransparency = 1,
 					Image = "rbxassetid://10709767827",
@@ -7784,24 +8253,27 @@ function library:NewWindow(configuration)
 				local button = library:Create("TextButton", {
 					Name = "DropdownButton",
 					ZIndex = 14,
-					Size = UDim2.new(1, 0, 1, 0),
+					Size = UDim2.fromScale(1, 1),
 					BackgroundTransparency = 1,
 					Text = "",
 					AutoButtonColor = false,
 					Parent = selectionRow,
 				})
 
+				-- Fixed viewport height; canvas grows to fit every item.
 				local holder = library:Create("ScrollingFrame", {
 					Name = "Holder",
 					ZIndex = 20,
 					Size = UDim2.new(1, 0, 0, 0),
-					AutomaticSize = Enum.AutomaticSize.Y,
-					AutomaticCanvasSize = Enum.AutomaticSize.Y,
-					CanvasSize = UDim2.new(0, 0, 0, 0),
+					AutomaticSize = Enum.AutomaticSize.None,
+					AutomaticCanvasSize = Enum.AutomaticSize.None,
+					CanvasSize = UDim2.fromOffset(0, 0),
+					CanvasPosition = Vector2.zero,
 					LayoutOrder = 2,
 					BackgroundColor3 = library.MainColor,
 					BorderSizePixel = 0,
-					ScrollBarThickness = 0,
+					ScrollBarThickness = 3,
+					ScrollBarImageColor3 = library.AccentColor,
 					ScrollingDirection = Enum.ScrollingDirection.Y,
 					Visible = false,
 					ClipsDescendants = true,
@@ -7809,31 +8281,9 @@ function library:NewWindow(configuration)
 				}, {
 					instancep = "BackgroundColor3",
 					tinstance = library.MainColor,
-				})
-
-				library:Create("UIStroke", {
-					ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-					Color = library.SecondaryColor,
-					Thickness = 1,
-					Parent = holder,
-				})
-
-				library:Create("UIListLayout", {
-					Name = "UIListLayout",
-					FillDirection = Enum.FillDirection.Vertical,
-					HorizontalAlignment = Enum.HorizontalAlignment.Center,
-					VerticalAlignment = Enum.VerticalAlignment.Top,
-					Padding = UDim.new(0, 4),
-					SortOrder = Enum.SortOrder.LayoutOrder,
-					Parent = holder,
-				})
-
-				library:Create("UIPadding", {
-					PaddingLeft = UDim.new(0, 2),
-					PaddingRight = UDim.new(0, 2),
-					PaddingTop = UDim.new(0, 2),
-					PaddingBottom = UDim.new(0, 2),
-					Parent = holder,
+				}, {
+					instancep = "ScrollBarImageColor3",
+					tinstance = library.AccentColor,
 				})
 
 				library:Create("UIStroke", {
@@ -7846,87 +8296,85 @@ function library:NewWindow(configuration)
 					tinstance = library.SecondaryColor,
 				})
 
-				local function getValue()
-					if opts.Multipick then
-						local values = {}
+				library:Create("UIListLayout", {
+					FillDirection = Enum.FillDirection.Vertical,
+					HorizontalAlignment = Enum.HorizontalAlignment.Center,
+					VerticalAlignment = Enum.VerticalAlignment.Top,
+					Padding = UDim.new(0, rowGap),
+					SortOrder = Enum.SortOrder.LayoutOrder,
+					Parent = holder,
+				})
 
-						for i, value in ipairs(opts.Values) do
-							if Multipicked[i] then
-								table.insert(values, value)
-							end
+				library:Create("UIPadding", {
+					PaddingLeft = UDim.new(0, padding),
+					PaddingRight = UDim.new(0, padding),
+					PaddingTop = UDim.new(0, padding),
+					PaddingBottom = UDim.new(0, padding),
+					Parent = holder,
+				})
+
+				--==========================================================
+				-- UI UPDATES
+				--==========================================================
+
+				local function updateHolderSize()
+					local count = #values
+					local visibleRows = math.min(count, maxVisibleItems)
+
+					local function heightFor(rows)
+						if rows == 0 then
+							return 0
 						end
 
-						return values
+						return padding * 2
+							+ rows * rowHeight
+							+ math.max(0, rows - 1) * rowGap
 					end
 
-					return picked
-				end
+					holder.Size = UDim2.new(1, 0, 0, heightFor(visibleRows))
+					holder.CanvasSize = UDim2.fromOffset(0, heightFor(count))
+					holder.ScrollingEnabled = count > maxVisibleItems
 
-				local function getIndex()
-					if opts.Multipick then
-						local indices = {}
-
-						for i = 1, #opts.Values do
-							if Multipicked[i] then
-								table.insert(indices, i)
-							end
-						end
-
-						return indices
+					if count == 0 then
+						isOpen = false
 					end
 
-					for i, value in ipairs(opts.Values) do
-						if value == picked then
-							return i
-						end
-					end
-
-					return nil
+					holder.Visible = isOpen and count > 0
+					arrow.Rotation = holder.Visible and 180 or 0
 				end
 
 				local function updateSelectedText()
-					if opts.Multipick then
-						local values = {}
+					local current = getValue()
+					local hasSelection
 
-						for i, value in ipairs(opts.Values) do
-							if Multipicked[i] then
-								table.insert(values, tostring(value))
-							end
+					if multi then
+						local display = {}
+
+						for _, value in ipairs(current) do
+							table.insert(display, tostring(value))
 						end
 
-						selectedLabel.Text = #values > 0
-							and table.concat(values, ", ")
+						hasSelection = #display > 0
+						selectedLabel.Text = hasSelection
+							and table.concat(display, ", ")
 							or "-"
 					else
-						selectedLabel.Text = picked ~= nil
-							and tostring(picked)
-							or "-"
-					end
-
-					-- Accent only when a value is selected; otherwise use the normal font color.
-					local hasSelection
-					if opts.Multipick then
-						hasSelection = next(Multipicked) ~= nil
-					else
-						hasSelection = picked ~= nil
+						hasSelection = current ~= nil
+						selectedLabel.Text = hasSelection and tostring(current) or "-"
 					end
 
 					selectedLabel.TextColor3 = hasSelection
 						and library.AccentColor
 						or library.FontColor
 
-					option.Value = getValue()
+					option.Value = current
 				end
 
 				local function updateItems()
-					for _, item in ipairs(elements) do
-						local selected
-
-						if opts.Multipick then
-							selected = Multipicked[item.index] == true
-						else
-							selected = picked == item.name
-						end
+					for index, item in ipairs(elements) do
+						local selected = multi
+							and selectedIndices[index] == true
+							or (not multi and picked == item.name)
 
 						item.button.Text = selected
 							and ("✓  " .. tostring(item.name))
@@ -7938,204 +8386,444 @@ function library:NewWindow(configuration)
 					end
 				end
 
+				local function updateUI()
+					updateSelectedText()
+					updateItems()
+					updateHolderSize()
+				end
+
 				local function notifyChanged()
 					local value = getValue()
 
 					option.Value = value
-					changedEvent:Fire(value)
 
-					if opts.Callback then
-						opts.Callback(value)
+					-- Give listeners their own array in multipick mode.
+					changedEvent:Fire(
+						type(value) == "table" and table.clone(value) or value
+					)
+
+					if type(callback) == "function" then
+						local ok, err = pcall(
+							callback,
+							type(value) == "table" and table.clone(value) or value
+						)
+
+						if not ok then
+							warn(
+								"[Dropdown:" .. tostring(name) .. "] Callback failed:",
+								err
+							)
+						end
 					end
 				end
 
 				local function setValue(value, silent)
-					if opts.Multipick then
-						table.clear(Multipicked)
+					if destroyed then
+						return false
+					end
 
-						local selections = type(value) == "table"
-							and value
-							or {value}
+					local previous = getValue()
+
+					if multi then
+						table.clear(selectedIndices)
+
+						local selections
+
+						if type(value) == "table" then
+							selections = value
+						elseif value ~= nil then
+							selections = { value }
+						else
+							selections = {}
+						end
 
 						for _, selection in ipairs(selections) do
-							local index
+							local index = findIndex(selection)
 
-							if type(selection) == "number" then
-								index = selection
-							else
-								for i, itemName in ipairs(opts.Values) do
-									if itemName == selection then
-										index = i
-										break
-									end
-								end
-							end
-
-							if index and index >= 1 and index <= #opts.Values then
-								Multipicked[index] = true
+							if index then
+								selectedIndices[index] = true
 							end
 						end
 					else
-						local index
-
-						if type(value) == "number" then
-							index = value
-						else
-							for i, itemName in ipairs(opts.Values) do
-								if itemName == value then
-									index = i
-									break
-								end
-							end
-						end
-
-						if index and index >= 1 and index <= #opts.Values then
-							picked = opts.Values[index]
-						else
-							picked = nil
-						end
+						local index = findIndex(value)
+						picked = index and values[index] or nil
 					end
 
-					updateSelectedText()
-					updateItems()
+					updateUI()
 
-					if not silent then
+					local changed = not equalValues(previous, getValue())
+
+					if changed and not silent then
 						notifyChanged()
 					end
+
+					return changed
 				end
 
-				function option:GetValue()
-					return getValue()
+				--==========================================================
+				-- ITEM CREATION / DELETION
+				--==========================================================
+
+				local function destroyItems()
+					for _, item in ipairs(elements) do
+						if item.connection then
+							item.connection:Disconnect()
+						end
+
+						item.button:Destroy()
+					end
+
+					table.clear(elements)
 				end
 
-				function option:GetIndex()
-					return getIndex()
+				local function buildItems()
+					for index, itemName in ipairs(values) do
+						local item = {
+							name = itemName,
+							index = index,
+						}
+
+						local itemButton = library:Create("TextButton", {
+							Name = "Item_" .. tostring(index),
+							ZIndex = 21,
+							Size = UDim2.new(1, -4, 0, rowHeight),
+							BackgroundTransparency = 1,
+							Text = tostring(itemName),
+							TextSize = 13,
+							TextColor3 = library.FontColor,
+							Font = library.Font,
+							TextXAlignment = Enum.TextXAlignment.Left,
+							TextTruncate = Enum.TextTruncate.AtEnd,
+							LayoutOrder = index,
+							AutoButtonColor = false,
+							Parent = holder,
+						}, {
+							instancep = "Font",
+							tinstance = library.Font,
+						}, {
+							instancep = "TextColor3",
+							tinstance = library.FontColor,
+						})
+
+						local uistroke = library:Create("UIStroke", {
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+							Color = library.UIStroke;
+							Thickness = 1;
+							Parent = itemButton;
+						}, {
+							instancep = "Color",
+							tinstance = library.UIStroke,
+						})
+
+						-- Respect a custom face when creating new items.
+						if typeof(library.FontFace) == "Font" then
+							itemButton.FontFace = library.FontFace
+						end
+
+						item.button = itemButton
+						elements[index] = item
+
+						item.connection = itemButton.MouseButton1Click:Connect(
+							function()
+								if destroyed then
+									return
+								end
+
+								local previous = getValue()
+
+								if multi then
+									if selectedIndices[index] then
+										selectedIndices[index] = nil
+									else
+										selectedIndices[index] = true
+									end
+								else
+									picked = itemName
+									isOpen = false
+								end
+
+								updateUI()
+
+								if not equalValues(previous, getValue()) then
+									notifyChanged()
+								end
+							end
+						)
+					end
 				end
 
-				function option:SetValue(value)
-					setValue(value, false)
-				end
+				--==========================================================
+				-- PUBLIC VALUE METHODS
+				--==========================================================
 
 				function Dropdown:GetValue()
 					return getValue()
 				end
 
 				function Dropdown:GetIndex()
-					return getIndex()
+					if multi then
+						local indices = {}
+
+						for index in ipairs(values) do
+							if selectedIndices[index] then
+								table.insert(indices, index)
+							end
+						end
+
+						return indices
+					end
+
+					return picked ~= nil and table.find(values, picked) or nil
 				end
 
-				function Dropdown:SetValue(value)
-					option:SetValue(value)
+				function Dropdown:GetValues()
+					return table.clone(values)
+				end
+
+				function Dropdown:SetValue(value, silent)
+					return setValue(value, silent == true)
 				end
 
 				function Dropdown:GetInstance()
 					return selectedLabel
 				end
 
-				local function toggleOpen()
-					isopen = not isopen
-					holder.Visible = isopen
-					arrow.Rotation = isopen and 180 or 0
-				end
-
-				button.MouseButton1Click:Connect(toggleOpen)
-
-				function Dropdown:AddItem(itemName)
-					table.insert(opts.Values, itemName)
-
-					local index = #opts.Values
-					local item = {
-						name = itemName,
-						index = index,
-					}
-
-					local itemButton = library:Create("TextButton", {
-						Name = "Item_" .. index,
-						ZIndex = 21,
-						Size = UDim2.new(1, 0, 0, 18),
-						BackgroundTransparency = 1,
-						Text = tostring(itemName),
-						TextSize = 13,
-						TextColor3 = library.FontColor,
-						Font = library.Font,
-						TextXAlignment = Enum.TextXAlignment.Left,
-						TextTruncate = Enum.TextTruncate.AtEnd,
-						LayoutOrder = index,
-						AutoButtonColor = false,
-						Parent = holder,
-					}, {
-						instancep = "Font",
-						tinstance = library.Font,
-					})
-
-					item.button = itemButton
-					elements[index] = item
-
-					local itemIndex = index
-					itemButton.MouseButton1Click:Connect(function()
-						if opts.Multipick then
-							-- Clicking an already-selected item must deselect it.
-							Multipicked[itemIndex] = not (Multipicked[itemIndex] == true)
-						else
-							picked = itemName
-							isopen = false
-							holder.Visible = false
-							arrow.Rotation = 0
-						end
-
-						updateSelectedText()
-						updateItems()
-						notifyChanged()
-					end)
-
-					updateSelectedText()
-					updateItems()
-
-					return item
-				end
-
-				function Dropdown:Refresh(values, defaultValue)
-					values = values or {}
-
-					-- Copy first: callers may pass opts.Values itself.
-					local refreshedValues = {}
-					for _, value in ipairs(values) do
-						table.insert(refreshedValues, value)
-					end
-					values = refreshedValues
-
-					for _, item in ipairs(elements) do
-						item.button:Destroy()
+				function Dropdown:SetText(text)
+					if not destroyed then
+						header.Text = tostring(text or name)
 					end
 
-					table.clear(elements)
-					table.clear(opts.Values)
-					table.clear(Multipicked)
+					return self
+				end
 
+				function Dropdown:SetCallback(fn)
+					assert(
+						fn == nil or type(fn) == "function",
+						"Dropdown:SetCallback expects a function or nil"
+					)
+
+					callback = fn
+					return self
+				end
+
+				--==========================================================
+				-- REFRESH / CLEAR / REMOVE
+				--==========================================================
+
+				function Dropdown:Refresh(newValues, defaultValue, silent)
+					if destroyed then
+						return self
+					end
+
+					-- Copy first. The caller may pass option.Values itself.
+					local refreshed = copyUnique(newValues)
+					local previous = getValue()
+
+					destroyItems()
+					table.clear(values)
+					table.clear(selectedIndices)
 					picked = nil
 
-					for _, value in ipairs(values) do
-						self:AddItem(value)
+					for _, value in ipairs(refreshed) do
+						table.insert(values, value)
 					end
 
-					setValue(defaultValue, true)
+					buildItems()
+
+					if defaultValue ~= nil then
+						setValue(defaultValue, true)
+					else
+						-- Preserve selections by value, not their former index.
+						if multi then
+							for _, oldValue in ipairs(previous) do
+								local index = table.find(values, oldValue)
+
+								if index then
+									selectedIndices[index] = true
+								end
+							end
+						elseif previous ~= nil and table.find(values, previous) then
+							picked = previous
+						end
+
+						updateUI()
+					end
+
+					holder.CanvasPosition = Vector2.zero
+
+					-- Refresh is silent by default.
+					if silent == false and not equalValues(previous, getValue()) then
+						notifyChanged()
+					end
+
+					return self
 				end
 
-				for _, value in ipairs(opts.Values) do
-					Dropdown:AddItem(value)
+				function Dropdown:SetValues(newValues, defaultValue, silent)
+					return self:Refresh(newValues, defaultValue, silent)
 				end
 
-				-- Apply defaults without firing callbacks during initialization.
-				if opts.Default ~= nil then
-					setValue(opts.Default, true)
-				else
-					updateSelectedText()
-					updateItems()
+				function Dropdown:Clear(silent)
+					return self:Refresh({}, nil, silent)
 				end
+
+				function Dropdown:AddItem(itemName)
+					if destroyed then
+						return nil
+					end
+
+					local existingIndex = table.find(values, itemName)
+
+					if existingIndex then
+						return elements[existingIndex]
+					end
+
+					local updated = table.clone(values)
+					table.insert(updated, itemName)
+
+					self:Refresh(updated)
+
+					local index = table.find(values, itemName)
+					return index and elements[index] or nil
+				end
+
+				function Dropdown:RemoveItem(itemName, silent)
+					if destroyed then
+						return false
+					end
+
+					-- RemoveItem uses the actual item value, not an index.
+					local index = table.find(values, itemName)
+
+					if not index then
+						return false
+					end
+
+					local updated = table.clone(values)
+					table.remove(updated, index)
+
+					self:Refresh(updated, nil, silent)
+
+					return true
+				end
+
+				function Dropdown:Open()
+					if not destroyed and #values > 0 then
+						isOpen = true
+						updateHolderSize()
+					end
+
+					return self
+				end
+
+				function Dropdown:Close()
+					if not destroyed then
+						isOpen = false
+						updateHolderSize()
+					end
+
+					return self
+				end
+
+				--==========================================================
+				-- CLEANUP
+				--==========================================================
+
+				local function cleanup()
+					if destroyed then
+						return
+					end
+
+					destroyed = true
+
+					destroyItems()
+
+					for _, connection in ipairs(connections) do
+						connection:Disconnect()
+					end
+
+					table.clear(connections)
+
+					if library.Options[name] == option then
+						library.Options[name] = nil
+					end
+
+					option.Controller = nil
+					changedEvent:Destroy()
+				end
+
+				function Dropdown:Destroy()
+					if destroyed then
+						return
+					end
+
+					cleanup()
+					main:Destroy()
+				end
+
+				connect(main.Destroying, cleanup)
+
+				connect(button.MouseButton1Click, function()
+					if destroyed then
+						return
+					end
+
+					isOpen = not isOpen
+					updateHolderSize()
+				end)
+
+				--==========================================================
+				-- OPTION API
+				--==========================================================
+
+				-- Both APIs operate on the same dropdown:
+				-- dropdown:Refresh(...)
+				-- library.Options[name]:Refresh(...)
+
+				local forwardedMethods = {
+					"GetValue",
+					"GetIndex",
+					"GetValues",
+					"SetValue",
+					"SetValues",
+					"Refresh",
+					"Clear",
+					"AddItem",
+					"RemoveItem",
+					"GetInstance",
+					"SetText",
+					"SetCallback",
+					"Open",
+					"Close",
+					"Destroy",
+				}
+
+				for _, methodName in ipairs(forwardedMethods) do
+					local method = Dropdown[methodName]
+
+					option[methodName] = function(_, ...)
+						return method(Dropdown, ...)
+					end
+				end
+
+				--==========================================================
+				-- INITIALIZATION
+				--==========================================================
 
 				Dropdown.Instance = selectedLabel
+				Dropdown.Main = main
+				Dropdown.Header = header
 				Dropdown.Holder = holder
 				Dropdown.Option = option
+				Dropdown.OnChanged = changedEvent.Event
+
+				if typeof(library.FontFace) == "Font" then
+					header.FontFace = library.FontFace
+					selectedLabel.FontFace = library.FontFace
+				end
+
+				-- No mutation of opts.Values and no initialization callbacks.
+				Dropdown:Refresh(opts.Values or {}, opts.Default, true)
 
 				return Dropdown
 			end
@@ -8983,5 +9671,4 @@ table.insert(connections, InputService.InputBegan:Connect(function(input, gamePr
 end))
 
 _G.Library = library
-
 return library
