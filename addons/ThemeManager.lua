@@ -1,17 +1,4 @@
 
---[[
-    ConfigManager.lua
-    Plain JSON config manager for the custom UI library in your pasted code.
-
-    Supports:
-      * library.Options controls exposing GetValue/SetValue (sliders, dropdowns, inputs)
-      * library.Toggles after exposing the toggle table (patch below)
-      * Color3, EnumItem, and multi-select dropdown values
-      * Save / Load / Create / Delete / Refresh / Export / Import / Reset
-
-    Filesystem functions (makefolder, isfolder, writefile, readfile, listfiles,
-    delfile) are executor-specific. If unavailable, Export/Import still work.
-]]
 local HttpService = game:GetService("HttpService")
 
 local ThemeManager = {}
