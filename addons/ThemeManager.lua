@@ -119,6 +119,7 @@ ThemeManager.BuiltInThemes = {
 		UIstroke = Color3.fromRGB(70, 54, 94),
 		Font = Enum.Font.Code,
 	},
+}
 
     --==============================================================
 -- GENERAL HELPERS
