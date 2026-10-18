@@ -12,8 +12,6 @@
     Filesystem functions (makefolder, isfolder, writefile, readfile, listfiles,
     delfile) are executor-specific. If unavailable, Export/Import still work.
 ]]
-
-print("lelouch commands you to go kill yourself. and jump off a bridge")
 local HttpService = game:GetService("HttpService")
 
 local ConfigManager = {
