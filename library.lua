@@ -4471,11 +4471,6 @@ function library:NewWindow(configuration)
 				button.MouseButton1Click:Connect(toggleOpen)
 
 				function Dropdown:AddItem(itemName)
-					if #opts.Values >= maxItems then
-						warn("Dropdown maximum is 10 items.")
-						return nil
-					end
-
 					table.insert(opts.Values, itemName)
 
 					local index = #opts.Values
@@ -4538,11 +4533,6 @@ function library:NewWindow(configuration)
 						table.insert(refreshedValues, value)
 					end
 					values = refreshedValues
-
-					if #values > maxItems then
-						warn("Dropdown supports a maximum of 25 items.")
-						return
-					end
 
 					for _, item in ipairs(elements) do
 						item.button:Destroy()
