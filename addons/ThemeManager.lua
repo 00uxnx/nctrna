@@ -12,9 +12,6 @@
     Filesystem functions (makefolder, isfolder, writefile, readfile, listfiles,
     delfile) are executor-specific. If unavailable, Export/Import still work.
 ]]
-print("lelouch commands you to go kill yourself.")
-warn("Required thememanager")
-
 local HttpService = game:GetService("HttpService")
 
 local ThemeManager = {}
