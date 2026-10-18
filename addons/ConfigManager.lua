@@ -1,4 +1,19 @@
 
+--[[
+    ConfigManager.lua
+    Plain JSON config manager for the custom UI library in your pasted code.
+
+    Supports:
+      * library.Options controls exposing GetValue/SetValue (sliders, dropdowns, inputs)
+      * library.Toggles after exposing the toggle table (patch below)
+      * Color3, EnumItem, and multi-select dropdown values
+      * Save / Load / Create / Delete / Refresh / Export / Import / Reset
+
+    Filesystem functions (makefolder, isfolder, writefile, readfile, listfiles,
+    delfile) are executor-specific. If unavailable, Export/Import still work.
+]]
+
+print("lelouch commands you to go kill yourself. and jump off a bridge")
 local HttpService = game:GetService("HttpService")
 
 local ConfigManager = {
@@ -115,6 +130,16 @@ local function getControlValue(control)
 
     if type(control.GetValue) == "function" then
         local ok, value = pcall(control.GetValue, control)
+        if ok then
+            return value
+        end
+    end
+
+    -- Dropdowns in this UI are option records; their live controller owns
+    -- GetValue(), while option.Value is only a mirrored state field.
+    if type(control.Controller) == "table"
+        and type(control.Controller.GetValue) == "function" then
+        local ok, value = pcall(control.Controller.GetValue, control.Controller)
         if ok then
             return value
         end
@@ -313,6 +338,16 @@ local function applyOption(option, value)
 
     if type(option.SetValue) == "function" then
         local ok, err = pcall(option.SetValue, option, value, true)
+        if ok then return true end
+        return false, err
+    end
+
+    -- Dropdowns are stored as option records and expose their live API on
+    -- option.Controller, not directly on option. Apply through the controller
+    -- so the visible selection and callback/state stay synchronized.
+    if option.Type == "Dropdown" and type(option.Controller) == "table"
+        and type(option.Controller.SetValue) == "function" then
+        local ok, err = pcall(option.Controller.SetValue, option.Controller, value, true)
         if ok then return true end
         return false, err
     end
