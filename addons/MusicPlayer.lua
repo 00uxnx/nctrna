@@ -11,7 +11,7 @@ local MusicModule = {
     Show = false,
     PollInterval = 5,
 
-    Root = "nocturne.bz/player",
+    Root = "Nocturne.bz/player",
     PlaceholderImage = "rbxassetid://11653546524",
 
     MaxDownloadBytes = 40 * 1024 * 1024,
