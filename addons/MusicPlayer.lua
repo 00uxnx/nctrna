@@ -17,6 +17,8 @@ local MusicModule = {
     MaxDownloadBytes = 40 * 1024 * 1024,
 }
 
+print("loaded musicmodule v2")
+
 local activePlayer
 
 function MusicModule:SetLibrary(value)
