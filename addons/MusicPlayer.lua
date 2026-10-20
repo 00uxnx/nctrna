@@ -6,20 +6,18 @@ local RunService = game:GetService("RunService")
 local MusicModule = {
     Library = nil,
     SpotifyModule = nil,
+    SpotifyLoginModule = nil,
     YouTubeResolver = nil,
 
+    Root = "nocturne.bz/player",
     Show = false,
     PollInterval = 5,
-
-    Root = "Nocturne.bz/player",
-    PlaceholderImage = "rbxassetid://11653546524",
-
     MaxDownloadBytes = 40 * 1024 * 1024,
+    PlaceholderImage = "rbxassetid://11653546524",
 }
 
-print("loaded musicmodule v2")
-
 local activePlayer
+local REDIRECT_URI = "http://127.0.0.1:8888/callback"
 
 function MusicModule:SetLibrary(value)
     self.Library = value
@@ -31,16 +29,16 @@ function MusicModule:SetSpotifyModule(value)
     return self
 end
 
--- Optional integration contract:
--- resolver(url) -> array of:
--- {
---     title = "Track",
---     artist = "Artist",
---     audioUrl = "https://.../authorized-audio.mp3",
---     artworkUrl = "https://.../cover.jpg", -- optional
--- }
---
--- The resolver must supply actual downloadable audio URLs.
+function MusicModule:SetSpotifyLoginModule(value)
+    assert(
+        type(value) == "table" and type(value.new) == "function",
+        "Expected the SpotifyLogin module."
+    )
+
+    self.SpotifyLoginModule = value
+    return self
+end
+
 function MusicModule:SetYouTubeResolver(callback)
     assert(
         callback == nil or type(callback) == "function",
@@ -75,13 +73,18 @@ local function trim(value)
     return tostring(value or ""):match("^%s*(.-)%s*$")
 end
 
+local function normalizePath(value)
+    return tostring(value or ""):gsub("\\", "/")
+end
+
 local function safeName(value)
     local name = trim(value):gsub("[^%w%s_%-]", "_")
     name = name:gsub("%s+", " "):sub(1, 70)
+
     return name ~= "" and name or "Untitled"
 end
 
-local function timeText(seconds)
+local function formatTime(seconds)
     seconds = math.floor(math.max(0, tonumber(seconds) or 0))
 
     return string.format(
@@ -89,10 +92,6 @@ local function timeText(seconds)
         math.floor(seconds / 60),
         seconds % 60
     )
-end
-
-local function normalizePath(path)
-    return tostring(path):gsub("\\", "/")
 end
 
 local function isYouTubeURL(url)
@@ -118,11 +117,11 @@ function MusicModule:CreatePlayermdl(window)
     local requestFn = resolveRequest()
     local assetFn = resolveAsset()
 
-    local root = self.Root
+    local root = normalizePath(self.Root):gsub("/+$", "")
     local mp3Folder = root .. "/mp3"
+    local artworkFolder = root .. "/artwork"
     local linksFolder = root .. "/links"
     local playlistsFolder = root .. "/playlists"
-    local artworkFolder = root .. "/artwork"
 
     local queueFile = playlistsFolder .. "/default.json"
     local linksFile = linksFolder .. "/saved.json"
@@ -135,27 +134,29 @@ function MusicModule:CreatePlayermdl(window)
     local connections = {}
     local queue = {}
     local savedLinks = {}
+    local artworkCache = {}
 
-    local selected = 0
-    local source = "local"
     local destroyed = false
-    local busy = false
-    local operation = 0
+    local source = "local"
+    local selected = 0
+    local savedIndex = 0
+
+    local downloadBusy = false
+    local spotifyBusy = false
+    local loginBusy = false
+
+    local sessionVersion = 0
     local audioVersion = 0
-    local artVersion = 0
+    local artworkVersion = 0
 
     local spotify
+    local spotifyAuth
     local spotifyState
     local spotifyReceivedAt = os.clock()
+    local currentArtworkURL
 
-    local artCache = {}
-    local currentArt
     local refreshQueue
     local playTrack
-
-    local strokeColor = library.UIstroke
-        or library.UIStroke
-        or Color3.new(0, 0, 0)
 
     local function connect(signal, callback)
         local connection = signal:Connect(callback)
@@ -167,21 +168,21 @@ function MusicModule:CreatePlayermdl(window)
         return library:Create(class, properties, ...)
     end
 
-    local function bind(property, value)
+    local function binding(property, value)
         return {
             instancep = property,
             tinstance = value,
         }
     end
 
-    local function outline(parent)
+    local function border(parent)
         return create("UIStroke", {
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
             LineJoinMode = Enum.LineJoinMode.Miter,
-            Color = library.SecondaryColor,
             Thickness = 1,
+            Color = library.SecondaryColor,
             Parent = parent,
-        }, bind("Color", library.SecondaryColor))
+        }, binding("Color", library.SecondaryColor))
     end
 
     local function frame(parent, name, position, size, transparent)
@@ -192,10 +193,10 @@ function MusicModule:CreatePlayermdl(window)
             BackgroundColor3 = library.MainColor,
             BackgroundTransparency = transparent and 1 or 0,
             Parent = parent,
-        }, bind("BackgroundColor3", library.MainColor))
+        }, binding("BackgroundColor3", library.MainColor))
     end
 
-    local function text(parent, name, value, position, size, fontSize)
+    local function label(parent, name, value, position, size, fontSize)
         return create("TextLabel", {
             Name = name,
             Position = position,
@@ -209,8 +210,8 @@ function MusicModule:CreatePlayermdl(window)
             TextTruncate = Enum.TextTruncate.AtEnd,
             Parent = parent,
         },
-            bind("Font", library.Font),
-            bind("TextColor3", library.FontColor)
+            binding("Font", library.Font),
+            binding("TextColor3", library.FontColor)
         )
     end
 
@@ -224,14 +225,15 @@ function MusicModule:CreatePlayermdl(window)
             TextColor3 = library.FontColor,
             TextSize = 13,
             Text = value,
+            AutoButtonColor = true,
             Parent = parent,
         },
-            bind("BackgroundColor3", library.MainColor),
-            bind("Font", library.Font),
-            bind("TextColor3", library.FontColor)
+            binding("BackgroundColor3", library.MainColor),
+            binding("Font", library.Font),
+            binding("TextColor3", library.FontColor)
         )
 
-        outline(object)
+        border(object)
         return object
     end
 
@@ -246,18 +248,18 @@ function MusicModule:CreatePlayermdl(window)
             TextSize = 13,
             Text = "",
             PlaceholderText = placeholder,
-            PlaceholderColor3 = Color3.fromRGB(130, 130, 130),
+            PlaceholderColor3 = Color3.fromRGB(125, 125, 125),
             ClearTextOnFocus = false,
             MultiLine = false,
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = parent,
         },
-            bind("BackgroundColor3", library.MainColor),
-            bind("Font", library.Font),
-            bind("TextColor3", library.FontColor)
+            binding("BackgroundColor3", library.MainColor),
+            binding("Font", library.Font),
+            binding("TextColor3", library.FontColor)
         )
 
-        outline(object)
+        border(object)
 
         create("UIPadding", {
             PaddingLeft = UDim.new(0, 6),
@@ -268,6 +270,7 @@ function MusicModule:CreatePlayermdl(window)
         return object
     end
 
+    -- Window.
     local main = frame(
         library.scgo,
         "MusicPlayer",
@@ -278,22 +281,22 @@ function MusicModule:CreatePlayermdl(window)
     main.AnchorPoint = Vector2.new(0.5, 0.5)
     main.Visible = self.Show
     main.Active = true
-    outline(main)
+    border(main)
 
     create("Frame", {
         Name = "Accent",
         Size = UDim2.new(1, 0, 0, 1),
         BackgroundColor3 = library.AccentColor,
         Parent = main,
-    }, bind("BackgroundColor3", library.AccentColor))
+    }, binding("BackgroundColor3", library.AccentColor))
 
-    local header = text(
-        main, "Header", "Music Player",
+    local header = label(
+        main, "Header", "Music Player - MP3",
         UDim2.fromOffset(9, 3),
-        UDim2.new(1, -40, 0, 21), 14
+        UDim2.new(1, -44, 0, 21), 14
     )
 
-    local close = button(
+    local hideButton = button(
         main, "Hide", "x",
         UDim2.new(1, -26, 0, 5),
         UDim2.fromOffset(19, 17)
@@ -306,29 +309,30 @@ function MusicModule:CreatePlayermdl(window)
     )
 
     local localTab = button(
-        tabs, "MP3", "MP3 / Library",
+        tabs, "LocalTab", "MP3 / Library",
         UDim2.fromOffset(0, 0),
         UDim2.fromOffset(184, 23)
     )
 
     local linksTab = button(
-        tabs, "Links", "Links / Download",
+        tabs, "LinksTab", "Links / Download",
         UDim2.fromOffset(194, 0),
         UDim2.fromOffset(184, 23)
     )
 
     local spotifyTab = button(
-        tabs, "Spotify", "Spotify",
+        tabs, "SpotifyTab", "Spotify",
         UDim2.fromOffset(388, 0),
         UDim2.fromOffset(184, 23)
     )
 
+    -- Song panel.
     local songPanel = frame(
         main, "Song",
         UDim2.fromOffset(8, 66),
         UDim2.new(1, -16, 0, 119)
     )
-    outline(songPanel)
+    border(songPanel)
 
     local artwork = create("ImageLabel", {
         Name = "Artwork",
@@ -339,15 +343,15 @@ function MusicModule:CreatePlayermdl(window)
         ScaleType = Enum.ScaleType.Fit,
         Parent = songPanel,
     })
-    outline(artwork)
+    border(artwork)
 
-    local title = text(
+    local title = label(
         songPanel, "Title", "No track selected",
         UDim2.fromOffset(115, 10),
         UDim2.new(1, -126, 0, 25), 16
     )
 
-    local artist = text(
+    local artist = label(
         songPanel, "Artist", "Local MP3 player",
         UDim2.fromOffset(115, 37),
         UDim2.new(1, -126, 0, 20), 13
@@ -358,16 +362,16 @@ function MusicModule:CreatePlayermdl(window)
         UDim2.fromOffset(115, 67),
         UDim2.new(1, -127, 0, 6)
     )
-    outline(timeline)
+    border(timeline)
 
-    local fill = create("Frame", {
+    local progressFill = create("Frame", {
         Name = "Progress",
         Size = UDim2.fromScale(0, 1),
         BackgroundColor3 = library.AccentColor,
         Parent = timeline,
-    }, bind("BackgroundColor3", library.AccentColor))
+    }, binding("BackgroundColor3", library.AccentColor))
 
-    local seek = create("TextButton", {
+    local seekButton = create("TextButton", {
         Name = "Seek",
         Position = UDim2.fromOffset(0, -4),
         Size = UDim2.new(1, 0, 1, 8),
@@ -377,26 +381,26 @@ function MusicModule:CreatePlayermdl(window)
         Parent = timeline,
     })
 
-    local currentLabel = text(
+    local currentLabel = label(
         songPanel, "Current", "00:00",
         UDim2.fromOffset(115, 79),
         UDim2.fromOffset(55, 18), 12
     )
 
-    local durationLabel = text(
+    local durationLabel = label(
         songPanel, "Duration", "00:00",
         UDim2.new(1, -68, 0, 79),
         UDim2.fromOffset(55, 18), 12
     )
     durationLabel.TextXAlignment = Enum.TextXAlignment.Right
 
-    local previous = button(
+    local previousButton = button(
         songPanel, "Previous", "<<",
         UDim2.fromOffset(205, 83),
         UDim2.fromOffset(43, 25)
     )
 
-    local play = button(
+    local playButton = button(
         songPanel, "PlayPause", ">",
         UDim2.fromOffset(273, 83),
         UDim2.fromOffset(43, 25)
@@ -408,6 +412,7 @@ function MusicModule:CreatePlayermdl(window)
         UDim2.fromOffset(43, 25)
     )
 
+    -- Pages.
     local pages = frame(
         main, "Pages",
         UDim2.fromOffset(8, 196),
@@ -434,13 +439,14 @@ function MusicModule:CreatePlayermdl(window)
     )
     spotifyPage.Visible = false
 
-    local scan = button(
+    -- Local page.
+    local scanButton = button(
         localPage, "Scan", "Scan MP3 folder",
         UDim2.fromOffset(0, 0),
         UDim2.fromOffset(150, 23)
     )
 
-    local clear = button(
+    local clearButton = button(
         localPage, "Clear", "Clear playlist",
         UDim2.fromOffset(160, 0),
         UDim2.fromOffset(130, 23)
@@ -453,7 +459,7 @@ function MusicModule:CreatePlayermdl(window)
     )
     volumeBox.Text = "50"
 
-    local list = create("ScrollingFrame", {
+    local playlist = create("ScrollingFrame", {
         Name = "Playlist",
         Position = UDim2.fromOffset(0, 33),
         Size = UDim2.new(1, 0, 1, -33),
@@ -461,14 +467,18 @@ function MusicModule:CreatePlayermdl(window)
         CanvasSize = UDim2.fromOffset(0, 0),
         AutomaticCanvasSize = Enum.AutomaticSize.Y,
         ScrollBarThickness = 3,
+        ScrollBarImageColor3 = library.AccentColor,
         Parent = localPage,
-    }, bind("BackgroundColor3", library.MainColor))
-    outline(list)
+    },
+        binding("BackgroundColor3", library.MainColor),
+        binding("ScrollBarImageColor3", library.AccentColor)
+    )
+    border(playlist)
 
     create("UIListLayout", {
         Padding = UDim.new(0, 4),
         SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = list,
+        Parent = playlist,
     })
 
     create("UIPadding", {
@@ -476,9 +486,10 @@ function MusicModule:CreatePlayermdl(window)
         PaddingRight = UDim.new(0, 4),
         PaddingTop = UDim.new(0, 4),
         PaddingBottom = UDim.new(0, 4),
-        Parent = list,
+        Parent = playlist,
     })
 
+    -- Download page.
     local urlBox = input(
         linksPage, "URL", "Direct HTTPS MP3/OGG URL or YouTube link",
         UDim2.fromOffset(0, 0),
@@ -486,79 +497,125 @@ function MusicModule:CreatePlayermdl(window)
     )
 
     local nameBox = input(
-        linksPage, "Name", "Track name (optional)",
+        linksPage, "TrackName", "Track name (optional)",
         UDim2.fromOffset(0, 35),
         UDim2.new(1, 0, 0, 25)
     )
 
-    local download = button(
+    local downloadButton = button(
         linksPage, "Download", "Download / Add",
         UDim2.fromOffset(0, 72),
         UDim2.fromOffset(180, 25)
     )
 
-    local saveLink = button(
+    local saveLinkButton = button(
         linksPage, "SaveLink", "Save link",
         UDim2.fromOffset(192, 72),
         UDim2.fromOffset(180, 25)
     )
 
-    local nextSaved = button(
+    local savedLinkButton = button(
         linksPage, "SavedLinks", "Next saved link",
         UDim2.fromOffset(384, 72),
         UDim2.new(1, -384, 0, 25)
     )
 
-    local linkInfo = text(
+    local downloadInfo = label(
         linksPage, "Info",
-        "Direct audio downloads work without a converter.\n"
-            .. "YouTube downloads require a configured resolver.\n"
+        "Direct MP3/OGG downloads do not need a converter.\n"
+            .. "YouTube downloads need a configured resolver.\n"
             .. "Files: " .. mp3Folder .. "\n"
             .. "Only download audio you have permission to use.",
         UDim2.fromOffset(0, 110),
         UDim2.new(1, 0, 0, 80), 13
     )
-    linkInfo.TextWrapped = true
-    linkInfo.TextTruncate = Enum.TextTruncate.None
-    linkInfo.TextYAlignment = Enum.TextYAlignment.Top
+    downloadInfo.TextWrapped = true
+    downloadInfo.TextTruncate = Enum.TextTruncate.None
+    downloadInfo.TextYAlignment = Enum.TextYAlignment.Top
 
-    local tokenBox = input(
-        spotifyPage, "Token", "Spotify OAuth access token",
+    -- Spotify page.
+    label(
+        spotifyPage, "ClientLabel", "Client ID",
         UDim2.fromOffset(0, 0),
-        UDim2.new(1, 0, 0, 25)
+        UDim2.fromOffset(90, 23), 12
     )
 
-    local spotifyConnect = button(
-        spotifyPage, "Connect", "Connect Spotify",
-        UDim2.fromOffset(0, 37),
-        UDim2.fromOffset(180, 25)
+    local clientIdBox = input(
+        spotifyPage, "ClientID", "Paste your Spotify app client ID",
+        UDim2.fromOffset(95, 0),
+        UDim2.new(1, -95, 0, 23)
     )
 
-    local spotifyDisconnect = button(
+    label(
+        spotifyPage, "RedirectLabel", "Redirect URL",
+        UDim2.fromOffset(0, 31),
+        UDim2.fromOffset(90, 23), 12
+    )
+
+    local redirectBox = input(
+        spotifyPage, "RedirectURL", "",
+        UDim2.fromOffset(95, 31),
+        UDim2.new(1, -95, 0, 23)
+    )
+    redirectBox.Text = REDIRECT_URI
+    redirectBox.TextEditable = false
+
+    local beginLoginButton = button(
+        spotifyPage, "BeginLogin", "1. Copy Login Link",
+        UDim2.fromOffset(0, 65),
+        UDim2.fromOffset(180, 24)
+    )
+
+    local copyRedirectButton = button(
+        spotifyPage, "CopyRedirect", "Copy Redirect URL",
+        UDim2.fromOffset(192, 65),
+        UDim2.fromOffset(180, 24)
+    )
+
+    local disconnectButton = button(
         spotifyPage, "Disconnect", "Disconnect",
-        UDim2.fromOffset(192, 37),
-        UDim2.fromOffset(180, 25)
+        UDim2.fromOffset(384, 65),
+        UDim2.new(1, -384, 0, 24)
     )
 
-    local spotifyInfo = text(
-        spotifyPage, "Info",
-        "Optional Spotify mode uses your existing Spotify API module.\n"
-            .. "Spotify account/API restrictions still apply.\n"
-            .. "Local MP3 playback does not need Spotify.",
-        UDim2.fromOffset(0, 77),
-        UDim2.new(1, 0, 0, 80), 13
+    local loginLinkBox = input(
+        spotifyPage, "LoginLink",
+        "Your login link appears here. Open it in your browser.",
+        UDim2.fromOffset(0, 99),
+        UDim2.new(1, 0, 0, 23)
+    )
+    loginLinkBox.TextEditable = false
+
+    local callbackBox = input(
+        spotifyPage, "Callback",
+        "2. Paste the FULL redirected browser address",
+        UDim2.fromOffset(0, 132),
+        UDim2.new(1, -190, 0, 24)
+    )
+
+    local completeLoginButton = button(
+        spotifyPage, "CompleteLogin", "3. Complete Login",
+        UDim2.new(1, -180, 0, 132),
+        UDim2.fromOffset(180, 24)
+    )
+
+    local spotifyInfo = label(
+        spotifyPage, "Instructions",
+        "Sign in in your browser. Copy the callback address even if its page cannot load.",
+        UDim2.fromOffset(0, 165),
+        UDim2.new(1, 0, 0, 26), 12
     )
     spotifyInfo.TextWrapped = true
     spotifyInfo.TextTruncate = Enum.TextTruncate.None
     spotifyInfo.TextYAlignment = Enum.TextYAlignment.Top
 
-    local status = text(
+    local statusLabel = label(
         main, "Status", "Ready.",
         UDim2.fromOffset(9, 396),
         UDim2.new(1, -18, 0, 27), 12
     )
-    status.TextWrapped = true
-    status.TextTruncate = Enum.TextTruncate.None
+    statusLabel.TextWrapped = true
+    statusLabel.TextTruncate = Enum.TextTruncate.None
 
     local sound = Instance.new("Sound")
     sound.Name = "NocturneMusicPlayer"
@@ -567,8 +624,14 @@ function MusicModule:CreatePlayermdl(window)
 
     local function message(value)
         if not destroyed then
-            status.Text = tostring(value)
+            statusLabel.Text = tostring(value)
         end
+    end
+
+    local function showPage(page)
+        localPage.Visible = page == "local"
+        linksPage.Visible = page == "links"
+        spotifyPage.Visible = page == "spotify"
     end
 
     local function ensureFolders()
@@ -589,7 +652,10 @@ function MusicModule:CreatePlayermdl(window)
         end
 
         for _, folder in ipairs({
-            mp3Folder, linksFolder, playlistsFolder, artworkFolder,
+            mp3Folder,
+            artworkFolder,
+            linksFolder,
+            playlistsFolder,
         }) do
             if not isfolder(folder) then
                 makefolder(folder)
@@ -610,11 +676,24 @@ function MusicModule:CreatePlayermdl(window)
             return nil
         end
 
-        local ok, value = pcall(function()
+        local ok, result = pcall(function()
             return HttpService:JSONDecode(readfile(path))
         end)
 
-        return ok and type(value) == "table" and value or nil
+        if ok and type(result) == "table" then
+            return result
+        end
+    end
+
+    local function validLocalPath(path)
+        path = normalizePath(path)
+
+        return path:sub(1, #mp3Folder + 1) == mp3Folder .. "/"
+            and not path:find("..", 1, true)
+            and (
+                path:lower():match("%.mp3$") ~= nil
+                or path:lower():match("%.ogg$") ~= nil
+            )
     end
 
     local function saveQueue()
@@ -624,7 +703,7 @@ function MusicModule:CreatePlayermdl(window)
         end)
 
         if not ok then
-            message("Playlist changed, but could not be saved.")
+            message("Playlist updated, but saving failed.")
         end
     end
 
@@ -641,37 +720,46 @@ function MusicModule:CreatePlayermdl(window)
         })
 
         assert(type(response) == "table", "Invalid HTTP response.")
-        assert(
-            tonumber(response.StatusCode or response.Status) == 200,
-            "Download failed: HTTP "
-                .. tostring(response.StatusCode or response.Status)
+
+        local status = tonumber(
+            response.StatusCode or response.Status
         )
 
-        local body = response.Body
+        assert(
+            status == 200,
+            "Download failed: HTTP " .. tostring(status)
+        )
 
-        assert(type(body) == "string" and #body > 0, "Empty download.")
-        assert(#body <= maximum, "Download exceeds the size limit.")
+        local bytes = response.Body
 
-        return body
+        assert(
+            type(bytes) == "string" and #bytes > 0,
+            "Empty download."
+        )
+
+        -- Checked after the HTTP function returns the response.
+        assert(#bytes <= maximum, "Download exceeds the size limit.")
+
+        return bytes
     end
 
     local function setArtwork(url)
-        if currentArt == url then
+        if currentArtworkURL == url then
             return
         end
 
-        currentArt = url
-        artVersion += 1
+        currentArtworkURL = url
+        artworkVersion += 1
 
-        local version = artVersion
+        local version = artworkVersion
         artwork.Image = self.PlaceholderImage
 
         if type(url) ~= "string" or not url:match("^https://") then
             return
         end
 
-        if artCache[url] then
-            artwork.Image = artCache[url]
+        if artworkCache[url] then
+            artwork.Image = artworkCache[url]
             return
         end
 
@@ -692,7 +780,7 @@ function MusicModule:CreatePlayermdl(window)
                     error("Unsupported artwork format.")
                 end
 
-                if destroyed or version ~= artVersion then
+                if destroyed or version ~= artworkVersion then
                     return nil
                 end
 
@@ -705,18 +793,38 @@ function MusicModule:CreatePlayermdl(window)
                 return assetFn(path)
             end)
 
-            if destroyed or version ~= artVersion then
+            if destroyed or version ~= artworkVersion then
                 return
             end
 
-            if ok and type(asset) == "string" then
-                artCache[url] = asset
+            if ok and type(asset) == "string" and asset ~= "" then
+                artworkCache[url] = asset
                 artwork.Image = asset
             end
         end)
     end
 
-    local function stopSpotify()
+    local function resetSong()
+        title.Text = "No track selected"
+        artist.Text = "Local MP3 player"
+        playButton.Text = ">"
+        currentLabel.Text = "00:00"
+        durationLabel.Text = "00:00"
+        progressFill.Size = UDim2.fromScale(0, 1)
+        setArtwork(nil)
+    end
+
+    local function clearLogin()
+        if spotifyAuth then
+            spotifyAuth:Destroy()
+            spotifyAuth = nil
+        end
+
+        loginLinkBox.Text = ""
+        callbackBox.Text = ""
+    end
+
+    local function stopSpotifyPolling()
         if spotify then
             spotify:StopPolling()
         end
@@ -725,58 +833,35 @@ function MusicModule:CreatePlayermdl(window)
     end
 
     local function activateLocal()
-        if source ~= "local" then
-            operation += 1
-            busy = false
-            stopSpotify()
-            source = "local"
+        sessionVersion += 1
+        spotifyBusy = false
 
-            title.Text = "No track selected"
-            artist.Text = "Local MP3 player"
-            play.Text = ">"
-            setArtwork(nil)
-        end
+        stopSpotifyPolling()
 
+        source = "local"
         header.Text = "Music Player - MP3"
     end
 
-    local function showPage(page)
-        localPage.Visible = page == "local"
-        linksPage.Visible = page == "links"
-        spotifyPage.Visible = page == "spotify"
-    end
-
-    local function validLocalPath(path)
-        path = normalizePath(path)
-
-        return path:sub(1, #mp3Folder + 1) == mp3Folder .. "/"
-            and not path:find("..", 1, true)
-            and (
-                path:lower():match("%.mp3$")
-                or path:lower():match("%.ogg$")
-            )
-    end
-
     refreshQueue = function()
-        for _, child in ipairs(list:GetChildren()) do
-            if child:IsA("TextButton") then
-                child:Destroy()
+        for _, object in ipairs(playlist:GetChildren()) do
+            if object:IsA("TextButton") then
+                object:Destroy()
             end
         end
 
         for index, track in ipairs(queue) do
             local row = button(
-                list,
+                playlist,
                 "Track_" .. index,
                 (index == selected and "> " or "")
                     .. tostring(track.title or "Untitled"),
                 UDim2.fromOffset(0, 0),
                 UDim2.new(1, -8, 0, 25)
             )
+
             row.LayoutOrder = index
             row.TextXAlignment = Enum.TextXAlignment.Left
 
-            -- This connection dies with its row.
             row.Activated:Connect(function()
                 playTrack(index)
             end)
@@ -785,6 +870,11 @@ function MusicModule:CreatePlayermdl(window)
 
     playTrack = function(index)
         if destroyed then
+            return
+        end
+
+        if loginBusy then
+            message("Wait for Spotify login to finish.")
             return
         end
 
@@ -800,7 +890,7 @@ function MusicModule:CreatePlayermdl(window)
         end
 
         if not validLocalPath(track.path) then
-            message("Track path is outside the MP3 folder or unsupported.")
+            message("Invalid local audio path.")
             return
         end
 
@@ -810,6 +900,7 @@ function MusicModule:CreatePlayermdl(window)
         local version = audioVersion
 
         sound:Stop()
+        sound.SoundId = ""
         selected = index
 
         title.Text = tostring(track.title or "Untitled")
@@ -819,7 +910,7 @@ function MusicModule:CreatePlayermdl(window)
 
         local ok = pcall(function()
             if type(isfile) == "function" then
-                assert(isfile(track.path), "File missing.")
+                assert(isfile(track.path), "Audio file is missing.")
             end
 
             sound.SoundId = assetFn(track.path)
@@ -827,14 +918,16 @@ function MusicModule:CreatePlayermdl(window)
         end)
 
         if not ok then
-            message("Could not play this local audio file.")
+            message("Could not play the local audio file.")
             return
         end
 
         message("Loading: " .. title.Text)
 
         task.delay(10, function()
-            if not destroyed and version == audioVersion
+            if not destroyed
+                and version == audioVersion
+                and source == "local"
                 and not sound.IsLoaded
             then
                 message(
@@ -864,10 +957,10 @@ function MusicModule:CreatePlayermdl(window)
             path = normalizePath(path)
 
             if validLocalPath(path) and not known[path] then
-                local name = path:match("([^/]+)$") or path
+                local filename = path:match("([^/]+)$") or path
 
                 table.insert(queue, {
-                    title = name:gsub("%.[^.]+$", ""),
+                    title = filename:gsub("%.[^.]+$", ""),
                     artist = "Local audio",
                     path = path,
                 })
@@ -879,6 +972,7 @@ function MusicModule:CreatePlayermdl(window)
 
         saveQueue()
         refreshQueue()
+
         message("Scan complete. Added " .. added .. " track(s).")
     end
 
@@ -897,23 +991,31 @@ function MusicModule:CreatePlayermdl(window)
             return ".mp3"
         end
 
-        error("URL did not return recognizable MP3/OGG audio.")
+        error("URL did not return recognizable MP3/OGG data.")
     end
 
-    local function downloadTrack(track, version)
+    local function downloadTrack(track)
         assert(type(track) == "table", "Invalid track.")
-        assert(type(track.audioUrl) == "string", "Missing audio URL.")
+        assert(
+            type(track.audioUrl) == "string",
+            "Resolver returned a track without audioUrl."
+        )
 
-        local bytes = fetchBytes(track.audioUrl, self.MaxDownloadBytes)
+        local bytes = fetchBytes(
+            track.audioUrl,
+            self.MaxDownloadBytes
+        )
+
         local extension = audioExtension(bytes)
 
-        if destroyed or version ~= operation then
+        if destroyed then
             return false
         end
 
         ensureFolders()
 
         local name = safeName(track.title or "Downloaded track")
+
         local path = mp3Folder .. "/" .. name .. "_"
             .. HttpService:GenerateGUID(false) .. extension
 
@@ -923,16 +1025,19 @@ function MusicModule:CreatePlayermdl(window)
             title = name,
             artist = tostring(track.artist or "Downloaded audio"),
             path = path,
-            artworkUrl = track.artworkUrl,
+            artworkUrl = type(track.artworkUrl) == "string"
+                and track.artworkUrl or nil,
             sourceUrl = track.sourceUrl or track.audioUrl,
         })
 
+        saveQueue()
+        refreshQueue()
         return true
     end
 
-    local function doDownload()
-        if busy then
-            message("Another operation is running.")
+    local function downloadURL()
+        if downloadBusy then
+            message("A download is already running.")
             return
         end
 
@@ -947,19 +1052,18 @@ function MusicModule:CreatePlayermdl(window)
 
         if youtube and type(self.YouTubeResolver) ~= "function" then
             message(
-                "YouTube downloading is not configured. "
-                    .. "Use a direct MP3/OGG link or local file."
+                "YouTube resolver is not configured. "
+                    .. "Use a direct MP3/OGG link or a local file."
             )
             return
         end
 
-        busy = true
-        operation += 1
-
-        local version = operation
-        local firstNew = #queue + 1
+        local requestedName = trim(nameBox.Text)
+        downloadBusy = true
 
         task.spawn(function()
+            local added = 0
+
             local ok, err = pcall(function()
                 local tracks
 
@@ -976,9 +1080,10 @@ function MusicModule:CreatePlayermdl(window)
                 else
                     tracks = {
                         {
-                            title = trim(nameBox.Text) ~= ""
-                                and trim(nameBox.Text)
+                            title = requestedName ~= ""
+                                and requestedName
                                 or "Downloaded track",
+                            artist = "Downloaded audio",
                             audioUrl = url,
                             sourceUrl = url,
                         },
@@ -986,7 +1091,7 @@ function MusicModule:CreatePlayermdl(window)
                 end
 
                 for index, track in ipairs(tracks) do
-                    if destroyed or version ~= operation then
+                    if destroyed then
                         return
                     end
 
@@ -994,34 +1099,30 @@ function MusicModule:CreatePlayermdl(window)
                         "Downloading " .. index .. "/" .. #tracks .. "..."
                     )
 
-                    downloadTrack(track, version)
-
-                    if destroyed or version ~= operation then
-                        return
+                    if downloadTrack(track) then
+                        added += 1
                     end
-
-                    saveQueue()
-                    refreshQueue()
                 end
             end)
 
-            if destroyed or version ~= operation then
+            downloadBusy = false
+
+            if destroyed then
                 return
             end
 
-            busy = false
-
             if not ok then
-                message("Download failed: " .. tostring(err))
+                message(
+                    "Download stopped after " .. added
+                        .. " track(s): " .. tostring(err)
+                )
                 return
             end
 
             showPage("local")
-            message("Download complete.")
-
-            if queue[firstNew] then
-                playTrack(firstNew)
-            end
+            message(
+                "Added " .. added .. " track(s). Click a track to play."
+            )
         end)
     end
 
@@ -1038,25 +1139,25 @@ function MusicModule:CreatePlayermdl(window)
         if not item then
             title.Text = "No active Spotify track"
             artist.Text = "Open Spotify and start a song."
-            play.Text = ">"
+            playButton.Text = ">"
             setArtwork(nil)
             return
         end
 
         title.Text = item.name or "Unknown track"
 
-        local names = {}
+        local artists = {}
 
         for _, entry in ipairs(item.artists or {}) do
-            table.insert(names, entry.name or "Unknown")
+            table.insert(artists, entry.name or "Unknown artist")
         end
 
-        artist.Text = #names > 0
-            and table.concat(names, ", ")
+        artist.Text = #artists > 0
+            and table.concat(artists, ", ")
             or (item.show and item.show.name)
             or "Spotify"
 
-        play.Text = state.is_playing and "||" or ">"
+        playButton.Text = state.is_playing and "||" or ">"
 
         local images = item.album and item.album.images
             or item.images
@@ -1066,56 +1167,67 @@ function MusicModule:CreatePlayermdl(window)
         setArtwork(image and image.url or nil)
     end
 
-    local function connectSpotify()
-        if busy then
-            return
+    local function ensureSpotifyClient()
+        if spotify then
+            return spotify
         end
 
-        if not self.SpotifyModule then
-            message("Call SetSpotifyModule before using Spotify.")
-            return
+        assert(
+            self.SpotifyModule
+                and type(self.SpotifyModule.new) == "function",
+            "Call SetSpotifyModule with your SpotifyAPI module."
+        )
+
+        spotify = self.SpotifyModule.new()
+        return spotify
+    end
+
+    local function connectSpotifyToken(accessToken)
+        if destroyed then
+            return false, "Player was destroyed."
         end
 
-        local token = trim(tokenBox.Text)
-
-        if token == "" then
-            message("Paste a Spotify OAuth access token.")
-            return
+        if spotifyBusy then
+            return false, "Spotify is busy."
         end
 
-        local made, result = pcall(function()
-            return spotify or self.SpotifyModule.new()
-        end)
+        if type(accessToken) ~= "string" or accessToken == "" then
+            return false, "Missing Spotify access token."
+        end
+
+        local made, result = pcall(ensureSpotifyClient)
 
         if not made then
-            message("Spotify module could not initialize.")
-            return
+            return false, tostring(result)
         end
 
-        spotify = result
-
-        operation += 1
+        sessionVersion += 1
         audioVersion += 1
 
-        local version = operation
-        busy = true
+        local version = sessionVersion
+        spotifyBusy = true
 
         sound:Stop()
-        stopSpotify()
+        stopSpotifyPolling()
+
         source = "spotify"
         header.Text = "Music Player - Spotify"
+        resetSong()
+        artist.Text = "Connecting to Spotify..."
         message("Connecting to Spotify...")
 
         task.spawn(function()
             local ran, ok, state = pcall(function()
-                return spotify:Connect(token)
+                return spotify:Connect(accessToken)
             end)
 
-            if destroyed or version ~= operation then
+            accessToken = nil
+
+            if destroyed or version ~= sessionVersion then
                 return
             end
 
-            busy = false
+            spotifyBusy = false
 
             if not ran or not ok then
                 message(
@@ -1125,16 +1237,15 @@ function MusicModule:CreatePlayermdl(window)
                 return
             end
 
-            tokenBox.Text = ""
             updateSpotify(state)
             message("Spotify connected.")
 
             spotify:StartPolling(function(newState)
-                if version == operation then
+                if not destroyed and version == sessionVersion then
                     updateSpotify(newState)
                 end
             end, function(err, code)
-                if destroyed or version ~= operation then
+                if destroyed or version ~= sessionVersion then
                     return
                 end
 
@@ -1142,61 +1253,235 @@ function MusicModule:CreatePlayermdl(window)
 
                 if code == 401 then
                     spotify:StopPolling()
+                    message("Spotify token expired. Sign in again.")
                 end
             end, self.PollInterval)
         end)
+
+        return true
     end
 
-    local function spotifyCommand(method, ...)
+    local function spotifyCommand(methodName, ...)
         if not spotify or not spotify.Connected then
             message("Connect Spotify first.")
             return
         end
 
-        if busy then
+        if spotifyBusy or loginBusy then
+            message("Wait for Spotify's current request.")
             return
         end
 
-        busy = true
-        local version = operation
-        local args = table.pack(...)
+        spotifyBusy = true
+
+        local version = sessionVersion
+        local arguments = table.pack(...)
 
         task.spawn(function()
             local ran, ok, err = pcall(function()
-                return spotify[method](
+                return spotify[methodName](
                     spotify,
-                    table.unpack(args, 1, args.n)
+                    table.unpack(arguments, 1, arguments.n)
                 )
             end)
 
-            if destroyed or version ~= operation then
+            if destroyed or version ~= sessionVersion then
                 return
             end
 
             if not ran or not ok then
-                message(ran and tostring(err) or "Spotify command failed.")
+                message(
+                    ran and tostring(err)
+                        or "Spotify command failed."
+                )
             else
                 task.wait(0.5)
 
-                if destroyed or version ~= operation then
+                if destroyed or version ~= sessionVersion then
                     return
                 end
 
-                local refreshed, state = spotify:GetPlayback()
+                local readRan, readOK, state = pcall(function()
+                    return spotify:GetPlayback()
+                end)
 
-                if refreshed and not destroyed
-                    and version == operation
-                then
-                    updateSpotify(state)
+                if not destroyed and version == sessionVersion then
+                    if readRan and readOK then
+                        updateSpotify(state)
+                    end
                 end
             end
 
-            if version == operation then
-                busy = false
+            if version == sessionVersion then
+                spotifyBusy = false
             end
         end)
     end
 
+    -- Spotify login controls.
+    connect(copyRedirectButton.Activated, function()
+        local copied = false
+
+        if type(setclipboard) == "function" then
+            copied = pcall(setclipboard, REDIRECT_URI)
+        end
+
+        message(
+            copied
+                and "Redirect URL copied. Save it in your Spotify app settings."
+                or "Select and copy the redirect URL manually."
+        )
+    end)
+
+    connect(beginLoginButton.Activated, function()
+        if loginBusy or spotifyBusy then
+            message("Wait for the current Spotify request.")
+            return
+        end
+
+        local clientId = trim(clientIdBox.Text)
+
+        if clientId == "" then
+            message("Paste your Spotify app client ID first.")
+            return
+        end
+
+        if not self.SpotifyLoginModule then
+            message("SpotifyLogin.lua is not connected in your loader.")
+            return
+        end
+
+        if not self.SpotifyModule then
+            message("SpotifyAPI.lua is not connected in your loader.")
+            return
+        end
+
+        clearLogin()
+
+        local ok, result = pcall(function()
+            spotifyAuth = self.SpotifyLoginModule.new({
+                ClientId = clientId,
+            })
+
+            return spotifyAuth:Begin()
+        end)
+
+        if not ok then
+            clearLogin()
+            message("Could not create login: " .. tostring(result))
+            return
+        end
+
+        loginLinkBox.Text = result
+
+        local copied = false
+
+        if type(setclipboard) == "function" then
+            copied = pcall(setclipboard, result)
+        end
+
+        message(
+            copied
+                and "Login link copied. Paste it into your browser."
+                or "Copy the login link above and open it in your browser."
+        )
+    end)
+
+    connect(completeLoginButton.Activated, function()
+        if loginBusy or spotifyBusy then
+            message("Wait for the current Spotify request.")
+            return
+        end
+
+        if not spotifyAuth then
+            message("Click '1. Copy Login Link' first.")
+            return
+        end
+
+        local callbackURL = trim(callbackBox.Text)
+
+        if callbackURL == "" then
+            message("Paste the full redirected browser address.")
+            return
+        end
+
+        local auth = spotifyAuth
+        loginBusy = true
+
+        callbackBox.Text = ""
+        completeLoginButton.Text = "Connecting..."
+        message("Completing Spotify login...")
+
+        task.spawn(function()
+            local ran, ok, result = pcall(function()
+                return auth:Complete(callbackURL)
+            end)
+
+            callbackURL = nil
+            loginBusy = false
+
+            if destroyed then
+                return
+            end
+
+            completeLoginButton.Text = "3. Complete Login"
+
+            if spotifyAuth ~= auth then
+                return
+            end
+
+            if not ran or not ok then
+                message(
+                    ran and tostring(result)
+                        or "Login failed. Create a new login link."
+                )
+                return
+            end
+
+            local token = result.access_token
+
+            -- Automatic refresh is not implemented in this version.
+            result = nil
+            clearLogin()
+
+            local connected, reason = connectSpotifyToken(token)
+            token = nil
+
+            if not connected then
+                message(reason)
+            end
+        end)
+    end)
+
+    local function disconnectSpotify()
+        if loginBusy then
+            message("Wait for the login request to finish.")
+            return false
+        end
+
+        sessionVersion += 1
+        spotifyBusy = false
+        clearLogin()
+
+        if spotify then
+            spotify:Disconnect()
+        end
+
+        spotifyState = nil
+
+        if source == "spotify" then
+            source = "local"
+            header.Text = "Music Player - MP3"
+            resetSong()
+        end
+
+        message("Spotify disconnected.")
+        return true
+    end
+
+    connect(disconnectButton.Activated, disconnectSpotify)
+
+    -- Tabs.
     connect(localTab.Activated, function()
         showPage("local")
     end)
@@ -1209,7 +1494,13 @@ function MusicModule:CreatePlayermdl(window)
         showPage("spotify")
     end)
 
-    connect(scan.Activated, function()
+    -- Library controls.
+    connect(scanButton.Activated, function()
+        if downloadBusy then
+            message("Wait for the download to finish.")
+            return
+        end
+
         local ok, err = pcall(scanFolder)
 
         if not ok then
@@ -1217,18 +1508,17 @@ function MusicModule:CreatePlayermdl(window)
         end
     end)
 
-    connect(clear.Activated, function()
-        if busy then
-            message("Wait for the current operation first.")
+    connect(clearButton.Activated, function()
+        if downloadBusy then
+            message("Wait for the download to finish.")
             return
         end
 
         if source == "local" then
             audioVersion += 1
             sound:Stop()
-            title.Text = "No track selected"
-            artist.Text = "Local MP3 player"
-            setArtwork(nil)
+            sound.SoundId = ""
+            resetSong()
         end
 
         selected = 0
@@ -1242,22 +1532,28 @@ function MusicModule:CreatePlayermdl(window)
     connect(volumeBox.FocusLost, function()
         local value = tonumber(volumeBox.Text)
 
-        if value then
+        if value and value == value
+            and value ~= math.huge and value ~= -math.huge
+        then
             value = math.clamp(value, 0, 100)
             sound.Volume = value / 100
-            volumeBox.Text = tostring(math.floor(value))
-        else
-            volumeBox.Text = tostring(math.floor(sound.Volume * 100))
+        end
+
+        volumeBox.Text = tostring(math.floor(sound.Volume * 100))
+
+        if source == "spotify" then
+            message("This volume setting affects local audio only.")
         end
     end)
 
-    connect(download.Activated, doDownload)
+    -- Downloads and saved links.
+    connect(downloadButton.Activated, downloadURL)
 
-    connect(saveLink.Activated, function()
+    connect(saveLinkButton.Activated, function()
         local url = trim(urlBox.Text)
 
         if not url:match("^https?://") then
-            message("Enter a valid HTTP/HTTPS link.")
+            message("Enter an HTTP/HTTPS link.")
             return
         end
 
@@ -1270,15 +1566,10 @@ function MusicModule:CreatePlayermdl(window)
             writeJSON(linksFile, savedLinks)
         end)
 
-        message(
-            ok and "Link saved."
-                or "Could not save links to disk."
-        )
+        message(ok and "Link saved." or "Could not save links.")
     end)
 
-    local savedIndex = 0
-
-    connect(nextSaved.Activated, function()
+    connect(savedLinkButton.Activated, function()
         if #savedLinks == 0 then
             message("No saved links.")
             return
@@ -1286,34 +1577,11 @@ function MusicModule:CreatePlayermdl(window)
 
         savedIndex = savedIndex % #savedLinks + 1
         urlBox.Text = savedLinks[savedIndex]
-
         message("Saved link " .. savedIndex .. "/" .. #savedLinks)
     end)
 
-    connect(spotifyConnect.Activated, connectSpotify)
-
-    connect(spotifyDisconnect.Activated, function()
-        operation += 1
-        busy = false
-
-        if spotify then
-            spotify:Disconnect()
-        end
-
-        source = "local"
-        spotifyState = nil
-        tokenBox.Text = ""
-
-        title.Text = "No track selected"
-        artist.Text = "Local MP3 player"
-        play.Text = ">"
-        header.Text = "Music Player - MP3"
-
-        setArtwork(nil)
-        message("Spotify disconnected.")
-    end)
-
-    connect(play.Activated, function()
+    -- Playback.
+    connect(playButton.Activated, function()
         if source == "spotify" then
             spotifyCommand("TogglePlayback")
             return
@@ -1322,15 +1590,22 @@ function MusicModule:CreatePlayermdl(window)
         if sound.IsPlaying then
             sound:Pause()
         elseif sound.SoundId ~= "" and selected > 0 then
-            sound:Resume()
+            if sound.TimeLength > 0
+                and sound.TimePosition >= sound.TimeLength - 0.05
+            then
+                sound.TimePosition = 0
+                sound:Play()
+            else
+                sound:Resume()
+            end
         elseif #queue > 0 then
             playTrack(selected > 0 and selected or 1)
         else
-            message("Scan your MP3 folder or download a direct audio link.")
+            message("Scan your MP3 folder or download an audio file.")
         end
     end)
 
-    connect(previous.Activated, function()
+    connect(previousButton.Activated, function()
         if source == "spotify" then
             spotifyCommand("Previous")
         elseif #queue > 0 then
@@ -1354,11 +1629,11 @@ function MusicModule:CreatePlayermdl(window)
 
     connect(sound.Loaded, function()
         if source == "local" then
-            message("Playing: " .. title.Text)
+            message("Loaded: " .. title.Text)
         end
     end)
 
-    connect(seek.InputBegan, function(event)
+    connect(seekButton.InputBegan, function(event)
         if event.UserInputType ~= Enum.UserInputType.MouseButton1
             and event.UserInputType ~= Enum.UserInputType.Touch
         then
@@ -1372,7 +1647,8 @@ function MusicModule:CreatePlayermdl(window)
         local alpha = math.clamp(
             (event.Position.X - timeline.AbsolutePosition.X)
                 / timeline.AbsoluteSize.X,
-            0, 1
+            0,
+            1
         )
 
         if source == "spotify" then
@@ -1389,18 +1665,19 @@ function MusicModule:CreatePlayermdl(window)
         end
     end)
 
-    local tickElapsed = 0
+    local elapsed = 0
 
-    connect(RunService.Heartbeat, function(dt)
-        tickElapsed += dt
+    connect(RunService.Heartbeat, function(delta)
+        elapsed += delta
 
-        if tickElapsed < 0.2 or not main.Visible then
+        if elapsed < 0.2 or not main.Visible then
             return
         end
 
-        tickElapsed = 0
+        elapsed = 0
 
-        local position, duration = 0, 0
+        local position = 0
+        local duration = 0
 
         if source == "spotify" then
             local state = spotifyState
@@ -1415,16 +1692,18 @@ function MusicModule:CreatePlayermdl(window)
         else
             duration = sound.TimeLength
             position = sound.TimePosition
-            play.Text = sound.IsPlaying and "||" or ">"
+            playButton.Text = sound.IsPlaying and "||" or ">"
         end
 
+        duration = math.max(0, duration)
         position = math.clamp(position, 0, duration)
 
-        currentLabel.Text = timeText(position)
-        durationLabel.Text = timeText(duration)
+        currentLabel.Text = formatTime(position)
+        durationLabel.Text = formatTime(duration)
 
-        fill.Size = UDim2.fromScale(
-            duration > 0 and position / duration or 0, 1
+        progressFill.Size = UDim2.fromScale(
+            duration > 0 and position / duration or 0,
+            1
         )
     end)
 
@@ -1432,7 +1711,7 @@ function MusicModule:CreatePlayermdl(window)
     header.Active = true
 
     local dragging = false
-    local dragInput
+    local dragTouch
     local dragStart
     local initialPosition
 
@@ -1442,7 +1721,7 @@ function MusicModule:CreatePlayermdl(window)
         then
             dragging = true
 
-            dragInput = event.UserInputType == Enum.UserInputType.Touch
+            dragTouch = event.UserInputType == Enum.UserInputType.Touch
                 and event or nil
 
             dragStart = event.Position
@@ -1455,8 +1734,8 @@ function MusicModule:CreatePlayermdl(window)
             return
         end
 
-        if event == dragInput or (
-            not dragInput
+        if event == dragTouch or (
+            not dragTouch
             and event.UserInputType == Enum.UserInputType.MouseMovement
         ) then
             local delta = event.Position - dragStart
@@ -1471,15 +1750,16 @@ function MusicModule:CreatePlayermdl(window)
     end)
 
     connect(UserInputService.InputEnded, function(event)
-        if event == dragInput or (
-            not dragInput
+        if event == dragTouch or (
+            not dragTouch
             and event.UserInputType == Enum.UserInputType.MouseButton1
         ) then
             dragging = false
-            dragInput = nil
+            dragTouch = nil
         end
     end)
 
+    -- Public API.
     function player:SetVisible(value)
         if destroyed then
             return
@@ -1493,27 +1773,38 @@ function MusicModule:CreatePlayermdl(window)
         self:SetVisible(not main.Visible)
     end
 
-    function player:Disconnect()
-        if spotify then
-            spotify:Disconnect()
+    function player:ShowSpotifySetup()
+        if destroyed then
+            return
         end
 
-        operation += 1
+        showPage("spotify")
+        self:SetVisible(true)
+    end
+
+    function player:ConnectSpotifyToken(token)
+        return connectSpotifyToken(token)
+    end
+
+    function player:Disconnect()
+        if not disconnectSpotify() then
+            return
+        end
+
         audioVersion += 1
-        busy = false
-
         sound:Stop()
-        source = "local"
-        spotifyState = nil
-        tokenBox.Text = ""
+        sound.SoundId = ""
 
-        title.Text = "No track selected"
-        artist.Text = "Local MP3 player"
+        source = "local"
         header.Text = "Music Player - MP3"
-        setArtwork(nil)
+        resetSong()
     end
 
     function player:ScanFolder()
+        if downloadBusy then
+            return false, "A download is running."
+        end
+
         return pcall(scanFolder)
     end
 
@@ -1525,15 +1816,19 @@ function MusicModule:CreatePlayermdl(window)
         destroyed = true
         player.Destroyed = true
 
-        operation += 1
+        sessionVersion += 1
         audioVersion += 1
-        artVersion += 1
+        artworkVersion += 1
+
+        clearLogin()
 
         if spotify then
-            spotify:Destroy()
+            pcall(function()
+                spotify:Destroy()
+            end)
         end
 
-        tokenBox.Text = ""
+        clientIdBox.Text = ""
         sound:Destroy()
 
         for _, connection in ipairs(connections) do
@@ -1541,7 +1836,7 @@ function MusicModule:CreatePlayermdl(window)
         end
 
         table.clear(connections)
-        table.clear(artCache)
+        table.clear(artworkCache)
 
         if activePlayer == player then
             activePlayer = nil
@@ -1558,20 +1853,20 @@ function MusicModule:CreatePlayermdl(window)
         main:Destroy()
     end
 
-    connect(close.Activated, function()
+    connect(hideButton.Activated, function()
         player:SetVisible(false)
     end)
 
     connect(main.Destroying, cleanup)
 
-    -- Load only valid entries from the stored playlist.
+    -- Load local storage without blocking Spotify mode if it fails.
     local initialized, initError = pcall(function()
         ensureFolders()
 
-        local stored = readJSON(queueFile)
+        local storedQueue = readJSON(queueFile)
 
-        if stored then
-            for _, track in ipairs(stored) do
+        if storedQueue then
+            for _, track in ipairs(storedQueue) do
                 if type(track) == "table"
                     and type(track.path) == "string"
                     and validLocalPath(track.path)
@@ -1607,13 +1902,15 @@ function MusicModule:CreatePlayermdl(window)
     refreshQueue()
 
     if not initialized then
-        message("Storage initialization failed: " .. tostring(initError))
+        message("Local storage unavailable: " .. tostring(initError))
     end
 
     player.MainFrame = main
     player.Artwork = artwork
     player.Sound = sound
-    player.TokenBox = tokenBox
+    player.ClientIdBox = clientIdBox
+    player.RedirectBox = redirectBox
+    player.CallbackBox = callbackBox
 
     activePlayer = player
     return player
