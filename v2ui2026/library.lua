@@ -590,7 +590,7 @@ function library:NewWindow(configuration)
 		Size = UDim2.new(0, 50, 0, 50);
 		Position = UDim2.new(0, 0, 0, 0);
 		BackgroundTransparency = 1;
-		Image = "rbxassetid://117689904213073";
+		Image = "rbxassetid://112723756161303";
 		ScaleType = Enum.ScaleType.Fit;
 		Parent = namef;
 	})
