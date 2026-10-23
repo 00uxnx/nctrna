@@ -1,6 +1,4 @@
  -- services
-warn("Initiated SigionPexv2v33 UI")
-
 local cloneref = (cloneref or clonereference or function(instance: any)
 	return instance
 end)
@@ -4549,6 +4547,9 @@ function library:NewWindow(configuration)
 						}, {
 							instancep = "Font",
 							tinstance = library.Font,
+						}, {
+		                    instancep = "TextColor3",
+							tinstance = library.FontColor,
 						})
 
 						library:Create("UIPadding", {
