@@ -821,6 +821,9 @@ function library:NewWindow(configuration)
 			ScaleType = Enum.ScaleType.Crop;
 			ImageColor3 = library.AccentColor;
 			Parent = Container;
+		}, {
+			instancep = "ImageColor3";
+		    tinstance = library.AccentColor;
 		})
 		
 		local t2 = library:Create("TextLabel", {
