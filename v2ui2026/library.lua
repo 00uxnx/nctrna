@@ -17193,6 +17193,10 @@ function library:NewWindow(configuration)
 				tab:Open()	
 			end
 
+            button.Activated:Connect(function()
+                tab:Open()
+            end)
+
 			return tab
 		end
 		
