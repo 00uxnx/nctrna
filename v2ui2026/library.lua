@@ -519,7 +519,7 @@ function library:NewWindow(configuration)
 		Position = UDim2.new(0.581, 0, 0.138, 0);
 		BackgroundTransparency = 1;
 		ZIndex = 0;
-		Image = image or "rbxassetid://117689904213073";
+		Image = image; --or "rbxassetid://117689904213073"
 		Parent = mainframe;
 	})
 
