@@ -540,7 +540,7 @@ function library:NewWindow(configuration)
 				Position = UDim2.new(0.581, 0, 0.138, 0),
 				BackgroundTransparency = 1,
 				Image = imageAsset,
-				ImageTransparency = .7
+				ImageTransparency = 0.7,
 				ScaleType = Enum.ScaleType.Fit,
 				ZIndex = 1,
 				Parent = mainframe,
