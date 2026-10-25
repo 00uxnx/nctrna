@@ -1,4 +1,4 @@
- -- services
+-- services
 local cloneref = (cloneref or clonereference or function(instance: any)
 	return instance
 end)
@@ -64,6 +64,11 @@ modal.ZIndex = -5
 modal.Visible = false
 modal.Parent = screengui
 modal.Modal = true
+
+local Overlaygui = Instance.new("ScreenGui")
+Overlaygui.DisplayOrder = 100
+Overlaygui.Enabled = true
+Overlaygui.Parent = screengui
 
 local leftnotifsf = Instance.new("Frame")
 leftnotifsf.BackgroundTransparency = 1
@@ -505,7 +510,7 @@ function library:NewWindow(configuration)
 		instancep = "BackgroundColor3";
 		tinstance = library.MainColor;
 	})
-	
+
 	local bg = library:Create("ImageLabel", {
 		Name = "Shadow";
 		Size = UDim2.new(1, 0, 1, 0);
@@ -515,19 +520,19 @@ function library:NewWindow(configuration)
 		Image = "rbxassetid://117689904213073";
 		Parent = mainframe;
 	})
-	
+
 	library:Create("UIShadow", {
 		Parent = mainframe;
 		BlurRadius = UDim.new(0, 20);
 		Transparency = 0.1;
 		Color = Color3.fromRGB(0, 0, 0);
 	})
-	
+
 	library:Create("UICorner", {
 		Parent = mainframe;
 		CornerRadius = UDim.new(0, 11);
 	})
-	
+
 	library:Create("Frame", {
 		Name = "s1";
 		Size = UDim2.new(0, 1, 1, 0);
@@ -551,7 +556,7 @@ function library:NewWindow(configuration)
 		instancep = "BackgroundColor3";
 		tinstance = library.SecondaryColor;
 	})
-	
+
 	local namef = library:Create("Frame", {
 		Name = "NameFrame";
 		Size = UDim2.new(0.218, 0,0.108, 0);
@@ -559,7 +564,7 @@ function library:NewWindow(configuration)
 		BackgroundTransparency = 1;
 		Parent = mainframe;
 	})
-	
+
 	local dragbutton = library:Create("TextButton", {
 		Name = "DragButton";
 		Size = UDim2.new(0.218, 0,0.108, 0);
@@ -569,7 +574,7 @@ function library:NewWindow(configuration)
 		Text = "";
 		ZIndex = 2;
 	})
-		
+
 	library:Create("UIListLayout", {
 		Parent = namef;
 		SortOrder = Enum.SortOrder.LayoutOrder;
@@ -578,12 +583,12 @@ function library:NewWindow(configuration)
 		HorizontalAlignment = Enum.HorizontalAlignment.Left;
 		Padding = UDim.new(0, 5);
 	})
-	
+
 	library:Create("UIPadding", {
 		Parent = namef;
 		PaddingLeft = UDim.new(0, 2);
 	})
-	
+
 	library:Create("ImageLabel", {
 		Name = "Icon";
 		LayoutOrder = 0;
@@ -594,7 +599,7 @@ function library:NewWindow(configuration)
 		ScaleType = Enum.ScaleType.Fit;
 		Parent = namef;
 	})
-	
+
 	local t = library:Create("TextLabel", {
 		Name = "Title";
 		Size = UDim2.new(0.652, 0,0.588, 0);
@@ -615,7 +620,7 @@ function library:NewWindow(configuration)
 		instancep = "Font";
 		tinstance = library.Font;
 	})
-	
+
 	library:Create("UIStroke", {
 		Parent = t;
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
@@ -625,12 +630,12 @@ function library:NewWindow(configuration)
 		instancep = "Color";
 		tinstance = library.UIstroke;
 	})
-	
+
 	library:Create("UITextSizeConstraint", {
 		Parent = t;
 		MaxTextSize = 20;
 	})
-	
+
 	-- search bar
 	local searchbar = library:Create("Frame", {
 		Name = "SearchBar";
@@ -639,7 +644,7 @@ function library:NewWindow(configuration)
 		BackgroundTransparency = 1;
 		Parent = mainframe;
 	})
-	
+
 	library:Create("UIListLayout", {
 		Parent = searchbar;
 		SortOrder = Enum.SortOrder.LayoutOrder;
@@ -648,13 +653,13 @@ function library:NewWindow(configuration)
 		HorizontalAlignment = Enum.HorizontalAlignment.Left;
 		Padding = UDim.new(0, 15);
 	})
-	
+
 	library:Create("UIPadding", {
 		Parent = searchbar;
 		PaddingLeft = UDim.new(0, 10);
 		PaddingTop = UDim.new(0, 3);
 	})
-	
+
 	local sbar = library:Create("TextBox", {
 		Name = "SearchBar";
 		BackgroundTransparency = 1;
@@ -677,17 +682,17 @@ function library:NewWindow(configuration)
 		instancep = "Font";
 		tinstance = library.Font;
 	})
-	
+
 	library:Create("UICorner", {
 		Parent = sbar;
 		CornerRadius = UDim.new(0, 11);
 	})
-	
+
 	library:Create("UIPadding", {
 		Parent = sbar;
 		PaddingLeft = UDim.new(0, 5);
 	})
-	
+
 	library:Create("UIStroke", {
 		Parent = sbar;
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
@@ -697,7 +702,7 @@ function library:NewWindow(configuration)
 		instancep = "Color";
 		tinstance = library.UIstroke;
 	})
-	
+
 	library:Create("UIStroke", {
 		Parent = sbar;
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
@@ -707,12 +712,12 @@ function library:NewWindow(configuration)
 		instancep = "Color";
 		tinstance = library.SecondaryColor;
 	})
-	
+
 	library:Create("UITextSizeConstraint", {
 		Parent = sbar;
 		MaxTextSize = 15;
 	})
-	
+
 	library:Create("ImageLabel", {
 		Name = "Icon";
 		Size = UDim2.new(0, 25, 0, 25);
@@ -726,7 +731,7 @@ function library:NewWindow(configuration)
 		instancep = "ImageColor3";
 		tinstance = library.SecondaryColor;
 	})
-	
+
 	-- Tabs Buttons Holder
 	local tabbuttonHolder = library:Create("ScrollingFrame", {
 		Name = "TabButtonsHolder";
@@ -739,7 +744,7 @@ function library:NewWindow(configuration)
 		ScrollingDirection = Enum.ScrollingDirection.Y;
 		Parent = mainframe;
 	})
-	
+
 	library:Create("UIListLayout", {
 		Parent = tabbuttonHolder;
 		FillDirection = Enum.FillDirection.Vertical;
@@ -748,13 +753,13 @@ function library:NewWindow(configuration)
 		HorizontalAlignment = Enum.HorizontalAlignment.Center;
 		Padding = UDim.new(0, 7);
 	})
-	
+
 	library:Create("UIPadding", {
 		Parent = tabbuttonHolder;	
 		PaddingTop = UDim.new(0, 12);
 		PaddingBottom = UDim.new(0, 12);
 	})
-	
+
 	-- TabPage Holder
 	local PageHolder = library:Create("Frame", {
 		Name = "PageHolder";
@@ -763,13 +768,13 @@ function library:NewWindow(configuration)
 		BackgroundTransparency = 1;
 		Parent = mainframe;
 	})
-	
+
 	-- Creation api
 	function window:CreateSection(name, i)
 		local section = {}
 		local tabs = {}
 		local expanded = true
-		
+
 		-- creation
 		local maincontainer = library:Create("Frame", {
 			Name = name;
@@ -780,7 +785,7 @@ function library:NewWindow(configuration)
 			LayoutOrder = #tabbuttonHolder:GetChildren();
 			Parent = tabbuttonHolder;
 		})
-		
+
 		local expandsize = library:Create("TextButton", {
 			Name = "Expand";
 			Size = UDim2.new(0, 163,0, 25);
@@ -790,7 +795,7 @@ function library:NewWindow(configuration)
 			Text = "";
 			Parent = maincontainer;
 		})
-		
+
 		local Container = library:Create("Frame", {
 			Name = "Container";
 			Size = UDim2.new(1,0,1,0);
@@ -799,7 +804,7 @@ function library:NewWindow(configuration)
 			AutomaticSize = Enum.AutomaticSize.Y;
 			Parent = maincontainer;
 		})
-		
+
 		library:Create("UIListLayout", {
 			Parent = Container;
 			FillDirection = Enum.FillDirection.Horizontal;
@@ -809,7 +814,7 @@ function library:NewWindow(configuration)
 			Padding = UDim.new(0, 3);
 			Wraps = true;
 		})
-		
+
 		library:Create("ImageLabel", {
 			Name = "icon";
 			Size = UDim2.new(0, 20,0, 20);
@@ -821,9 +826,9 @@ function library:NewWindow(configuration)
 			Parent = Container;
 		}, {
 			instancep = "ImageColor3";
-		    tinstance = library.AccentColor;
+			tinstance = library.AccentColor;
 		})
-		
+
 		local t2 = library:Create("TextLabel", {
 			Name = "title";
 			Size = UDim2.new(0.842, 0,0, 25);
@@ -834,7 +839,7 @@ function library:NewWindow(configuration)
 			TextColor3 = library.FontColor;
 			TextXAlignment = Enum.TextXAlignment.Center;
 			TextYAlignment = Enum.TextYAlignment.Center;
-			
+
 			TextSize = 15;
 			Parent = Container;
 		}, {
@@ -844,7 +849,7 @@ function library:NewWindow(configuration)
 			instancep = "TextColor3";
 			tinstance = library.FontColor;
 		})
-		
+
 		library:Create("UIStroke", {
 			Parent = t2;
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
@@ -854,12 +859,12 @@ function library:NewWindow(configuration)
 			instancep = "Color";
 			tinstance = library.UIstroke;
 		})
-		
+
 		library:Create("UITextSizeConstraint", {
 			Parent = t2;
 			MaxTextSize = 15;
 		})
-		
+
 		local maincontainer2 = library:Create("Frame", {
 			Name = "maincontainer2";
 			Size = UDim2.new(1,0,0,25);
@@ -869,14 +874,14 @@ function library:NewWindow(configuration)
 			LayoutOrder = 4;
 			Parent = Container;
 		})
-		
+
 		library:Create("UIPadding", {
 			Parent = maincontainer2;
-			
+
 			PaddingTop = UDim.new(0, 5);
 			PaddingBottom = UDim.new(0, 5);
 		})
-		
+
 		library:Create("UIListLayout", {
 			Parent = maincontainer2;
 			FillDirection = Enum.FillDirection.Horizontal;
@@ -886,7 +891,7 @@ function library:NewWindow(configuration)
 			Padding = UDim.new(0, 5);
 			Wraps = true;
 		})
-		
+
 		-- tab creation
 		function section:NewTab(name)
 			local tab = {}
@@ -4314,7 +4319,6 @@ function library:NewWindow(configuration)
 
 						local Dropdown = {}
 
-						-- Store values independently from the caller's opts.Values.
 						local values = {}
 						local elements = {}
 						local selectedIndices = {}
@@ -4371,7 +4375,6 @@ function library:NewWindow(configuration)
 							end
 
 							for _, value in ipairs(source) do
-								-- Dropdown values are strings or finite numbers.
 								local supported = type(value) == "string"
 									or (
 										type(value) == "number"
@@ -4390,7 +4393,6 @@ function library:NewWindow(configuration)
 						end
 
 						local function findIndex(value)
-							-- Preserve the original API: numeric input means index.
 							if type(value) == "number" then
 								if value % 1 == 0 and value >= 1 and value <= #values then
 									return value
@@ -4548,7 +4550,7 @@ function library:NewWindow(configuration)
 							instancep = "Font",
 							tinstance = library.Font,
 						}, {
-		                    instancep = "TextColor3",
+							instancep = "TextColor3",
 							tinstance = library.FontColor,
 						})
 
@@ -4643,6 +4645,62 @@ function library:NewWindow(configuration)
 						})
 
 						--==========================================================
+						-- TOP-LEVEL DROPDOWN OVERLAY
+						--==========================================================
+
+						local overlayRoot
+
+						local sourceScreenGui = main:FindFirstAncestorOfClass("ScreenGui")
+						local player = LocalPlayer
+						local playerGui = (sourceScreenGui and sourceScreenGui.Parent)
+							or (player and player:FindFirstChildOfClass("PlayerGui"))
+
+						if playerGui then
+							local highestDisplayOrder = 0
+
+							for _, child in ipairs(playerGui:GetChildren()) do
+								if child:IsA("ScreenGui") then
+									highestDisplayOrder = math.max(highestDisplayOrder, child.DisplayOrder)
+								end
+							end
+
+							overlayRoot = Instance.new("Frame")
+							overlayRoot.Name = "OverlayRoot"
+							overlayRoot.BackgroundTransparency = 1
+							overlayRoot.BorderSizePixel = 0
+							overlayRoot.Size = UDim2.fromScale(1, 1)
+							overlayRoot.Position = UDim2.fromScale(0, 0)
+							overlayRoot.Parent = Overlaygui
+
+							holder.Parent = overlayRoot
+						end
+
+						local function positionHolder()
+							if not overlayRoot or not holder or not holder.Parent then
+								return
+							end
+
+							local rootPosition = overlayRoot.AbsolutePosition
+							local rootSize = overlayRoot.AbsoluteSize
+							local rowPosition = selectionRow.AbsolutePosition
+							local rowSize = selectionRow.AbsoluteSize
+							local width = math.max(0, rowSize.X)
+							local height = holder.Size.Y.Offset
+							local x = rowPosition.X - rootPosition.X
+							local y = rowPosition.Y - rootPosition.Y + rowSize.Y + 3
+
+							if y + height > rootSize.Y then
+								y = rowPosition.Y - rootPosition.Y - height - 3
+							end
+
+							x = math.clamp(x, 0, math.max(0, rootSize.X - width))
+							y = math.clamp(y, 0, math.max(0, rootSize.Y - height))
+
+							holder.Position = UDim2.fromOffset(x, y)
+							holder.Size = UDim2.fromOffset(width, height)
+						end
+
+						--==========================================================
 						-- UI UPDATES
 						--==========================================================
 
@@ -4660,7 +4718,14 @@ function library:NewWindow(configuration)
 									+ math.max(0, rows - 1) * rowGap
 							end
 
-							holder.Size = UDim2.new(1, 0, 0, heightFor(visibleRows))
+							local holderHeight = heightFor(visibleRows)
+
+							if overlayRoot then
+								holder.Size = UDim2.fromOffset(selectionRow.AbsoluteSize.X, holderHeight)
+							else
+								holder.Size = UDim2.new(1, 0, 0, holderHeight)
+							end
+
 							holder.CanvasSize = UDim2.fromOffset(0, heightFor(count))
 							holder.ScrollingEnabled = count > maxVisibleItems
 
@@ -4670,6 +4735,7 @@ function library:NewWindow(configuration)
 
 							holder.Visible = isOpen and count > 0
 							arrow.Rotation = holder.Visible and 180 or 0
+							positionHolder()
 						end
 
 						local function updateSelectedText()
@@ -4721,12 +4787,75 @@ function library:NewWindow(configuration)
 							updateHolderSize()
 						end
 
+						-- Reapply current theme values to already-created instances.
+						local function refreshTheme()
+							if destroyed then
+								return
+							end
+
+							local strokeColor = library.UIstroke or library.UIStroke or library.SecondaryColor
+
+							header.TextColor3 = library.FontColor
+							header.Font = library.Font
+							selectedLabel.Font = library.Font
+							holder.BackgroundColor3 = library.MainColor
+							holder.ScrollBarImageColor3 = library.AccentColor
+
+							if typeof(library.FontFace) == "Font" then
+								header.FontFace = library.FontFace
+								selectedLabel.FontFace = library.FontFace
+							end
+
+							for _, root in ipairs({ main, holder }) do
+								for _, descendant in ipairs(root:GetDescendants()) do
+									if descendant:IsA("UIStroke") then
+										if descendant.Parent == selectionRow or descendant.Parent == holder then
+											descendant.Color = library.SecondaryColor
+										else
+											descendant.Color = strokeColor
+										end
+									elseif descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
+										descendant.Font = library.Font
+
+										if typeof(library.FontFace) == "Font" then
+											descendant.FontFace = library.FontFace
+										end
+									end
+								end
+							end
+
+							updateSelectedText()
+							updateItems()
+						end
+
+						local function readThemeSnapshot()
+							return {
+								MainColor = library.MainColor,
+								SecondaryColor = library.SecondaryColor,
+								AccentColor = library.AccentColor,
+								FontColor = library.FontColor,
+								UIstroke = library.UIstroke,
+								UIStroke = library.UIStroke,
+								Font = library.Font,
+								FontFace = library.FontFace,
+							}
+						end
+
+						local function themeSnapshotChanged(previous, current)
+							for key, value in pairs(previous) do
+								if current[key] ~= value then
+									return true
+								end
+							end
+
+							return false
+						end
+
 						local function notifyChanged()
 							local value = getValue()
 
 							option.Value = value
 
-							-- Give listeners their own array in multipick mode.
 							changedEvent:Fire(
 								type(value) == "table" and table.clone(value) or value
 							)
@@ -4834,17 +4963,16 @@ function library:NewWindow(configuration)
 									tinstance = library.FontColor,
 								})
 
-								local uistroke = library:Create("UIStroke", {
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIStroke;
-									Thickness = 1;
-									Parent = itemButton;
+								library:Create("UIStroke", {
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+									Color = library.UIstroke or library.UIStroke or library.SecondaryColor,
+									Thickness = 1,
+									Parent = itemButton,
 								}, {
 									instancep = "Color",
-									tinstance = library.UIStroke,
+									tinstance = library.UIstroke or library.UIStroke or library.SecondaryColor,
 								})
 
-								-- Respect a custom face when creating new items.
 								if typeof(library.FontFace) == "Font" then
 									itemButton.FontFace = library.FontFace
 								end
@@ -4852,32 +4980,30 @@ function library:NewWindow(configuration)
 								item.button = itemButton
 								elements[index] = item
 
-								item.connection = itemButton.MouseButton1Click:Connect(
-									function()
-										if destroyed then
-											return
-										end
-
-										local previous = getValue()
-
-										if multi then
-											if selectedIndices[index] then
-												selectedIndices[index] = nil
-											else
-												selectedIndices[index] = true
-											end
-										else
-											picked = itemName
-											isOpen = false
-										end
-
-										updateUI()
-
-										if not equalValues(previous, getValue()) then
-											notifyChanged()
-										end
+								item.connection = itemButton.MouseButton1Click:Connect(function()
+									if destroyed then
+										return
 									end
-								)
+
+									local previous = getValue()
+
+									if multi then
+										if selectedIndices[index] then
+											selectedIndices[index] = nil
+										else
+											selectedIndices[index] = true
+										end
+									else
+										picked = itemName
+										isOpen = false
+									end
+
+									updateUI()
+
+									if not equalValues(previous, getValue()) then
+										notifyChanged()
+									end
+								end)
 							end
 						end
 
@@ -4944,7 +5070,6 @@ function library:NewWindow(configuration)
 								return self
 							end
 
-							-- Copy first. The caller may pass option.Values itself.
 							local refreshed = copyUnique(newValues)
 							local previous = getValue()
 
@@ -4962,7 +5087,6 @@ function library:NewWindow(configuration)
 							if defaultValue ~= nil then
 								setValue(defaultValue, true)
 							else
-								-- Preserve selections by value, not their former index.
 								if multi then
 									for _, oldValue in ipairs(previous) do
 										local index = table.find(values, oldValue)
@@ -4980,10 +5104,11 @@ function library:NewWindow(configuration)
 
 							holder.CanvasPosition = Vector2.zero
 
-							-- Refresh is silent by default.
 							if silent == false and not equalValues(previous, getValue()) then
 								notifyChanged()
 							end
+
+							refreshTheme()
 
 							return self
 						end
@@ -5021,7 +5146,6 @@ function library:NewWindow(configuration)
 								return false
 							end
 
-							-- RemoveItem uses the actual item value, not an index.
 							local index = table.find(values, itemName)
 
 							if not index then
@@ -5055,6 +5179,31 @@ function library:NewWindow(configuration)
 						end
 
 						--==========================================================
+						-- OVERLAY TRACKING + LIVE THEME WATCHER
+						--==========================================================
+
+						if overlayRoot then
+							connect(selectionRow:GetPropertyChangedSignal("AbsolutePosition"), positionHolder)
+							connect(selectionRow:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
+							connect(overlayRoot:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
+						end
+
+						local themeSnapshot = readThemeSnapshot()
+
+						connect(game:GetService("RunService").Heartbeat, function()
+							if destroyed then
+								return
+							end
+
+							local currentSnapshot = readThemeSnapshot()
+
+							if themeSnapshotChanged(themeSnapshot, currentSnapshot) then
+								themeSnapshot = currentSnapshot
+								refreshTheme()
+							end
+						end)
+
+						--==========================================================
 						-- CLEANUP
 						--==========================================================
 
@@ -5072,6 +5221,12 @@ function library:NewWindow(configuration)
 							end
 
 							table.clear(connections)
+
+							if overlayGui then
+								overlayGui:Destroy()
+								overlayGui = nil
+								overlayRoot = nil
+							end
 
 							if library.Options[name] == option then
 								library.Options[name] = nil
@@ -5104,10 +5259,6 @@ function library:NewWindow(configuration)
 						--==========================================================
 						-- OPTION API
 						--==========================================================
-
-						-- Both APIs operate on the same dropdown:
-						-- dropdown:Refresh(...)
-						-- library.Options[name]:Refresh(...)
 
 						local forwardedMethods = {
 							"GetValue",
@@ -5151,8 +5302,9 @@ function library:NewWindow(configuration)
 							selectedLabel.FontFace = library.FontFace
 						end
 
-						-- No mutation of opts.Values and no initialization callbacks.
 						Dropdown:Refresh(opts.Values or {}, opts.Default, true)
+						refreshTheme()
+						positionHolder()
 
 						return Dropdown
 					end
@@ -8262,7 +8414,6 @@ function library:NewWindow(configuration)
 
 						local Dropdown = {}
 
-						-- Store values independently from the caller's opts.Values.
 						local values = {}
 						local elements = {}
 						local selectedIndices = {}
@@ -8319,7 +8470,6 @@ function library:NewWindow(configuration)
 							end
 
 							for _, value in ipairs(source) do
-								-- Dropdown values are strings or finite numbers.
 								local supported = type(value) == "string"
 									or (
 										type(value) == "number"
@@ -8338,7 +8488,6 @@ function library:NewWindow(configuration)
 						end
 
 						local function findIndex(value)
-							-- Preserve the original API: numeric input means index.
 							if type(value) == "number" then
 								if value % 1 == 0 and value >= 1 and value <= #values then
 									return value
@@ -8495,6 +8644,9 @@ function library:NewWindow(configuration)
 						}, {
 							instancep = "Font",
 							tinstance = library.Font,
+						}, {
+							instancep = "TextColor3",
+							tinstance = library.FontColor,
 						})
 
 						library:Create("UIPadding", {
@@ -8588,6 +8740,62 @@ function library:NewWindow(configuration)
 						})
 
 						--==========================================================
+						-- TOP-LEVEL DROPDOWN OVERLAY
+						--==========================================================
+
+						local overlayRoot
+
+						local sourceScreenGui = main:FindFirstAncestorOfClass("ScreenGui")
+						local player = LocalPlayer
+						local playerGui = (sourceScreenGui and sourceScreenGui.Parent)
+							or (player and player:FindFirstChildOfClass("PlayerGui"))
+
+						if playerGui then
+							local highestDisplayOrder = 0
+
+							for _, child in ipairs(playerGui:GetChildren()) do
+								if child:IsA("ScreenGui") then
+									highestDisplayOrder = math.max(highestDisplayOrder, child.DisplayOrder)
+								end
+							end
+
+							overlayRoot = Instance.new("Frame")
+							overlayRoot.Name = "OverlayRoot"
+							overlayRoot.BackgroundTransparency = 1
+							overlayRoot.BorderSizePixel = 0
+							overlayRoot.Size = UDim2.fromScale(1, 1)
+							overlayRoot.Position = UDim2.fromScale(0, 0)
+							overlayRoot.Parent = Overlaygui
+
+							holder.Parent = overlayRoot
+						end
+
+						local function positionHolder()
+							if not overlayRoot or not holder or not holder.Parent then
+								return
+							end
+
+							local rootPosition = overlayRoot.AbsolutePosition
+							local rootSize = overlayRoot.AbsoluteSize
+							local rowPosition = selectionRow.AbsolutePosition
+							local rowSize = selectionRow.AbsoluteSize
+							local width = math.max(0, rowSize.X)
+							local height = holder.Size.Y.Offset
+							local x = rowPosition.X - rootPosition.X
+							local y = rowPosition.Y - rootPosition.Y + rowSize.Y + 3
+
+							if y + height > rootSize.Y then
+								y = rowPosition.Y - rootPosition.Y - height - 3
+							end
+
+							x = math.clamp(x, 0, math.max(0, rootSize.X - width))
+							y = math.clamp(y, 0, math.max(0, rootSize.Y - height))
+
+							holder.Position = UDim2.fromOffset(x, y)
+							holder.Size = UDim2.fromOffset(width, height)
+						end
+
+						--==========================================================
 						-- UI UPDATES
 						--==========================================================
 
@@ -8605,7 +8813,14 @@ function library:NewWindow(configuration)
 									+ math.max(0, rows - 1) * rowGap
 							end
 
-							holder.Size = UDim2.new(1, 0, 0, heightFor(visibleRows))
+							local holderHeight = heightFor(visibleRows)
+
+							if overlayRoot then
+								holder.Size = UDim2.fromOffset(selectionRow.AbsoluteSize.X, holderHeight)
+							else
+								holder.Size = UDim2.new(1, 0, 0, holderHeight)
+							end
+
 							holder.CanvasSize = UDim2.fromOffset(0, heightFor(count))
 							holder.ScrollingEnabled = count > maxVisibleItems
 
@@ -8615,6 +8830,7 @@ function library:NewWindow(configuration)
 
 							holder.Visible = isOpen and count > 0
 							arrow.Rotation = holder.Visible and 180 or 0
+							positionHolder()
 						end
 
 						local function updateSelectedText()
@@ -8666,12 +8882,75 @@ function library:NewWindow(configuration)
 							updateHolderSize()
 						end
 
+						-- Reapply current theme values to already-created instances.
+						local function refreshTheme()
+							if destroyed then
+								return
+							end
+
+							local strokeColor = library.UIstroke or library.UIStroke or library.SecondaryColor
+
+							header.TextColor3 = library.FontColor
+							header.Font = library.Font
+							selectedLabel.Font = library.Font
+							holder.BackgroundColor3 = library.MainColor
+							holder.ScrollBarImageColor3 = library.AccentColor
+
+							if typeof(library.FontFace) == "Font" then
+								header.FontFace = library.FontFace
+								selectedLabel.FontFace = library.FontFace
+							end
+
+							for _, root in ipairs({ main, holder }) do
+								for _, descendant in ipairs(root:GetDescendants()) do
+									if descendant:IsA("UIStroke") then
+										if descendant.Parent == selectionRow or descendant.Parent == holder then
+											descendant.Color = library.SecondaryColor
+										else
+											descendant.Color = strokeColor
+										end
+									elseif descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
+										descendant.Font = library.Font
+
+										if typeof(library.FontFace) == "Font" then
+											descendant.FontFace = library.FontFace
+										end
+									end
+								end
+							end
+
+							updateSelectedText()
+							updateItems()
+						end
+
+						local function readThemeSnapshot()
+							return {
+								MainColor = library.MainColor,
+								SecondaryColor = library.SecondaryColor,
+								AccentColor = library.AccentColor,
+								FontColor = library.FontColor,
+								UIstroke = library.UIstroke,
+								UIStroke = library.UIStroke,
+								Font = library.Font,
+								FontFace = library.FontFace,
+							}
+						end
+
+						local function themeSnapshotChanged(previous, current)
+							for key, value in pairs(previous) do
+								if current[key] ~= value then
+									return true
+								end
+							end
+
+							return false
+						end
+
 						local function notifyChanged()
 							local value = getValue()
 
 							option.Value = value
 
-							-- Give listeners their own array in multipick mode.
 							changedEvent:Fire(
 								type(value) == "table" and table.clone(value) or value
 							)
@@ -8779,17 +9058,16 @@ function library:NewWindow(configuration)
 									tinstance = library.FontColor,
 								})
 
-								local uistroke = library:Create("UIStroke", {
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIStroke;
-									Thickness = 1;
-									Parent = itemButton;
+								library:Create("UIStroke", {
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+									Color = library.UIstroke or library.UIStroke or library.SecondaryColor,
+									Thickness = 1,
+									Parent = itemButton,
 								}, {
 									instancep = "Color",
-									tinstance = library.UIStroke,
+									tinstance = library.UIstroke or library.UIStroke or library.SecondaryColor,
 								})
 
-								-- Respect a custom face when creating new items.
 								if typeof(library.FontFace) == "Font" then
 									itemButton.FontFace = library.FontFace
 								end
@@ -8797,32 +9075,30 @@ function library:NewWindow(configuration)
 								item.button = itemButton
 								elements[index] = item
 
-								item.connection = itemButton.MouseButton1Click:Connect(
-									function()
-										if destroyed then
-											return
-										end
-
-										local previous = getValue()
-
-										if multi then
-											if selectedIndices[index] then
-												selectedIndices[index] = nil
-											else
-												selectedIndices[index] = true
-											end
-										else
-											picked = itemName
-											isOpen = false
-										end
-
-										updateUI()
-
-										if not equalValues(previous, getValue()) then
-											notifyChanged()
-										end
+								item.connection = itemButton.MouseButton1Click:Connect(function()
+									if destroyed then
+										return
 									end
-								)
+
+									local previous = getValue()
+
+									if multi then
+										if selectedIndices[index] then
+											selectedIndices[index] = nil
+										else
+											selectedIndices[index] = true
+										end
+									else
+										picked = itemName
+										isOpen = false
+									end
+
+									updateUI()
+
+									if not equalValues(previous, getValue()) then
+										notifyChanged()
+									end
+								end)
 							end
 						end
 
@@ -8889,7 +9165,6 @@ function library:NewWindow(configuration)
 								return self
 							end
 
-							-- Copy first. The caller may pass option.Values itself.
 							local refreshed = copyUnique(newValues)
 							local previous = getValue()
 
@@ -8907,7 +9182,6 @@ function library:NewWindow(configuration)
 							if defaultValue ~= nil then
 								setValue(defaultValue, true)
 							else
-								-- Preserve selections by value, not their former index.
 								if multi then
 									for _, oldValue in ipairs(previous) do
 										local index = table.find(values, oldValue)
@@ -8925,10 +9199,11 @@ function library:NewWindow(configuration)
 
 							holder.CanvasPosition = Vector2.zero
 
-							-- Refresh is silent by default.
 							if silent == false and not equalValues(previous, getValue()) then
 								notifyChanged()
 							end
+
+							refreshTheme()
 
 							return self
 						end
@@ -8966,7 +9241,6 @@ function library:NewWindow(configuration)
 								return false
 							end
 
-							-- RemoveItem uses the actual item value, not an index.
 							local index = table.find(values, itemName)
 
 							if not index then
@@ -9000,6 +9274,31 @@ function library:NewWindow(configuration)
 						end
 
 						--==========================================================
+						-- OVERLAY TRACKING + LIVE THEME WATCHER
+						--==========================================================
+
+						if overlayRoot then
+							connect(selectionRow:GetPropertyChangedSignal("AbsolutePosition"), positionHolder)
+							connect(selectionRow:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
+							connect(overlayRoot:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
+						end
+
+						local themeSnapshot = readThemeSnapshot()
+
+						connect(game:GetService("RunService").Heartbeat, function()
+							if destroyed then
+								return
+							end
+
+							local currentSnapshot = readThemeSnapshot()
+
+							if themeSnapshotChanged(themeSnapshot, currentSnapshot) then
+								themeSnapshot = currentSnapshot
+								refreshTheme()
+							end
+						end)
+
+						--==========================================================
 						-- CLEANUP
 						--==========================================================
 
@@ -9017,6 +9316,12 @@ function library:NewWindow(configuration)
 							end
 
 							table.clear(connections)
+
+							if overlayGui then
+								overlayGui:Destroy()
+								overlayGui = nil
+								overlayRoot = nil
+							end
 
 							if library.Options[name] == option then
 								library.Options[name] = nil
@@ -9049,10 +9354,6 @@ function library:NewWindow(configuration)
 						--==========================================================
 						-- OPTION API
 						--==========================================================
-
-						-- Both APIs operate on the same dropdown:
-						-- dropdown:Refresh(...)
-						-- library.Options[name]:Refresh(...)
 
 						local forwardedMethods = {
 							"GetValue",
@@ -9096,8 +9397,9 @@ function library:NewWindow(configuration)
 							selectedLabel.FontFace = library.FontFace
 						end
 
-						-- No mutation of opts.Values and no initialization callbacks.
 						Dropdown:Refresh(opts.Values or {}, opts.Default, true)
+						refreshTheme()
+						positionHolder()
 
 						return Dropdown
 					end
@@ -12231,7 +12533,6 @@ function library:NewWindow(configuration)
 
 					local Dropdown = {}
 
-					-- Store values independently from the caller's opts.Values.
 					local values = {}
 					local elements = {}
 					local selectedIndices = {}
@@ -12288,7 +12589,6 @@ function library:NewWindow(configuration)
 						end
 
 						for _, value in ipairs(source) do
-							-- Dropdown values are strings or finite numbers.
 							local supported = type(value) == "string"
 								or (
 									type(value) == "number"
@@ -12307,7 +12607,6 @@ function library:NewWindow(configuration)
 					end
 
 					local function findIndex(value)
-						-- Preserve the original API: numeric input means index.
 						if type(value) == "number" then
 							if value % 1 == 0 and value >= 1 and value <= #values then
 								return value
@@ -12464,6 +12763,9 @@ function library:NewWindow(configuration)
 					}, {
 						instancep = "Font",
 						tinstance = library.Font,
+					}, {
+						instancep = "TextColor3",
+						tinstance = library.FontColor,
 					})
 
 					library:Create("UIPadding", {
@@ -12557,6 +12859,62 @@ function library:NewWindow(configuration)
 					})
 
 					--==========================================================
+					-- TOP-LEVEL DROPDOWN OVERLAY
+					--==========================================================
+
+					local overlayRoot
+
+					local sourceScreenGui = main:FindFirstAncestorOfClass("ScreenGui")
+					local player = LocalPlayer
+					local playerGui = (sourceScreenGui and sourceScreenGui.Parent)
+						or (player and player:FindFirstChildOfClass("PlayerGui"))
+
+					if playerGui then
+						local highestDisplayOrder = 0
+
+						for _, child in ipairs(playerGui:GetChildren()) do
+							if child:IsA("ScreenGui") then
+								highestDisplayOrder = math.max(highestDisplayOrder, child.DisplayOrder)
+							end
+						end
+
+						overlayRoot = Instance.new("Frame")
+						overlayRoot.Name = "OverlayRoot"
+						overlayRoot.BackgroundTransparency = 1
+						overlayRoot.BorderSizePixel = 0
+						overlayRoot.Size = UDim2.fromScale(1, 1)
+						overlayRoot.Position = UDim2.fromScale(0, 0)
+						overlayRoot.Parent = Overlaygui
+
+						holder.Parent = overlayRoot
+					end
+
+					local function positionHolder()
+						if not overlayRoot or not holder or not holder.Parent then
+							return
+						end
+
+						local rootPosition = overlayRoot.AbsolutePosition
+						local rootSize = overlayRoot.AbsoluteSize
+						local rowPosition = selectionRow.AbsolutePosition
+						local rowSize = selectionRow.AbsoluteSize
+						local width = math.max(0, rowSize.X)
+						local height = holder.Size.Y.Offset
+						local x = rowPosition.X - rootPosition.X
+						local y = rowPosition.Y - rootPosition.Y + rowSize.Y + 3
+
+						if y + height > rootSize.Y then
+							y = rowPosition.Y - rootPosition.Y - height - 3
+						end
+
+						x = math.clamp(x, 0, math.max(0, rootSize.X - width))
+						y = math.clamp(y, 0, math.max(0, rootSize.Y - height))
+
+						holder.Position = UDim2.fromOffset(x, y)
+						holder.Size = UDim2.fromOffset(width, height)
+					end
+
+					--==========================================================
 					-- UI UPDATES
 					--==========================================================
 
@@ -12574,7 +12932,14 @@ function library:NewWindow(configuration)
 								+ math.max(0, rows - 1) * rowGap
 						end
 
-						holder.Size = UDim2.new(1, 0, 0, heightFor(visibleRows))
+						local holderHeight = heightFor(visibleRows)
+
+						if overlayRoot then
+							holder.Size = UDim2.fromOffset(selectionRow.AbsoluteSize.X, holderHeight)
+						else
+							holder.Size = UDim2.new(1, 0, 0, holderHeight)
+						end
+
 						holder.CanvasSize = UDim2.fromOffset(0, heightFor(count))
 						holder.ScrollingEnabled = count > maxVisibleItems
 
@@ -12584,6 +12949,7 @@ function library:NewWindow(configuration)
 
 						holder.Visible = isOpen and count > 0
 						arrow.Rotation = holder.Visible and 180 or 0
+						positionHolder()
 					end
 
 					local function updateSelectedText()
@@ -12635,12 +13001,75 @@ function library:NewWindow(configuration)
 						updateHolderSize()
 					end
 
+					-- Reapply current theme values to already-created instances.
+					local function refreshTheme()
+						if destroyed then
+							return
+						end
+
+						local strokeColor = library.UIstroke or library.UIStroke or library.SecondaryColor
+
+						header.TextColor3 = library.FontColor
+						header.Font = library.Font
+						selectedLabel.Font = library.Font
+						holder.BackgroundColor3 = library.MainColor
+						holder.ScrollBarImageColor3 = library.AccentColor
+
+						if typeof(library.FontFace) == "Font" then
+							header.FontFace = library.FontFace
+							selectedLabel.FontFace = library.FontFace
+						end
+
+						for _, root in ipairs({ main, holder }) do
+							for _, descendant in ipairs(root:GetDescendants()) do
+								if descendant:IsA("UIStroke") then
+									if descendant.Parent == selectionRow or descendant.Parent == holder then
+										descendant.Color = library.SecondaryColor
+									else
+										descendant.Color = strokeColor
+									end
+								elseif descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
+									descendant.Font = library.Font
+
+									if typeof(library.FontFace) == "Font" then
+										descendant.FontFace = library.FontFace
+									end
+								end
+							end
+						end
+
+						updateSelectedText()
+						updateItems()
+					end
+
+					local function readThemeSnapshot()
+						return {
+							MainColor = library.MainColor,
+							SecondaryColor = library.SecondaryColor,
+							AccentColor = library.AccentColor,
+							FontColor = library.FontColor,
+							UIstroke = library.UIstroke,
+							UIStroke = library.UIStroke,
+							Font = library.Font,
+							FontFace = library.FontFace,
+						}
+					end
+
+					local function themeSnapshotChanged(previous, current)
+						for key, value in pairs(previous) do
+							if current[key] ~= value then
+								return true
+							end
+						end
+
+						return false
+					end
+
 					local function notifyChanged()
 						local value = getValue()
 
 						option.Value = value
 
-						-- Give listeners their own array in multipick mode.
 						changedEvent:Fire(
 							type(value) == "table" and table.clone(value) or value
 						)
@@ -12748,17 +13177,16 @@ function library:NewWindow(configuration)
 								tinstance = library.FontColor,
 							})
 
-							local uistroke = library:Create("UIStroke", {
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIStroke;
-								Thickness = 1;
-								Parent = itemButton;
+							library:Create("UIStroke", {
+								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+								Color = library.UIstroke or library.UIStroke or library.SecondaryColor,
+								Thickness = 1,
+								Parent = itemButton,
 							}, {
 								instancep = "Color",
-								tinstance = library.UIStroke,
+								tinstance = library.UIstroke or library.UIStroke or library.SecondaryColor,
 							})
 
-							-- Respect a custom face when creating new items.
 							if typeof(library.FontFace) == "Font" then
 								itemButton.FontFace = library.FontFace
 							end
@@ -12766,32 +13194,30 @@ function library:NewWindow(configuration)
 							item.button = itemButton
 							elements[index] = item
 
-							item.connection = itemButton.MouseButton1Click:Connect(
-								function()
-									if destroyed then
-										return
-									end
-
-									local previous = getValue()
-
-									if multi then
-										if selectedIndices[index] then
-											selectedIndices[index] = nil
-										else
-											selectedIndices[index] = true
-										end
-									else
-										picked = itemName
-										isOpen = false
-									end
-
-									updateUI()
-
-									if not equalValues(previous, getValue()) then
-										notifyChanged()
-									end
+							item.connection = itemButton.MouseButton1Click:Connect(function()
+								if destroyed then
+									return
 								end
-							)
+
+								local previous = getValue()
+
+								if multi then
+									if selectedIndices[index] then
+										selectedIndices[index] = nil
+									else
+										selectedIndices[index] = true
+									end
+								else
+									picked = itemName
+									isOpen = false
+								end
+
+								updateUI()
+
+								if not equalValues(previous, getValue()) then
+									notifyChanged()
+								end
+							end)
 						end
 					end
 
@@ -12858,7 +13284,6 @@ function library:NewWindow(configuration)
 							return self
 						end
 
-						-- Copy first. The caller may pass option.Values itself.
 						local refreshed = copyUnique(newValues)
 						local previous = getValue()
 
@@ -12876,7 +13301,6 @@ function library:NewWindow(configuration)
 						if defaultValue ~= nil then
 							setValue(defaultValue, true)
 						else
-							-- Preserve selections by value, not their former index.
 							if multi then
 								for _, oldValue in ipairs(previous) do
 									local index = table.find(values, oldValue)
@@ -12894,10 +13318,11 @@ function library:NewWindow(configuration)
 
 						holder.CanvasPosition = Vector2.zero
 
-						-- Refresh is silent by default.
 						if silent == false and not equalValues(previous, getValue()) then
 							notifyChanged()
 						end
+
+						refreshTheme()
 
 						return self
 					end
@@ -12935,7 +13360,6 @@ function library:NewWindow(configuration)
 							return false
 						end
 
-						-- RemoveItem uses the actual item value, not an index.
 						local index = table.find(values, itemName)
 
 						if not index then
@@ -12969,6 +13393,31 @@ function library:NewWindow(configuration)
 					end
 
 					--==========================================================
+					-- OVERLAY TRACKING + LIVE THEME WATCHER
+					--==========================================================
+
+					if overlayRoot then
+						connect(selectionRow:GetPropertyChangedSignal("AbsolutePosition"), positionHolder)
+						connect(selectionRow:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
+						connect(overlayRoot:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
+					end
+
+					local themeSnapshot = readThemeSnapshot()
+
+					connect(game:GetService("RunService").Heartbeat, function()
+						if destroyed then
+							return
+						end
+
+						local currentSnapshot = readThemeSnapshot()
+
+						if themeSnapshotChanged(themeSnapshot, currentSnapshot) then
+							themeSnapshot = currentSnapshot
+							refreshTheme()
+						end
+					end)
+
+					--==========================================================
 					-- CLEANUP
 					--==========================================================
 
@@ -12986,6 +13435,12 @@ function library:NewWindow(configuration)
 						end
 
 						table.clear(connections)
+
+						if overlayGui then
+							overlayGui:Destroy()
+							overlayGui = nil
+							overlayRoot = nil
+						end
 
 						if library.Options[name] == option then
 							library.Options[name] = nil
@@ -13018,10 +13473,6 @@ function library:NewWindow(configuration)
 					--==========================================================
 					-- OPTION API
 					--==========================================================
-
-					-- Both APIs operate on the same dropdown:
-					-- dropdown:Refresh(...)
-					-- library.Options[name]:Refresh(...)
 
 					local forwardedMethods = {
 						"GetValue",
@@ -13065,8 +13516,9 @@ function library:NewWindow(configuration)
 						selectedLabel.FontFace = library.FontFace
 					end
 
-					-- No mutation of opts.Values and no initialization callbacks.
 					Dropdown:Refresh(opts.Values or {}, opts.Default, true)
+					refreshTheme()
+					positionHolder()
 
 					return Dropdown
 				end
@@ -16176,7 +16628,6 @@ function library:NewWindow(configuration)
 
 					local Dropdown = {}
 
-					-- Store values independently from the caller's opts.Values.
 					local values = {}
 					local elements = {}
 					local selectedIndices = {}
@@ -16233,7 +16684,6 @@ function library:NewWindow(configuration)
 						end
 
 						for _, value in ipairs(source) do
-							-- Dropdown values are strings or finite numbers.
 							local supported = type(value) == "string"
 								or (
 									type(value) == "number"
@@ -16252,7 +16702,6 @@ function library:NewWindow(configuration)
 					end
 
 					local function findIndex(value)
-						-- Preserve the original API: numeric input means index.
 						if type(value) == "number" then
 							if value % 1 == 0 and value >= 1 and value <= #values then
 								return value
@@ -16409,6 +16858,9 @@ function library:NewWindow(configuration)
 					}, {
 						instancep = "Font",
 						tinstance = library.Font,
+					}, {
+						instancep = "TextColor3",
+						tinstance = library.FontColor,
 					})
 
 					library:Create("UIPadding", {
@@ -16502,6 +16954,62 @@ function library:NewWindow(configuration)
 					})
 
 					--==========================================================
+					-- TOP-LEVEL DROPDOWN OVERLAY
+					--==========================================================
+
+					local overlayRoot
+
+					local sourceScreenGui = main:FindFirstAncestorOfClass("ScreenGui")
+					local player = LocalPlayer
+					local playerGui = (sourceScreenGui and sourceScreenGui.Parent)
+						or (player and player:FindFirstChildOfClass("PlayerGui"))
+
+					if playerGui then
+						local highestDisplayOrder = 0
+
+						for _, child in ipairs(playerGui:GetChildren()) do
+							if child:IsA("ScreenGui") then
+								highestDisplayOrder = math.max(highestDisplayOrder, child.DisplayOrder)
+							end
+						end
+
+						overlayRoot = Instance.new("Frame")
+						overlayRoot.Name = "OverlayRoot"
+						overlayRoot.BackgroundTransparency = 1
+						overlayRoot.BorderSizePixel = 0
+						overlayRoot.Size = UDim2.fromScale(1, 1)
+						overlayRoot.Position = UDim2.fromScale(0, 0)
+						overlayRoot.Parent = Overlaygui
+
+						holder.Parent = overlayRoot
+					end
+
+					local function positionHolder()
+						if not overlayRoot or not holder or not holder.Parent then
+							return
+						end
+
+						local rootPosition = overlayRoot.AbsolutePosition
+						local rootSize = overlayRoot.AbsoluteSize
+						local rowPosition = selectionRow.AbsolutePosition
+						local rowSize = selectionRow.AbsoluteSize
+						local width = math.max(0, rowSize.X)
+						local height = holder.Size.Y.Offset
+						local x = rowPosition.X - rootPosition.X
+						local y = rowPosition.Y - rootPosition.Y + rowSize.Y + 3
+
+						if y + height > rootSize.Y then
+							y = rowPosition.Y - rootPosition.Y - height - 3
+						end
+
+						x = math.clamp(x, 0, math.max(0, rootSize.X - width))
+						y = math.clamp(y, 0, math.max(0, rootSize.Y - height))
+
+						holder.Position = UDim2.fromOffset(x, y)
+						holder.Size = UDim2.fromOffset(width, height)
+					end
+
+					--==========================================================
 					-- UI UPDATES
 					--==========================================================
 
@@ -16519,7 +17027,14 @@ function library:NewWindow(configuration)
 								+ math.max(0, rows - 1) * rowGap
 						end
 
-						holder.Size = UDim2.new(1, 0, 0, heightFor(visibleRows))
+						local holderHeight = heightFor(visibleRows)
+
+						if overlayRoot then
+							holder.Size = UDim2.fromOffset(selectionRow.AbsoluteSize.X, holderHeight)
+						else
+							holder.Size = UDim2.new(1, 0, 0, holderHeight)
+						end
+
 						holder.CanvasSize = UDim2.fromOffset(0, heightFor(count))
 						holder.ScrollingEnabled = count > maxVisibleItems
 
@@ -16529,6 +17044,7 @@ function library:NewWindow(configuration)
 
 						holder.Visible = isOpen and count > 0
 						arrow.Rotation = holder.Visible and 180 or 0
+						positionHolder()
 					end
 
 					local function updateSelectedText()
@@ -16580,12 +17096,75 @@ function library:NewWindow(configuration)
 						updateHolderSize()
 					end
 
+					-- Reapply current theme values to already-created instances.
+					local function refreshTheme()
+						if destroyed then
+							return
+						end
+
+						local strokeColor = library.UIstroke or library.UIStroke or library.SecondaryColor
+
+						header.TextColor3 = library.FontColor
+						header.Font = library.Font
+						selectedLabel.Font = library.Font
+						holder.BackgroundColor3 = library.MainColor
+						holder.ScrollBarImageColor3 = library.AccentColor
+
+						if typeof(library.FontFace) == "Font" then
+							header.FontFace = library.FontFace
+							selectedLabel.FontFace = library.FontFace
+						end
+
+						for _, root in ipairs({ main, holder }) do
+							for _, descendant in ipairs(root:GetDescendants()) do
+								if descendant:IsA("UIStroke") then
+									if descendant.Parent == selectionRow or descendant.Parent == holder then
+										descendant.Color = library.SecondaryColor
+									else
+										descendant.Color = strokeColor
+									end
+								elseif descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
+									descendant.Font = library.Font
+
+									if typeof(library.FontFace) == "Font" then
+										descendant.FontFace = library.FontFace
+									end
+								end
+							end
+						end
+
+						updateSelectedText()
+						updateItems()
+					end
+
+					local function readThemeSnapshot()
+						return {
+							MainColor = library.MainColor,
+							SecondaryColor = library.SecondaryColor,
+							AccentColor = library.AccentColor,
+							FontColor = library.FontColor,
+							UIstroke = library.UIstroke,
+							UIStroke = library.UIStroke,
+							Font = library.Font,
+							FontFace = library.FontFace,
+						}
+					end
+
+					local function themeSnapshotChanged(previous, current)
+						for key, value in pairs(previous) do
+							if current[key] ~= value then
+								return true
+							end
+						end
+
+						return false
+					end
+
 					local function notifyChanged()
 						local value = getValue()
 
 						option.Value = value
 
-						-- Give listeners their own array in multipick mode.
 						changedEvent:Fire(
 							type(value) == "table" and table.clone(value) or value
 						)
@@ -16693,17 +17272,16 @@ function library:NewWindow(configuration)
 								tinstance = library.FontColor,
 							})
 
-							local uistroke = library:Create("UIStroke", {
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIStroke;
-								Thickness = 1;
-								Parent = itemButton;
+							library:Create("UIStroke", {
+								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+								Color = library.UIstroke or library.UIStroke or library.SecondaryColor,
+								Thickness = 1,
+								Parent = itemButton,
 							}, {
 								instancep = "Color",
-								tinstance = library.UIStroke,
+								tinstance = library.UIstroke or library.UIStroke or library.SecondaryColor,
 							})
 
-							-- Respect a custom face when creating new items.
 							if typeof(library.FontFace) == "Font" then
 								itemButton.FontFace = library.FontFace
 							end
@@ -16711,32 +17289,30 @@ function library:NewWindow(configuration)
 							item.button = itemButton
 							elements[index] = item
 
-							item.connection = itemButton.MouseButton1Click:Connect(
-								function()
-									if destroyed then
-										return
-									end
-
-									local previous = getValue()
-
-									if multi then
-										if selectedIndices[index] then
-											selectedIndices[index] = nil
-										else
-											selectedIndices[index] = true
-										end
-									else
-										picked = itemName
-										isOpen = false
-									end
-
-									updateUI()
-
-									if not equalValues(previous, getValue()) then
-										notifyChanged()
-									end
+							item.connection = itemButton.MouseButton1Click:Connect(function()
+								if destroyed then
+									return
 								end
-							)
+
+								local previous = getValue()
+
+								if multi then
+									if selectedIndices[index] then
+										selectedIndices[index] = nil
+									else
+										selectedIndices[index] = true
+									end
+								else
+									picked = itemName
+									isOpen = false
+								end
+
+								updateUI()
+
+								if not equalValues(previous, getValue()) then
+									notifyChanged()
+								end
+							end)
 						end
 					end
 
@@ -16803,7 +17379,6 @@ function library:NewWindow(configuration)
 							return self
 						end
 
-						-- Copy first. The caller may pass option.Values itself.
 						local refreshed = copyUnique(newValues)
 						local previous = getValue()
 
@@ -16821,7 +17396,6 @@ function library:NewWindow(configuration)
 						if defaultValue ~= nil then
 							setValue(defaultValue, true)
 						else
-							-- Preserve selections by value, not their former index.
 							if multi then
 								for _, oldValue in ipairs(previous) do
 									local index = table.find(values, oldValue)
@@ -16839,10 +17413,11 @@ function library:NewWindow(configuration)
 
 						holder.CanvasPosition = Vector2.zero
 
-						-- Refresh is silent by default.
 						if silent == false and not equalValues(previous, getValue()) then
 							notifyChanged()
 						end
+
+						refreshTheme()
 
 						return self
 					end
@@ -16880,7 +17455,6 @@ function library:NewWindow(configuration)
 							return false
 						end
 
-						-- RemoveItem uses the actual item value, not an index.
 						local index = table.find(values, itemName)
 
 						if not index then
@@ -16914,6 +17488,31 @@ function library:NewWindow(configuration)
 					end
 
 					--==========================================================
+					-- OVERLAY TRACKING + LIVE THEME WATCHER
+					--==========================================================
+
+					if overlayRoot then
+						connect(selectionRow:GetPropertyChangedSignal("AbsolutePosition"), positionHolder)
+						connect(selectionRow:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
+						connect(overlayRoot:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
+					end
+
+					local themeSnapshot = readThemeSnapshot()
+
+					connect(game:GetService("RunService").Heartbeat, function()
+						if destroyed then
+							return
+						end
+
+						local currentSnapshot = readThemeSnapshot()
+
+						if themeSnapshotChanged(themeSnapshot, currentSnapshot) then
+							themeSnapshot = currentSnapshot
+							refreshTheme()
+						end
+					end)
+
+					--==========================================================
 					-- CLEANUP
 					--==========================================================
 
@@ -16931,6 +17530,12 @@ function library:NewWindow(configuration)
 						end
 
 						table.clear(connections)
+
+						if overlayGui then
+							overlayGui:Destroy()
+							overlayGui = nil
+							overlayRoot = nil
+						end
 
 						if library.Options[name] == option then
 							library.Options[name] = nil
@@ -16963,10 +17568,6 @@ function library:NewWindow(configuration)
 					--==========================================================
 					-- OPTION API
 					--==========================================================
-
-					-- Both APIs operate on the same dropdown:
-					-- dropdown:Refresh(...)
-					-- library.Options[name]:Refresh(...)
 
 					local forwardedMethods = {
 						"GetValue",
@@ -17010,8 +17611,9 @@ function library:NewWindow(configuration)
 						selectedLabel.FontFace = library.FontFace
 					end
 
-					-- No mutation of opts.Values and no initialization callbacks.
 					Dropdown:Refresh(opts.Values or {}, opts.Default, true)
+					refreshTheme()
+					positionHolder()
 
 					return Dropdown
 				end
@@ -17199,13 +17801,13 @@ function library:NewWindow(configuration)
 				tab:Open()	
 			end
 
-            button.Activated:Connect(function()
-                tab:Open()
-            end)
+			button.Activated:Connect(function()
+				tab:Open()
+			end)
 
 			return tab
 		end
-		
+
 		expandsize.Activated:Connect(function()
 			expanded = not expanded
 
@@ -17215,7 +17817,7 @@ function library:NewWindow(configuration)
 				maincontainer2.Visible = false
 			end
 		end)
-		
+
 		return section
 	end
 
@@ -17274,7 +17876,7 @@ function library:NewWindow(configuration)
 				instancep = "Color";
 				tinstance = library.AccentColor;
 			})
-			
+
 			library:Create("UICorner", {
 				Parent = dragclone;
 				CornerRadius = UDim.new(0, 11);
