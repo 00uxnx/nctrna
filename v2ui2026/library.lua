@@ -1,5 +1,6 @@
 -- services
 warn("init")
+warn("loading nctrna. Welcome to nctrna")
 
 local cloneref = (cloneref or clonereference or function(instance: any)
 	return instance
@@ -539,8 +540,9 @@ function library:NewWindow(configuration)
 				Position = UDim2.new(0.581, 0, 0.138, 0),
 				BackgroundTransparency = 1,
 				Image = imageAsset,
-				ScaleType = Enum.ScaleType.Stretch,
-				ZIndex = 0,
+				ImageTransparency = .7
+				ScaleType = Enum.ScaleType.Fit,
+				ZIndex = 1,
 				Parent = mainframe,
 			})
 		else
