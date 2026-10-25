@@ -510,14 +510,16 @@ function library:NewWindow(configuration)
 		instancep = "BackgroundColor3";
 		tinstance = library.MainColor;
 	})
-
+	
+	local image = "https://raw.githubusercontent.com/00uxnx/nctrna/main/v2ui2026/images/nate_redo.png"
+	
 	local bg = library:Create("ImageLabel", {
 		Name = "Shadow";
-		Size = UDim2.new(1, 0, 1, 0);
-		Position = UDim2.new(0, 0, 0, 0);
+		Size = UDim2.new(0.419, 0, 0.862, 0);
+		Position = UDim2.new(0.581, 0, 0.138, 0);
 		BackgroundTransparency = 1;
 		ZIndex = 0;
-		Image = "rbxassetid://117689904213073";
+		Image = image or "rbxassetid://117689904213073";
 		Parent = mainframe;
 	})
 
