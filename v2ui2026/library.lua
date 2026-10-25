@@ -510,18 +510,43 @@ function library:NewWindow(configuration)
 		instancep = "BackgroundColor3";
 		tinstance = library.MainColor;
 	})
-	
-	local image = "https://raw.githubusercontent.com/00uxnx/nctrna/main/v2ui2026/images/nate_redo.png"
-	
-	local bg = library:Create("ImageLabel", {
-		Name = "Shadow";
-		Size = UDim2.new(0.419, 0, 0.862, 0);
-		Position = UDim2.new(0.581, 0, 0.138, 0);
-		BackgroundTransparency = 1;
-		ZIndex = 0;
-		Image = image; --or "rbxassetid://117689904213073"
-		Parent = mainframe;
-	})
+
+	local imageUrl = "https://raw.githubusercontent.com/00uxnx/nctrna/main/v2ui2026/images/nate_redo.png"
+	local imagePath = "nate_redo.png"
+
+	local success, err = pcall(function()
+		local imageData = game:HttpGet(imageUrl)
+		writefile(imagePath, imageData)
+	end)
+
+	if success then
+		local assetSuccess, imageAsset = pcall(function()
+			return getcustomasset(imagePath)
+		end)
+
+		if not assetSuccess then
+			assetSuccess, imageAsset = pcall(function()
+				return getsynasset(imagePath)
+			end)
+		end
+
+		if assetSuccess then
+			local bg = library:Create("ImageLabel", {
+				Name = "Shadow",
+				Size = UDim2.new(0.419, 0, 0.862, 0),
+				Position = UDim2.new(0.581, 0, 0.138, 0),
+				BackgroundTransparency = 1,
+				Image = imageAsset,
+				ScaleType = Enum.ScaleType.Stretch,
+				ZIndex = 0,
+				Parent = mainframe,
+			})
+		else
+			warn("Image asset loading failed:", imageAsset)
+		end
+	else
+		warn("Image download failed:", err)
+	end
 
 	library:Create("UIShadow", {
 		Parent = mainframe;
