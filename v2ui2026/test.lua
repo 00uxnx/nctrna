@@ -1,6 +1,6 @@
 -- services
 warn("init")
-warn("loading nctrna. Welcome to nctrna")
+warn("loading nctrna. Welcome to nctrna. Fixed line")
 
 local cloneref = (cloneref or clonereference or function(instance: any)
 	return instance
@@ -5492,7 +5492,7 @@ function library:NewWindow(configuration)
 						return input
 					end	
 					
-					function groubox:AddLineGraph(text, opts)
+					function groupbox:AddLineGraph(text, opts)
 						opts = opts or {}
 
 						local linegraph = {}
@@ -10514,7 +10514,7 @@ function library:NewWindow(configuration)
 						return input
 					end	
 					
-					function groubox:AddLineGraph(text, opts)
+					function groupbox:AddLineGraph(text, opts)
 						opts = opts or {}
 
 						local linegraph = {}
@@ -15560,7 +15560,7 @@ function library:NewWindow(configuration)
 					return input
 				end	
 				
-				function groubox:AddLineGraph(text, opts)
+				function groupbox:AddLineGraph(text, opts)
 					opts = opts or {}
 
 					local linegraph = {}
@@ -20582,7 +20582,7 @@ function library:NewWindow(configuration)
 					return input
 				end	
 
-				function groubox:AddLineGraph(text, opts)
+				function groupbox:AddLineGraph(text, opts)
 					opts = opts or {}
 
 					local linegraph = {}
