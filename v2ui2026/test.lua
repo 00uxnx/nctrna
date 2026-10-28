@@ -5491,6 +5491,933 @@ function library:NewWindow(configuration)
 
 						return input
 					end	
+					
+					function groubox:AddLineGraph(text, opts)
+						opts = opts or {}
+
+						local linegraph = {}
+						local graphsets = {}
+						local curvePoints = 0
+						local opened = false
+						local destroyed = false
+
+						local instance
+						local followConn
+						local outsideConn
+						local openConnections = {}
+						local pointFrames = {}
+						local curveFrames = {}
+
+						local UIS = InputService
+
+						local selectedPreset = opts.Preset or "Smooth"
+						local draggingPoint
+						local dragMoveConn
+						local dragEndConn
+
+						local presets = {
+							"Linear",
+							"Smooth",
+							"Exponential",
+							"Ease In",
+							"Ease Out",
+							"Ease In Out"
+						}
+
+						local function addConnection(signal, callback)
+							local connection = signal:Connect(callback)
+
+							if trackConnection then
+								trackConnection(connection)
+							end
+
+							table.insert(openConnections, connection)
+							return connection
+						end
+
+						local function disconnectConnection(connection)
+							if connection then
+								connection:Disconnect()
+							end
+						end
+
+						local function clearOpenConnections()
+							for _, connection in ipairs(openConnections) do
+								if connection.Connected then
+									connection:Disconnect()
+								end
+							end
+
+							table.clear(openConnections)
+
+							disconnectConnection(followConn)
+							disconnectConnection(outsideConn)
+							disconnectConnection(dragMoveConn)
+							disconnectConnection(dragEndConn)
+
+							followConn = nil
+							outsideConn = nil
+							dragMoveConn = nil
+							dragEndConn = nil
+							draggingPoint = nil
+						end
+
+						local function clearList(list)
+							for _, object in ipairs(list) do
+								if object and object.Parent then
+									object:Destroy()
+								end
+							end
+
+							table.clear(list)
+						end
+
+						local function copyPoints(values)
+							local result = {}
+
+							for i, point in ipairs(values or {}) do
+								local x = tonumber(point.X or point.x or point[1]) or 0
+								local y = tonumber(point.Y or point.y or point[2]) or 0
+
+								table.insert(result, {
+									X = math.clamp(x, 0, 1),
+									Y = math.clamp(y, 0, 1)
+								})
+							end
+
+							table.sort(result, function(a, b)
+								return a.X < b.X
+							end)
+
+							return result
+						end
+
+						graphsets = copyPoints(opts.default or opts.Default or {})
+						curvePoints = #graphsets
+
+						local function getData()
+							local result = {}
+
+							for i, point in ipairs(graphsets) do
+								result[i] = {
+									X = point.X,
+									Y = point.Y
+								}
+							end
+
+							return result
+						end
+
+						local function notifyChanged()
+							curvePoints = #graphsets
+
+							if type(opts.Callback) == "function" then
+								opts.Callback(getData())
+							end
+						end
+
+						local holder = library:Create("Frame", {
+							Name = "Holder";
+							Size = UDim2.new(0.95, 0, 0, 20);
+							BackgroundTransparency = 1;
+							LayoutOrder = #elementsholder:GetChildren();
+							Parent = elementsholder;
+						})
+
+						local uitext = library:Create("TextLabel", {
+							Name = "TextLabel";
+							Size = UDim2.new(0.937, 0, 1, 0);
+							BackgroundTransparency = 1;
+							Text = text;
+							TextSize = 13;
+							TextColor3 = library.FontColor;
+							Font = library.Font;
+							LayoutOrder = 1;
+							TextXAlignment = Enum.TextXAlignment.Left;
+							TextYAlignment = Enum.TextYAlignment.Center;
+							Parent = holder;
+						}, {
+							instancep = "TextColor3";
+							tinstance = library.FontColor;
+						}, {
+							instancep = "Font";
+							tinstance = library.Font;
+						})
+
+						library:Create("UITextSizeConstraint", {
+							Name = "UITextSizeConstraint";
+							MaxTextSize = 13;
+							Parent = uitext;
+						})
+
+						library:Create("UIStroke", {
+							Name = "UIStroke";
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+							Color = Color3.fromRGB(0, 0, 0);
+							Thickness = 1;
+							Parent = uitext;
+						}, {
+							instancep = "Color";
+							tinstance = library.UIstroke;
+						})
+
+						library:Create("UIListLayout", {
+							Name = "UIListLayout";
+							FillDirection = Enum.FillDirection.Horizontal;
+							HorizontalAlignment = Enum.HorizontalAlignment.Left;
+							SortOrder = Enum.SortOrder.LayoutOrder;
+							Parent = holder;
+						})
+
+						local buttonopen = library:Create("ImageButton", {
+							Name = "ButtonOpen";
+							Size = UDim2.new(0, 19, 0, 19);
+							LayoutOrder = 2;
+							BackgroundTransparency = 1;
+							Image = "rbxassetid://10734950309";
+							ImageColor3 = library.AccentColor;
+							Parent = holder;
+						}, {
+							instancep = "ImageColor3";
+							tinstance = library.AccentColor;
+						})
+
+						local function getPopupPosition()
+							local absolute = buttonopen.AbsolutePosition
+							local base = screengui.AbsolutePosition
+
+							return UDim2.fromOffset(
+								absolute.X - base.X,
+								absolute.Y - base.Y
+							)
+						end
+
+						local closeGraph
+
+						local function openGraph()
+							if opened or destroyed then
+								return
+							end
+
+							opened = true
+
+							local lineG = library:Create("Frame", {
+								Name = "CursorBox";
+								Size = UDim2.fromOffset(15, 15);
+								Position = getPopupPosition();
+								BackgroundColor3 = Color3.new(1, 1, 1);
+								BackgroundTransparency = 1;
+								ZIndex = 2;
+								Parent = screengui;
+							})
+
+							instance = lineG
+
+							followConn = addConnection(
+								buttonopen:GetPropertyChangedSignal("AbsolutePosition"),
+								function()
+									if instance and instance.Parent then
+										instance.Position = getPopupPosition()
+									end
+								end
+							)
+
+							local framewindow = library:Create("Frame", {
+								Name = "Frame";
+								Size = UDim2.fromOffset(323, 246);
+								Position = UDim2.new(1, 0, 1.4, 0);
+								BackgroundColor3 = library.MainColor;
+								BorderSizePixel = 0;
+								ZIndex = 2;
+								Parent = lineG;
+							}, {
+								instancep = "BackgroundColor3";
+								tinstance = library.MainColor;
+							})
+
+							library:Create("UIStroke", {
+								Name = "UIStroke";
+								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+								LineJoinMode = Enum.LineJoinMode.Miter;
+								Color = library.SecondaryColor;
+								Thickness = 1;
+								ZIndex = 2;
+								Parent = framewindow;
+							}, {
+								instancep = "Color";
+								tinstance = library.SecondaryColor;
+							})
+
+							library:Create("UIStroke", {
+								Name = "OuterStroke";
+								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+								LineJoinMode = Enum.LineJoinMode.Miter;
+								Color = library.MainColor;
+								Thickness = 4;
+								Parent = framewindow;
+							}, {
+								instancep = "Color";
+								tinstance = library.MainColor;
+							})
+
+							local title = library:Create("TextLabel", {
+								Name = "TextLabel";
+								Size = UDim2.new(1, 0, 0, 18);
+								Position = UDim2.fromOffset(0, 0);
+								BackgroundTransparency = 1;
+								Text = text or "Line Graph";
+								TextColor3 = library.FontColor;
+								Font = library.Font;
+								TextSize = 13;
+								TextXAlignment = Enum.TextXAlignment.Left;
+								ZIndex = 3;
+								Parent = framewindow;
+							}, {
+								instancep = "TextColor3";
+								tinstance = library.FontColor;
+							}, {
+								instancep = "Font";
+								tinstance = library.Font;
+							})
+
+							library:Create("UIPadding", {
+								PaddingLeft = UDim.new(0, 6);
+								Parent = title;
+							})
+
+							library:Create("UIStroke", {
+								Name = "UIStroke";
+								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+								Color = library.UIstroke;
+								Thickness = 1;
+								Parent = title;
+							}, {
+								instancep = "Color";
+								tinstance = library.UIstroke;
+							})
+
+							local GraphHolder = library:Create("Frame", {
+								Name = "GraphHolder";
+								Position = UDim2.fromOffset(4, 24);
+								Size = UDim2.fromOffset(315, 168);
+								BackgroundTransparency = 1;
+								BorderSizePixel = 0;
+								ClipsDescendants = false;
+								ZIndex = 2;
+								Parent = framewindow;
+							})
+
+							library:Create("UIStroke", {
+								Color = library.SecondaryColor;
+								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+								Parent = GraphHolder;
+							}, {
+								instancep = "Color";
+								tinstance = library.SecondaryColor;
+							})
+
+							local grid = library:Create("Frame", {
+								Name = "Grid";
+								Size = UDim2.fromScale(1, 1);
+								BackgroundTransparency = 1;
+								ZIndex = 2;
+								Parent = GraphHolder;
+							})
+
+							local curveLayer = library:Create("Frame", {
+								Name = "CurveLines";
+								Size = UDim2.fromScale(1, 1);
+								BackgroundTransparency = 1;
+								ZIndex = 3;
+								Parent = GraphHolder;
+							})
+
+							local pointLayer = library:Create("Frame", {
+								Name = "Points";
+								Size = UDim2.fromScale(1, 1);
+								BackgroundTransparency = 1;
+								ZIndex = 5;
+								Parent = GraphHolder;
+							})
+
+							for i = 1, 4 do
+								library:Create("Frame", {
+									Name = "HorizontalLine";
+									Position = UDim2.fromScale(0, i / 5);
+									Size = UDim2.new(1, 0, 0, 1);
+									BorderSizePixel = 0;
+									BackgroundColor3 = library.SecondaryColor;
+									ZIndex = 2;
+									Parent = grid;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.SecondaryColor;
+								})
+							end
+
+							for i = 1, 7 do
+								library:Create("Frame", {
+									Name = "VerticalLine";
+									Position = UDim2.fromScale(i / 8, 0);
+									Size = UDim2.new(0, 1, 1, 0);
+									BorderSizePixel = 0;
+									BackgroundColor3 = library.SecondaryColor;
+									ZIndex = 2;
+									Parent = grid;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.SecondaryColor;
+								})
+							end
+
+							local function toPixels(point)
+								local size = GraphHolder.AbsoluteSize
+
+								return Vector2.new(
+									point.X * size.X,
+									(1 - point.Y) * size.Y
+								)
+							end
+
+							local function createSegment(a, b)
+								local delta = b - a
+								local length = delta.Magnitude
+
+								if length < 0.5 then
+									return
+								end
+
+								local segment = library:Create("Frame", {
+									Name = "CurveSegment";
+									AnchorPoint = Vector2.new(0, 0.5);
+									Position = UDim2.fromOffset(a.X, a.Y);
+									Size = UDim2.fromOffset(length, 2);
+									Rotation = math.deg(math.atan2(delta.Y, delta.X));
+									BorderSizePixel = 0;
+									BackgroundColor3 = library.AccentColor;
+									ZIndex = 3;
+									Parent = curveLayer;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.AccentColor;
+								})
+
+								table.insert(curveFrames, segment)
+							end
+
+							local function catmullRom(p0, p1, p2, p3, t)
+								local t2 = t * t
+								local t3 = t2 * t
+
+								return Vector2.new(
+									0.5 * (
+										2 * p1.X
+											+ (-p0.X + p2.X) * t
+											+ (2*p0.X - 5*p1.X + 4*p2.X - p3.X) * t2
+											+ (-p0.X + 3*p1.X - 3*p2.X + p3.X) * t3
+									),
+									0.5 * (
+										2 * p1.Y
+											+ (-p0.Y + p2.Y) * t
+											+ (2*p0.Y - 5*p1.Y + 4*p2.Y - p3.Y) * t2
+											+ (-p0.Y + 3*p1.Y - 3*p2.Y + p3.Y) * t3
+									)
+								)
+							end
+
+							local function interpolateY(a, b, t)
+								if selectedPreset == "Exponential" then
+									t = t * t
+								elseif selectedPreset == "Ease In" then
+									t = t * t
+								elseif selectedPreset == "Ease Out" then
+									t = 1 - (1 - t) * (1 - t)
+								elseif selectedPreset == "Ease In Out" then
+									if t < 0.5 then
+										t = 2 * t * t
+									else
+										t = 1 - ((-2 * t + 2) ^ 2) / 2
+									end
+								end
+
+								return a + (b - a) * t
+							end
+
+							local renderGraph
+
+							local function drawCurve()
+								clearList(curveFrames)
+
+								if #graphsets < 2 then
+									return
+								end
+
+								local points = {}
+
+								for i, point in ipairs(graphsets) do
+									points[i] = toPixels(point)
+								end
+
+								for i = 1, #points - 1 do
+									local p1 = points[i]
+									local p2 = points[i + 1]
+
+									if selectedPreset == "Smooth" then
+										local p0 = points[math.max(1, i - 1)]
+										local p3 = points[math.min(#points, i + 2)]
+										local previous = p1
+
+										for step = 1, 20 do
+											local nextPoint = catmullRom(
+												p0, p1, p2, p3, step / 20
+											)
+
+											createSegment(previous, nextPoint)
+											previous = nextPoint
+										end
+									else
+										local previous = p1
+
+										for step = 1, 20 do
+											local t = step / 20
+
+											local nextPoint = Vector2.new(
+												p1.X + (p2.X - p1.X) * t,
+												interpolateY(p1.Y, p2.Y, t)
+											)
+
+											createSegment(previous, nextPoint)
+											previous = nextPoint
+										end
+									end
+								end
+							end
+
+							local function endDrag()
+								draggingPoint = nil
+
+								disconnectConnection(dragMoveConn)
+								disconnectConnection(dragEndConn)
+
+								dragMoveConn = nil
+								dragEndConn = nil
+
+								table.sort(graphsets, function(a, b)
+									return a.X < b.X
+								end)
+
+								if opened then
+									renderGraph()
+									notifyChanged()
+								end
+							end
+
+							local function startDrag(point)
+								if dragMoveConn then
+									dragMoveConn:Disconnect()
+									dragMoveConn = nil
+								end
+
+								if dragEndConn then
+									dragEndConn:Disconnect()
+									dragEndConn = nil
+								end
+
+								draggingPoint = point
+
+								dragMoveConn = addConnection(
+									UIS.InputChanged,
+									function(input)
+										if not draggingPoint or not opened then
+											return
+										end
+
+										if input.UserInputType ~= Enum.UserInputType.MouseMovement
+											and input.UserInputType ~= Enum.UserInputType.Touch then
+											return
+										end
+
+										local position = input.Position
+
+										if input.UserInputType == Enum.UserInputType.MouseMovement then
+											position = UIS:GetMouseLocation()
+										end
+
+										local origin = GraphHolder.AbsolutePosition
+										local size = GraphHolder.AbsoluteSize
+
+										if size.X <= 0 or size.Y <= 0 then
+											return
+										end
+
+										draggingPoint.X = math.clamp(
+											(position.X - origin.X) / size.X, 0, 1
+										)
+
+										draggingPoint.Y = math.clamp(
+											1 - (position.Y - origin.Y) / size.Y, 0, 1
+										)
+
+										renderGraph()
+										notifyChanged()
+									end
+								)
+
+								dragEndConn = addConnection(
+									UIS.InputEnded,
+									function(input)
+										if input.UserInputType == Enum.UserInputType.MouseButton1
+											or input.UserInputType == Enum.UserInputType.Touch then
+											endDrag()
+										end
+									end
+								)
+							end
+
+							renderGraph = function()
+								clearList(pointFrames)
+
+								for _, point in ipairs(graphsets) do
+									local pixel = toPixels(point)
+
+									local dot = library:Create("TextButton", {
+										Name = "CurveDot";
+										AnchorPoint = Vector2.new(0.5, 0.5);
+										Position = UDim2.fromOffset(pixel.X, pixel.Y);
+										Size = UDim2.fromOffset(10, 10);
+										BackgroundColor3 = library.AccentColor;
+										BorderSizePixel = 0;
+										Text = "";
+										AutoButtonColor = false;
+										ZIndex = 5;
+										Parent = pointLayer;
+									}, {
+										instancep = "BackgroundColor3";
+										tinstance = library.AccentColor;
+									})
+
+									library:Create("UICorner", {
+										CornerRadius = UDim.new(1, 0);
+										Parent = dot;
+									})
+
+									library:Create("TextLabel", {
+										Name = "PointValue";
+										AnchorPoint = Vector2.new(0.5, 1);
+										Position = UDim2.new(0.5, 0, 0, -3);
+										Size = UDim2.fromOffset(90, 14);
+										BackgroundTransparency = 1;
+										Text = string.format("%.2f, %.2f", point.X, point.Y);
+										TextColor3 = library.FontColor;
+										Font = library.Font;
+										TextSize = 10;
+										ZIndex = 6;
+										Parent = dot;
+									}, {
+										instancep = "TextColor3";
+										tinstance = library.FontColor;
+									}, {
+										instancep = "Font";
+										tinstance = library.Font;
+									})
+
+									table.insert(pointFrames, dot)
+
+									addConnection(dot.InputBegan, function(input)
+										if input.UserInputType == Enum.UserInputType.MouseButton1
+											or input.UserInputType == Enum.UserInputType.Touch then
+											startDrag(point)
+										end
+									end)
+								end
+
+								drawCurve()
+							end
+
+							addConnection(GraphHolder.InputBegan, function(input)
+								if input.UserInputType ~= Enum.UserInputType.MouseButton1
+									and input.UserInputType ~= Enum.UserInputType.Touch then
+									return
+								end
+
+								local position = input.Position
+
+								if input.UserInputType == Enum.UserInputType.MouseButton1 then
+									position = UIS:GetMouseLocation()
+								end
+
+								local origin = GraphHolder.AbsolutePosition
+								local size = GraphHolder.AbsoluteSize
+
+								if size.X <= 0 or size.Y <= 0 then
+									return
+								end
+
+								local x = math.clamp((position.X - origin.X) / size.X, 0, 1)
+								local y = math.clamp(1 - (position.Y - origin.Y) / size.Y, 0, 1)
+
+								table.insert(graphsets, {
+									X = x;
+									Y = y;
+								})
+
+								table.sort(graphsets, function(a, b)
+									return a.X < b.X
+								end)
+
+								renderGraph()
+								notifyChanged()
+							end)
+
+							if opts.Presets == true then
+								local presetButton = library:Create("TextButton", {
+									Name = "PresetButton";
+									Position = UDim2.fromOffset(6, 197);
+									Size = UDim2.new(1, -12, 0, 20);
+									BackgroundColor3 = library.MainColor;
+									Text = "Curve: " .. selectedPreset .. "  v";
+									TextColor3 = library.FontColor;
+									Font = library.Font;
+									TextSize = 12;
+									BorderSizePixel = 0;
+									ZIndex = 10;
+									Parent = framewindow;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								local menu = library:Create("Frame", {
+									Name = "PresetMenu";
+									Position = UDim2.new(0, 6, 1, -48 - (#presets * 20));
+									Size = UDim2.new(1, -12, 0, #presets * 20);
+									BackgroundColor3 = library.MainColor;
+									BorderSizePixel = 0;
+									Visible = false;
+									ZIndex = 20;
+									Parent = framewindow;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								})
+
+								library:Create("UIListLayout", {
+									SortOrder = Enum.SortOrder.LayoutOrder;
+									Parent = menu;
+								})
+
+								for i, preset in ipairs(presets) do
+									local option = library:Create("TextButton", {
+										Name = preset;
+										Size = UDim2.new(1, 0, 0, 20);
+										BackgroundColor3 = library.MainColor;
+										BorderSizePixel = 0;
+										Text = preset;
+										TextColor3 = library.FontColor;
+										Font = library.Font;
+										TextSize = 12;
+										LayoutOrder = i;
+										ZIndex = 21;
+										Parent = menu;
+									}, {
+										instancep = "BackgroundColor3";
+										tinstance = library.MainColor;
+									}, {
+										instancep = "TextColor3";
+										tinstance = library.FontColor;
+									}, {
+										instancep = "Font";
+										tinstance = library.Font;
+									})
+
+									addConnection(option.Activated, function()
+										selectedPreset = preset
+										presetButton.Text = "Curve: " .. preset .. "  v"
+										menu.Visible = false
+
+										renderGraph()
+										notifyChanged()
+									end)
+								end
+
+								addConnection(presetButton.Activated, function()
+									menu.Visible = not menu.Visible
+								end)
+							end
+
+							local resetButton = library:Create("TextButton", {
+								Name = "ResetGraph";
+								Position = UDim2.new(0, 6, 1, -25);
+								Size = UDim2.new(1, -12, 0, 20);
+								BackgroundColor3 = library.MainColor;
+								Text = "Reset Graph";
+								TextColor3 = library.FontColor;
+								Font = library.Font;
+								TextSize = 12;
+								BorderSizePixel = 0;
+								ZIndex = 10;
+								Parent = framewindow;
+							}, {
+								instancep = "BackgroundColor3";
+								tinstance = library.MainColor;
+							}, {
+								instancep = "TextColor3";
+								tinstance = library.FontColor;
+							}, {
+								instancep = "Font";
+								tinstance = library.Font;
+							})
+
+							addConnection(resetButton.Activated, function()
+								table.clear(graphsets)
+								renderGraph()
+								notifyChanged()
+							end)
+
+							addConnection(GraphHolder:GetPropertyChangedSignal("AbsoluteSize"), function()
+								renderGraph()
+							end)
+
+							outsideConn = addConnection(UIS.InputBegan, function(input)
+								if input.UserInputType ~= Enum.UserInputType.MouseButton1
+									and input.UserInputType ~= Enum.UserInputType.Touch then
+									return
+								end
+
+								if not instance or not instance.Parent then
+									return
+								end
+
+								local position = input.Position
+								local mouse = UIS:GetMouseLocation()
+
+								if input.UserInputType == Enum.UserInputType.MouseButton1 then
+									position = mouse
+								end
+
+								local a = lineG.AbsolutePosition
+								local b = lineG.AbsolutePosition + lineG.AbsoluteSize
+
+								local topLeft = framewindow.AbsolutePosition
+								local bottomRight = topLeft + framewindow.AbsoluteSize
+
+								local inWindow = position.X >= topLeft.X
+									and position.X <= bottomRight.X
+									and position.Y >= topLeft.Y
+									and position.Y <= bottomRight.Y
+
+								local inButton = position.X >= buttonopen.AbsolutePosition.X
+									and position.X <= buttonopen.AbsolutePosition.X + buttonopen.AbsoluteSize.X
+									and position.Y >= buttonopen.AbsolutePosition.Y
+									and position.Y <= buttonopen.AbsolutePosition.Y + buttonopen.AbsoluteSize.Y
+
+								if not inWindow and not inButton then
+									closeGraph()
+								end
+							end)
+
+							task.defer(function()
+								if opened and GraphHolder.Parent then
+									renderGraph()
+								end
+							end)
+						end
+
+						closeGraph = function()
+							if not opened then
+								return
+							end
+
+							opened = false
+							clearOpenConnections()
+
+							if instance then
+								instance:Destroy()
+								instance = nil
+							end
+						end
+
+						addConnection(buttonopen.Activated, function()
+							if opened then
+								closeGraph()
+							else
+								openGraph()
+							end
+						end)
+
+						function linegraph:Get()
+							return getData()
+						end
+
+						function linegraph:Set(values)
+							graphsets = copyPoints(values)
+							curvePoints = #graphsets
+
+							if opened then
+								closeGraph()
+								openGraph()
+							end
+
+							notifyChanged()
+						end
+
+						function linegraph:Reset()
+							graphsets = {}
+							curvePoints = 0
+
+							if opened then
+								closeGraph()
+								openGraph()
+							end
+
+							notifyChanged()
+						end
+
+						function linegraph:SetPreset(preset)
+							for _, name in ipairs(presets) do
+								if name == preset then
+									selectedPreset = name
+
+									if opened then
+										closeGraph()
+										openGraph()
+									end
+
+									notifyChanged()
+									return true
+								end
+							end
+
+							return false
+						end
+
+						function linegraph:Destroy()
+							if destroyed then
+								return
+							end
+
+							destroyed = true
+							closeGraph()
+
+							for _, connection in ipairs(openConnections) do
+								disconnectConnection(connection)
+							end
+
+							table.clear(openConnections)
+
+							if holder then
+								holder:Destroy()
+							end
+						end
+
+						return linegraph
+					end
 
 					return groupbox
 				end
@@ -9586,7 +10513,934 @@ function library:NewWindow(configuration)
 
 						return input
 					end	
+					
+					function groubox:AddLineGraph(text, opts)
+						opts = opts or {}
 
+						local linegraph = {}
+						local graphsets = {}
+						local curvePoints = 0
+						local opened = false
+						local destroyed = false
+
+						local instance
+						local followConn
+						local outsideConn
+						local openConnections = {}
+						local pointFrames = {}
+						local curveFrames = {}
+
+						local UIS = InputService
+
+						local selectedPreset = opts.Preset or "Smooth"
+						local draggingPoint
+						local dragMoveConn
+						local dragEndConn
+
+						local presets = {
+							"Linear",
+							"Smooth",
+							"Exponential",
+							"Ease In",
+							"Ease Out",
+							"Ease In Out"
+						}
+
+						local function addConnection(signal, callback)
+							local connection = signal:Connect(callback)
+
+							if trackConnection then
+								trackConnection(connection)
+							end
+
+							table.insert(openConnections, connection)
+							return connection
+						end
+
+						local function disconnectConnection(connection)
+							if connection then
+								connection:Disconnect()
+							end
+						end
+
+						local function clearOpenConnections()
+							for _, connection in ipairs(openConnections) do
+								if connection.Connected then
+									connection:Disconnect()
+								end
+							end
+
+							table.clear(openConnections)
+
+							disconnectConnection(followConn)
+							disconnectConnection(outsideConn)
+							disconnectConnection(dragMoveConn)
+							disconnectConnection(dragEndConn)
+
+							followConn = nil
+							outsideConn = nil
+							dragMoveConn = nil
+							dragEndConn = nil
+							draggingPoint = nil
+						end
+
+						local function clearList(list)
+							for _, object in ipairs(list) do
+								if object and object.Parent then
+									object:Destroy()
+								end
+							end
+
+							table.clear(list)
+						end
+
+						local function copyPoints(values)
+							local result = {}
+
+							for i, point in ipairs(values or {}) do
+								local x = tonumber(point.X or point.x or point[1]) or 0
+								local y = tonumber(point.Y or point.y or point[2]) or 0
+
+								table.insert(result, {
+									X = math.clamp(x, 0, 1),
+									Y = math.clamp(y, 0, 1)
+								})
+							end
+
+							table.sort(result, function(a, b)
+								return a.X < b.X
+							end)
+
+							return result
+						end
+
+						graphsets = copyPoints(opts.default or opts.Default or {})
+						curvePoints = #graphsets
+
+						local function getData()
+							local result = {}
+
+							for i, point in ipairs(graphsets) do
+								result[i] = {
+									X = point.X,
+									Y = point.Y
+								}
+							end
+
+							return result
+						end
+
+						local function notifyChanged()
+							curvePoints = #graphsets
+
+							if type(opts.Callback) == "function" then
+								opts.Callback(getData())
+							end
+						end
+
+						local holder = library:Create("Frame", {
+							Name = "Holder";
+							Size = UDim2.new(0.95, 0, 0, 20);
+							BackgroundTransparency = 1;
+							LayoutOrder = #elementsholder:GetChildren();
+							Parent = elementsholder;
+						})
+
+						local uitext = library:Create("TextLabel", {
+							Name = "TextLabel";
+							Size = UDim2.new(0.937, 0, 1, 0);
+							BackgroundTransparency = 1;
+							Text = text;
+							TextSize = 13;
+							TextColor3 = library.FontColor;
+							Font = library.Font;
+							LayoutOrder = 1;
+							TextXAlignment = Enum.TextXAlignment.Left;
+							TextYAlignment = Enum.TextYAlignment.Center;
+							Parent = holder;
+						}, {
+							instancep = "TextColor3";
+							tinstance = library.FontColor;
+						}, {
+							instancep = "Font";
+							tinstance = library.Font;
+						})
+
+						library:Create("UITextSizeConstraint", {
+							Name = "UITextSizeConstraint";
+							MaxTextSize = 13;
+							Parent = uitext;
+						})
+
+						library:Create("UIStroke", {
+							Name = "UIStroke";
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+							Color = Color3.fromRGB(0, 0, 0);
+							Thickness = 1;
+							Parent = uitext;
+						}, {
+							instancep = "Color";
+							tinstance = library.UIstroke;
+						})
+
+						library:Create("UIListLayout", {
+							Name = "UIListLayout";
+							FillDirection = Enum.FillDirection.Horizontal;
+							HorizontalAlignment = Enum.HorizontalAlignment.Left;
+							SortOrder = Enum.SortOrder.LayoutOrder;
+							Parent = holder;
+						})
+
+						local buttonopen = library:Create("ImageButton", {
+							Name = "ButtonOpen";
+							Size = UDim2.new(0, 19, 0, 19);
+							LayoutOrder = 2;
+							BackgroundTransparency = 1;
+							Image = "rbxassetid://10734950309";
+							ImageColor3 = library.AccentColor;
+							Parent = holder;
+						}, {
+							instancep = "ImageColor3";
+							tinstance = library.AccentColor;
+						})
+
+						local function getPopupPosition()
+							local absolute = buttonopen.AbsolutePosition
+							local base = screengui.AbsolutePosition
+
+							return UDim2.fromOffset(
+								absolute.X - base.X,
+								absolute.Y - base.Y
+							)
+						end
+
+						local closeGraph
+
+						local function openGraph()
+							if opened or destroyed then
+								return
+							end
+
+							opened = true
+
+							local lineG = library:Create("Frame", {
+								Name = "CursorBox";
+								Size = UDim2.fromOffset(15, 15);
+								Position = getPopupPosition();
+								BackgroundColor3 = Color3.new(1, 1, 1);
+								BackgroundTransparency = 1;
+								ZIndex = 2;
+								Parent = screengui;
+							})
+
+							instance = lineG
+
+							followConn = addConnection(
+								buttonopen:GetPropertyChangedSignal("AbsolutePosition"),
+								function()
+									if instance and instance.Parent then
+										instance.Position = getPopupPosition()
+									end
+								end
+							)
+
+							local framewindow = library:Create("Frame", {
+								Name = "Frame";
+								Size = UDim2.fromOffset(323, 246);
+								Position = UDim2.new(1, 0, 1.4, 0);
+								BackgroundColor3 = library.MainColor;
+								BorderSizePixel = 0;
+								ZIndex = 2;
+								Parent = lineG;
+							}, {
+								instancep = "BackgroundColor3";
+								tinstance = library.MainColor;
+							})
+
+							library:Create("UIStroke", {
+								Name = "UIStroke";
+								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+								LineJoinMode = Enum.LineJoinMode.Miter;
+								Color = library.SecondaryColor;
+								Thickness = 1;
+								ZIndex = 2;
+								Parent = framewindow;
+							}, {
+								instancep = "Color";
+								tinstance = library.SecondaryColor;
+							})
+
+							library:Create("UIStroke", {
+								Name = "OuterStroke";
+								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+								LineJoinMode = Enum.LineJoinMode.Miter;
+								Color = library.MainColor;
+								Thickness = 4;
+								Parent = framewindow;
+							}, {
+								instancep = "Color";
+								tinstance = library.MainColor;
+							})
+
+							local title = library:Create("TextLabel", {
+								Name = "TextLabel";
+								Size = UDim2.new(1, 0, 0, 18);
+								Position = UDim2.fromOffset(0, 0);
+								BackgroundTransparency = 1;
+								Text = text or "Line Graph";
+								TextColor3 = library.FontColor;
+								Font = library.Font;
+								TextSize = 13;
+								TextXAlignment = Enum.TextXAlignment.Left;
+								ZIndex = 3;
+								Parent = framewindow;
+							}, {
+								instancep = "TextColor3";
+								tinstance = library.FontColor;
+							}, {
+								instancep = "Font";
+								tinstance = library.Font;
+							})
+
+							library:Create("UIPadding", {
+								PaddingLeft = UDim.new(0, 6);
+								Parent = title;
+							})
+
+							library:Create("UIStroke", {
+								Name = "UIStroke";
+								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+								Color = library.UIstroke;
+								Thickness = 1;
+								Parent = title;
+							}, {
+								instancep = "Color";
+								tinstance = library.UIstroke;
+							})
+
+							local GraphHolder = library:Create("Frame", {
+								Name = "GraphHolder";
+								Position = UDim2.fromOffset(4, 24);
+								Size = UDim2.fromOffset(315, 168);
+								BackgroundTransparency = 1;
+								BorderSizePixel = 0;
+								ClipsDescendants = false;
+								ZIndex = 2;
+								Parent = framewindow;
+							})
+
+							library:Create("UIStroke", {
+								Color = library.SecondaryColor;
+								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+								Parent = GraphHolder;
+							}, {
+								instancep = "Color";
+								tinstance = library.SecondaryColor;
+							})
+
+							local grid = library:Create("Frame", {
+								Name = "Grid";
+								Size = UDim2.fromScale(1, 1);
+								BackgroundTransparency = 1;
+								ZIndex = 2;
+								Parent = GraphHolder;
+							})
+
+							local curveLayer = library:Create("Frame", {
+								Name = "CurveLines";
+								Size = UDim2.fromScale(1, 1);
+								BackgroundTransparency = 1;
+								ZIndex = 3;
+								Parent = GraphHolder;
+							})
+
+							local pointLayer = library:Create("Frame", {
+								Name = "Points";
+								Size = UDim2.fromScale(1, 1);
+								BackgroundTransparency = 1;
+								ZIndex = 5;
+								Parent = GraphHolder;
+							})
+
+							for i = 1, 4 do
+								library:Create("Frame", {
+									Name = "HorizontalLine";
+									Position = UDim2.fromScale(0, i / 5);
+									Size = UDim2.new(1, 0, 0, 1);
+									BorderSizePixel = 0;
+									BackgroundColor3 = library.SecondaryColor;
+									ZIndex = 2;
+									Parent = grid;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.SecondaryColor;
+								})
+							end
+
+							for i = 1, 7 do
+								library:Create("Frame", {
+									Name = "VerticalLine";
+									Position = UDim2.fromScale(i / 8, 0);
+									Size = UDim2.new(0, 1, 1, 0);
+									BorderSizePixel = 0;
+									BackgroundColor3 = library.SecondaryColor;
+									ZIndex = 2;
+									Parent = grid;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.SecondaryColor;
+								})
+							end
+
+							local function toPixels(point)
+								local size = GraphHolder.AbsoluteSize
+
+								return Vector2.new(
+									point.X * size.X,
+									(1 - point.Y) * size.Y
+								)
+							end
+
+							local function createSegment(a, b)
+								local delta = b - a
+								local length = delta.Magnitude
+
+								if length < 0.5 then
+									return
+								end
+
+								local segment = library:Create("Frame", {
+									Name = "CurveSegment";
+									AnchorPoint = Vector2.new(0, 0.5);
+									Position = UDim2.fromOffset(a.X, a.Y);
+									Size = UDim2.fromOffset(length, 2);
+									Rotation = math.deg(math.atan2(delta.Y, delta.X));
+									BorderSizePixel = 0;
+									BackgroundColor3 = library.AccentColor;
+									ZIndex = 3;
+									Parent = curveLayer;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.AccentColor;
+								})
+
+								table.insert(curveFrames, segment)
+							end
+
+							local function catmullRom(p0, p1, p2, p3, t)
+								local t2 = t * t
+								local t3 = t2 * t
+
+								return Vector2.new(
+									0.5 * (
+										2 * p1.X
+											+ (-p0.X + p2.X) * t
+											+ (2*p0.X - 5*p1.X + 4*p2.X - p3.X) * t2
+											+ (-p0.X + 3*p1.X - 3*p2.X + p3.X) * t3
+									),
+									0.5 * (
+										2 * p1.Y
+											+ (-p0.Y + p2.Y) * t
+											+ (2*p0.Y - 5*p1.Y + 4*p2.Y - p3.Y) * t2
+											+ (-p0.Y + 3*p1.Y - 3*p2.Y + p3.Y) * t3
+									)
+								)
+							end
+
+							local function interpolateY(a, b, t)
+								if selectedPreset == "Exponential" then
+									t = t * t
+								elseif selectedPreset == "Ease In" then
+									t = t * t
+								elseif selectedPreset == "Ease Out" then
+									t = 1 - (1 - t) * (1 - t)
+								elseif selectedPreset == "Ease In Out" then
+									if t < 0.5 then
+										t = 2 * t * t
+									else
+										t = 1 - ((-2 * t + 2) ^ 2) / 2
+									end
+								end
+
+								return a + (b - a) * t
+							end
+
+							local renderGraph
+
+							local function drawCurve()
+								clearList(curveFrames)
+
+								if #graphsets < 2 then
+									return
+								end
+
+								local points = {}
+
+								for i, point in ipairs(graphsets) do
+									points[i] = toPixels(point)
+								end
+
+								for i = 1, #points - 1 do
+									local p1 = points[i]
+									local p2 = points[i + 1]
+
+									if selectedPreset == "Smooth" then
+										local p0 = points[math.max(1, i - 1)]
+										local p3 = points[math.min(#points, i + 2)]
+										local previous = p1
+
+										for step = 1, 20 do
+											local nextPoint = catmullRom(
+												p0, p1, p2, p3, step / 20
+											)
+
+											createSegment(previous, nextPoint)
+											previous = nextPoint
+										end
+									else
+										local previous = p1
+
+										for step = 1, 20 do
+											local t = step / 20
+
+											local nextPoint = Vector2.new(
+												p1.X + (p2.X - p1.X) * t,
+												interpolateY(p1.Y, p2.Y, t)
+											)
+
+											createSegment(previous, nextPoint)
+											previous = nextPoint
+										end
+									end
+								end
+							end
+
+							local function endDrag()
+								draggingPoint = nil
+
+								disconnectConnection(dragMoveConn)
+								disconnectConnection(dragEndConn)
+
+								dragMoveConn = nil
+								dragEndConn = nil
+
+								table.sort(graphsets, function(a, b)
+									return a.X < b.X
+								end)
+
+								if opened then
+									renderGraph()
+									notifyChanged()
+								end
+							end
+
+							local function startDrag(point)
+								if dragMoveConn then
+									dragMoveConn:Disconnect()
+									dragMoveConn = nil
+								end
+
+								if dragEndConn then
+									dragEndConn:Disconnect()
+									dragEndConn = nil
+								end
+
+								draggingPoint = point
+
+								dragMoveConn = addConnection(
+									UIS.InputChanged,
+									function(input)
+										if not draggingPoint or not opened then
+											return
+										end
+
+										if input.UserInputType ~= Enum.UserInputType.MouseMovement
+											and input.UserInputType ~= Enum.UserInputType.Touch then
+											return
+										end
+
+										local position = input.Position
+
+										if input.UserInputType == Enum.UserInputType.MouseMovement then
+											position = UIS:GetMouseLocation()
+										end
+
+										local origin = GraphHolder.AbsolutePosition
+										local size = GraphHolder.AbsoluteSize
+
+										if size.X <= 0 or size.Y <= 0 then
+											return
+										end
+
+										draggingPoint.X = math.clamp(
+											(position.X - origin.X) / size.X, 0, 1
+										)
+
+										draggingPoint.Y = math.clamp(
+											1 - (position.Y - origin.Y) / size.Y, 0, 1
+										)
+
+										renderGraph()
+										notifyChanged()
+									end
+								)
+
+								dragEndConn = addConnection(
+									UIS.InputEnded,
+									function(input)
+										if input.UserInputType == Enum.UserInputType.MouseButton1
+											or input.UserInputType == Enum.UserInputType.Touch then
+											endDrag()
+										end
+									end
+								)
+							end
+
+							renderGraph = function()
+								clearList(pointFrames)
+
+								for _, point in ipairs(graphsets) do
+									local pixel = toPixels(point)
+
+									local dot = library:Create("TextButton", {
+										Name = "CurveDot";
+										AnchorPoint = Vector2.new(0.5, 0.5);
+										Position = UDim2.fromOffset(pixel.X, pixel.Y);
+										Size = UDim2.fromOffset(10, 10);
+										BackgroundColor3 = library.AccentColor;
+										BorderSizePixel = 0;
+										Text = "";
+										AutoButtonColor = false;
+										ZIndex = 5;
+										Parent = pointLayer;
+									}, {
+										instancep = "BackgroundColor3";
+										tinstance = library.AccentColor;
+									})
+
+									library:Create("UICorner", {
+										CornerRadius = UDim.new(1, 0);
+										Parent = dot;
+									})
+
+									library:Create("TextLabel", {
+										Name = "PointValue";
+										AnchorPoint = Vector2.new(0.5, 1);
+										Position = UDim2.new(0.5, 0, 0, -3);
+										Size = UDim2.fromOffset(90, 14);
+										BackgroundTransparency = 1;
+										Text = string.format("%.2f, %.2f", point.X, point.Y);
+										TextColor3 = library.FontColor;
+										Font = library.Font;
+										TextSize = 10;
+										ZIndex = 6;
+										Parent = dot;
+									}, {
+										instancep = "TextColor3";
+										tinstance = library.FontColor;
+									}, {
+										instancep = "Font";
+										tinstance = library.Font;
+									})
+
+									table.insert(pointFrames, dot)
+
+									addConnection(dot.InputBegan, function(input)
+										if input.UserInputType == Enum.UserInputType.MouseButton1
+											or input.UserInputType == Enum.UserInputType.Touch then
+											startDrag(point)
+										end
+									end)
+								end
+
+								drawCurve()
+							end
+
+							addConnection(GraphHolder.InputBegan, function(input)
+								if input.UserInputType ~= Enum.UserInputType.MouseButton1
+									and input.UserInputType ~= Enum.UserInputType.Touch then
+									return
+								end
+
+								local position = input.Position
+
+								if input.UserInputType == Enum.UserInputType.MouseButton1 then
+									position = UIS:GetMouseLocation()
+								end
+
+								local origin = GraphHolder.AbsolutePosition
+								local size = GraphHolder.AbsoluteSize
+
+								if size.X <= 0 or size.Y <= 0 then
+									return
+								end
+
+								local x = math.clamp((position.X - origin.X) / size.X, 0, 1)
+								local y = math.clamp(1 - (position.Y - origin.Y) / size.Y, 0, 1)
+
+								table.insert(graphsets, {
+									X = x;
+									Y = y;
+								})
+
+								table.sort(graphsets, function(a, b)
+									return a.X < b.X
+								end)
+
+								renderGraph()
+								notifyChanged()
+							end)
+
+							if opts.Presets == true then
+								local presetButton = library:Create("TextButton", {
+									Name = "PresetButton";
+									Position = UDim2.fromOffset(6, 197);
+									Size = UDim2.new(1, -12, 0, 20);
+									BackgroundColor3 = library.MainColor;
+									Text = "Curve: " .. selectedPreset .. "  v";
+									TextColor3 = library.FontColor;
+									Font = library.Font;
+									TextSize = 12;
+									BorderSizePixel = 0;
+									ZIndex = 10;
+									Parent = framewindow;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								local menu = library:Create("Frame", {
+									Name = "PresetMenu";
+									Position = UDim2.new(0, 6, 1, -48 - (#presets * 20));
+									Size = UDim2.new(1, -12, 0, #presets * 20);
+									BackgroundColor3 = library.MainColor;
+									BorderSizePixel = 0;
+									Visible = false;
+									ZIndex = 20;
+									Parent = framewindow;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								})
+
+								library:Create("UIListLayout", {
+									SortOrder = Enum.SortOrder.LayoutOrder;
+									Parent = menu;
+								})
+
+								for i, preset in ipairs(presets) do
+									local option = library:Create("TextButton", {
+										Name = preset;
+										Size = UDim2.new(1, 0, 0, 20);
+										BackgroundColor3 = library.MainColor;
+										BorderSizePixel = 0;
+										Text = preset;
+										TextColor3 = library.FontColor;
+										Font = library.Font;
+										TextSize = 12;
+										LayoutOrder = i;
+										ZIndex = 21;
+										Parent = menu;
+									}, {
+										instancep = "BackgroundColor3";
+										tinstance = library.MainColor;
+									}, {
+										instancep = "TextColor3";
+										tinstance = library.FontColor;
+									}, {
+										instancep = "Font";
+										tinstance = library.Font;
+									})
+
+									addConnection(option.Activated, function()
+										selectedPreset = preset
+										presetButton.Text = "Curve: " .. preset .. "  v"
+										menu.Visible = false
+
+										renderGraph()
+										notifyChanged()
+									end)
+								end
+
+								addConnection(presetButton.Activated, function()
+									menu.Visible = not menu.Visible
+								end)
+							end
+
+							local resetButton = library:Create("TextButton", {
+								Name = "ResetGraph";
+								Position = UDim2.new(0, 6, 1, -25);
+								Size = UDim2.new(1, -12, 0, 20);
+								BackgroundColor3 = library.MainColor;
+								Text = "Reset Graph";
+								TextColor3 = library.FontColor;
+								Font = library.Font;
+								TextSize = 12;
+								BorderSizePixel = 0;
+								ZIndex = 10;
+								Parent = framewindow;
+							}, {
+								instancep = "BackgroundColor3";
+								tinstance = library.MainColor;
+							}, {
+								instancep = "TextColor3";
+								tinstance = library.FontColor;
+							}, {
+								instancep = "Font";
+								tinstance = library.Font;
+							})
+
+							addConnection(resetButton.Activated, function()
+								table.clear(graphsets)
+								renderGraph()
+								notifyChanged()
+							end)
+
+							addConnection(GraphHolder:GetPropertyChangedSignal("AbsoluteSize"), function()
+								renderGraph()
+							end)
+
+							outsideConn = addConnection(UIS.InputBegan, function(input)
+								if input.UserInputType ~= Enum.UserInputType.MouseButton1
+									and input.UserInputType ~= Enum.UserInputType.Touch then
+									return
+								end
+
+								if not instance or not instance.Parent then
+									return
+								end
+
+								local position = input.Position
+								local mouse = UIS:GetMouseLocation()
+
+								if input.UserInputType == Enum.UserInputType.MouseButton1 then
+									position = mouse
+								end
+
+								local a = lineG.AbsolutePosition
+								local b = lineG.AbsolutePosition + lineG.AbsoluteSize
+
+								local topLeft = framewindow.AbsolutePosition
+								local bottomRight = topLeft + framewindow.AbsoluteSize
+
+								local inWindow = position.X >= topLeft.X
+									and position.X <= bottomRight.X
+									and position.Y >= topLeft.Y
+									and position.Y <= bottomRight.Y
+
+								local inButton = position.X >= buttonopen.AbsolutePosition.X
+									and position.X <= buttonopen.AbsolutePosition.X + buttonopen.AbsoluteSize.X
+									and position.Y >= buttonopen.AbsolutePosition.Y
+									and position.Y <= buttonopen.AbsolutePosition.Y + buttonopen.AbsoluteSize.Y
+
+								if not inWindow and not inButton then
+									closeGraph()
+								end
+							end)
+
+							task.defer(function()
+								if opened and GraphHolder.Parent then
+									renderGraph()
+								end
+							end)
+						end
+
+						closeGraph = function()
+							if not opened then
+								return
+							end
+
+							opened = false
+							clearOpenConnections()
+
+							if instance then
+								instance:Destroy()
+								instance = nil
+							end
+						end
+
+						addConnection(buttonopen.Activated, function()
+							if opened then
+								closeGraph()
+							else
+								openGraph()
+							end
+						end)
+
+						function linegraph:Get()
+							return getData()
+						end
+
+						function linegraph:Set(values)
+							graphsets = copyPoints(values)
+							curvePoints = #graphsets
+
+							if opened then
+								closeGraph()
+								openGraph()
+							end
+
+							notifyChanged()
+						end
+
+						function linegraph:Reset()
+							graphsets = {}
+							curvePoints = 0
+
+							if opened then
+								closeGraph()
+								openGraph()
+							end
+
+							notifyChanged()
+						end
+
+						function linegraph:SetPreset(preset)
+							for _, name in ipairs(presets) do
+								if name == preset then
+									selectedPreset = name
+
+									if opened then
+										closeGraph()
+										openGraph()
+									end
+
+									notifyChanged()
+									return true
+								end
+							end
+
+							return false
+						end
+
+						function linegraph:Destroy()
+							if destroyed then
+								return
+							end
+
+							destroyed = true
+							closeGraph()
+
+							for _, connection in ipairs(openConnections) do
+								disconnectConnection(connection)
+							end
+
+							table.clear(openConnections)
+
+							if holder then
+								holder:Destroy()
+							end
+						end
+
+						return linegraph
+					end
+					
 					return groupbox
 				end
 
@@ -13705,6 +15559,933 @@ function library:NewWindow(configuration)
 
 					return input
 				end	
+				
+				function groubox:AddLineGraph(text, opts)
+					opts = opts or {}
+
+					local linegraph = {}
+					local graphsets = {}
+					local curvePoints = 0
+					local opened = false
+					local destroyed = false
+
+					local instance
+					local followConn
+					local outsideConn
+					local openConnections = {}
+					local pointFrames = {}
+					local curveFrames = {}
+
+					local UIS = InputService
+
+					local selectedPreset = opts.Preset or "Smooth"
+					local draggingPoint
+					local dragMoveConn
+					local dragEndConn
+
+					local presets = {
+						"Linear",
+						"Smooth",
+						"Exponential",
+						"Ease In",
+						"Ease Out",
+						"Ease In Out"
+					}
+
+					local function addConnection(signal, callback)
+						local connection = signal:Connect(callback)
+
+						if trackConnection then
+							trackConnection(connection)
+						end
+
+						table.insert(openConnections, connection)
+						return connection
+					end
+
+					local function disconnectConnection(connection)
+						if connection then
+							connection:Disconnect()
+						end
+					end
+
+					local function clearOpenConnections()
+						for _, connection in ipairs(openConnections) do
+							if connection.Connected then
+								connection:Disconnect()
+							end
+						end
+
+						table.clear(openConnections)
+
+						disconnectConnection(followConn)
+						disconnectConnection(outsideConn)
+						disconnectConnection(dragMoveConn)
+						disconnectConnection(dragEndConn)
+
+						followConn = nil
+						outsideConn = nil
+						dragMoveConn = nil
+						dragEndConn = nil
+						draggingPoint = nil
+					end
+
+					local function clearList(list)
+						for _, object in ipairs(list) do
+							if object and object.Parent then
+								object:Destroy()
+							end
+						end
+
+						table.clear(list)
+					end
+
+					local function copyPoints(values)
+						local result = {}
+
+						for i, point in ipairs(values or {}) do
+							local x = tonumber(point.X or point.x or point[1]) or 0
+							local y = tonumber(point.Y or point.y or point[2]) or 0
+
+							table.insert(result, {
+								X = math.clamp(x, 0, 1),
+								Y = math.clamp(y, 0, 1)
+							})
+						end
+
+						table.sort(result, function(a, b)
+							return a.X < b.X
+						end)
+
+						return result
+					end
+
+					graphsets = copyPoints(opts.default or opts.Default or {})
+					curvePoints = #graphsets
+
+					local function getData()
+						local result = {}
+
+						for i, point in ipairs(graphsets) do
+							result[i] = {
+								X = point.X,
+								Y = point.Y
+							}
+						end
+
+						return result
+					end
+
+					local function notifyChanged()
+						curvePoints = #graphsets
+
+						if type(opts.Callback) == "function" then
+							opts.Callback(getData())
+						end
+					end
+
+					local holder = library:Create("Frame", {
+						Name = "Holder";
+						Size = UDim2.new(0.95, 0, 0, 20);
+						BackgroundTransparency = 1;
+						LayoutOrder = #elementsholder:GetChildren();
+						Parent = elementsholder;
+					})
+
+					local uitext = library:Create("TextLabel", {
+						Name = "TextLabel";
+						Size = UDim2.new(0.937, 0, 1, 0);
+						BackgroundTransparency = 1;
+						Text = text;
+						TextSize = 13;
+						TextColor3 = library.FontColor;
+						Font = library.Font;
+						LayoutOrder = 1;
+						TextXAlignment = Enum.TextXAlignment.Left;
+						TextYAlignment = Enum.TextYAlignment.Center;
+						Parent = holder;
+					}, {
+						instancep = "TextColor3";
+						tinstance = library.FontColor;
+					}, {
+						instancep = "Font";
+						tinstance = library.Font;
+					})
+
+					library:Create("UITextSizeConstraint", {
+						Name = "UITextSizeConstraint";
+						MaxTextSize = 13;
+						Parent = uitext;
+					})
+
+					library:Create("UIStroke", {
+						Name = "UIStroke";
+						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+						Color = Color3.fromRGB(0, 0, 0);
+						Thickness = 1;
+						Parent = uitext;
+					}, {
+						instancep = "Color";
+						tinstance = library.UIstroke;
+					})
+
+					library:Create("UIListLayout", {
+						Name = "UIListLayout";
+						FillDirection = Enum.FillDirection.Horizontal;
+						HorizontalAlignment = Enum.HorizontalAlignment.Left;
+						SortOrder = Enum.SortOrder.LayoutOrder;
+						Parent = holder;
+					})
+
+					local buttonopen = library:Create("ImageButton", {
+						Name = "ButtonOpen";
+						Size = UDim2.new(0, 19, 0, 19);
+						LayoutOrder = 2;
+						BackgroundTransparency = 1;
+						Image = "rbxassetid://10734950309";
+						ImageColor3 = library.AccentColor;
+						Parent = holder;
+					}, {
+						instancep = "ImageColor3";
+						tinstance = library.AccentColor;
+					})
+
+					local function getPopupPosition()
+						local absolute = buttonopen.AbsolutePosition
+						local base = screengui.AbsolutePosition
+
+						return UDim2.fromOffset(
+							absolute.X - base.X,
+							absolute.Y - base.Y
+						)
+					end
+
+					local closeGraph
+
+					local function openGraph()
+						if opened or destroyed then
+							return
+						end
+
+						opened = true
+
+						local lineG = library:Create("Frame", {
+							Name = "CursorBox";
+							Size = UDim2.fromOffset(15, 15);
+							Position = getPopupPosition();
+							BackgroundColor3 = Color3.new(1, 1, 1);
+							BackgroundTransparency = 1;
+							ZIndex = 2;
+							Parent = screengui;
+						})
+
+						instance = lineG
+
+						followConn = addConnection(
+							buttonopen:GetPropertyChangedSignal("AbsolutePosition"),
+							function()
+								if instance and instance.Parent then
+									instance.Position = getPopupPosition()
+								end
+							end
+						)
+
+						local framewindow = library:Create("Frame", {
+							Name = "Frame";
+							Size = UDim2.fromOffset(323, 246);
+							Position = UDim2.new(1, 0, 1.4, 0);
+							BackgroundColor3 = library.MainColor;
+							BorderSizePixel = 0;
+							ZIndex = 2;
+							Parent = lineG;
+						}, {
+							instancep = "BackgroundColor3";
+							tinstance = library.MainColor;
+						})
+
+						library:Create("UIStroke", {
+							Name = "UIStroke";
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+							LineJoinMode = Enum.LineJoinMode.Miter;
+							Color = library.SecondaryColor;
+							Thickness = 1;
+							ZIndex = 2;
+							Parent = framewindow;
+						}, {
+							instancep = "Color";
+							tinstance = library.SecondaryColor;
+						})
+
+						library:Create("UIStroke", {
+							Name = "OuterStroke";
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+							LineJoinMode = Enum.LineJoinMode.Miter;
+							Color = library.MainColor;
+							Thickness = 4;
+							Parent = framewindow;
+						}, {
+							instancep = "Color";
+							tinstance = library.MainColor;
+						})
+
+						local title = library:Create("TextLabel", {
+							Name = "TextLabel";
+							Size = UDim2.new(1, 0, 0, 18);
+							Position = UDim2.fromOffset(0, 0);
+							BackgroundTransparency = 1;
+							Text = text or "Line Graph";
+							TextColor3 = library.FontColor;
+							Font = library.Font;
+							TextSize = 13;
+							TextXAlignment = Enum.TextXAlignment.Left;
+							ZIndex = 3;
+							Parent = framewindow;
+						}, {
+							instancep = "TextColor3";
+							tinstance = library.FontColor;
+						}, {
+							instancep = "Font";
+							tinstance = library.Font;
+						})
+
+						library:Create("UIPadding", {
+							PaddingLeft = UDim.new(0, 6);
+							Parent = title;
+						})
+
+						library:Create("UIStroke", {
+							Name = "UIStroke";
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+							Color = library.UIstroke;
+							Thickness = 1;
+							Parent = title;
+						}, {
+							instancep = "Color";
+							tinstance = library.UIstroke;
+						})
+
+						local GraphHolder = library:Create("Frame", {
+							Name = "GraphHolder";
+							Position = UDim2.fromOffset(4, 24);
+							Size = UDim2.fromOffset(315, 168);
+							BackgroundTransparency = 1;
+							BorderSizePixel = 0;
+							ClipsDescendants = false;
+							ZIndex = 2;
+							Parent = framewindow;
+						})
+
+						library:Create("UIStroke", {
+							Color = library.SecondaryColor;
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+							Parent = GraphHolder;
+						}, {
+							instancep = "Color";
+							tinstance = library.SecondaryColor;
+						})
+
+						local grid = library:Create("Frame", {
+							Name = "Grid";
+							Size = UDim2.fromScale(1, 1);
+							BackgroundTransparency = 1;
+							ZIndex = 2;
+							Parent = GraphHolder;
+						})
+
+						local curveLayer = library:Create("Frame", {
+							Name = "CurveLines";
+							Size = UDim2.fromScale(1, 1);
+							BackgroundTransparency = 1;
+							ZIndex = 3;
+							Parent = GraphHolder;
+						})
+
+						local pointLayer = library:Create("Frame", {
+							Name = "Points";
+							Size = UDim2.fromScale(1, 1);
+							BackgroundTransparency = 1;
+							ZIndex = 5;
+							Parent = GraphHolder;
+						})
+
+						for i = 1, 4 do
+							library:Create("Frame", {
+								Name = "HorizontalLine";
+								Position = UDim2.fromScale(0, i / 5);
+								Size = UDim2.new(1, 0, 0, 1);
+								BorderSizePixel = 0;
+								BackgroundColor3 = library.SecondaryColor;
+								ZIndex = 2;
+								Parent = grid;
+							}, {
+								instancep = "BackgroundColor3";
+								tinstance = library.SecondaryColor;
+							})
+						end
+
+						for i = 1, 7 do
+							library:Create("Frame", {
+								Name = "VerticalLine";
+								Position = UDim2.fromScale(i / 8, 0);
+								Size = UDim2.new(0, 1, 1, 0);
+								BorderSizePixel = 0;
+								BackgroundColor3 = library.SecondaryColor;
+								ZIndex = 2;
+								Parent = grid;
+							}, {
+								instancep = "BackgroundColor3";
+								tinstance = library.SecondaryColor;
+							})
+						end
+
+						local function toPixels(point)
+							local size = GraphHolder.AbsoluteSize
+
+							return Vector2.new(
+								point.X * size.X,
+								(1 - point.Y) * size.Y
+							)
+						end
+
+						local function createSegment(a, b)
+							local delta = b - a
+							local length = delta.Magnitude
+
+							if length < 0.5 then
+								return
+							end
+
+							local segment = library:Create("Frame", {
+								Name = "CurveSegment";
+								AnchorPoint = Vector2.new(0, 0.5);
+								Position = UDim2.fromOffset(a.X, a.Y);
+								Size = UDim2.fromOffset(length, 2);
+								Rotation = math.deg(math.atan2(delta.Y, delta.X));
+								BorderSizePixel = 0;
+								BackgroundColor3 = library.AccentColor;
+								ZIndex = 3;
+								Parent = curveLayer;
+							}, {
+								instancep = "BackgroundColor3";
+								tinstance = library.AccentColor;
+							})
+
+							table.insert(curveFrames, segment)
+						end
+
+						local function catmullRom(p0, p1, p2, p3, t)
+							local t2 = t * t
+							local t3 = t2 * t
+
+							return Vector2.new(
+								0.5 * (
+									2 * p1.X
+										+ (-p0.X + p2.X) * t
+										+ (2*p0.X - 5*p1.X + 4*p2.X - p3.X) * t2
+										+ (-p0.X + 3*p1.X - 3*p2.X + p3.X) * t3
+								),
+								0.5 * (
+									2 * p1.Y
+										+ (-p0.Y + p2.Y) * t
+										+ (2*p0.Y - 5*p1.Y + 4*p2.Y - p3.Y) * t2
+										+ (-p0.Y + 3*p1.Y - 3*p2.Y + p3.Y) * t3
+								)
+							)
+						end
+
+						local function interpolateY(a, b, t)
+							if selectedPreset == "Exponential" then
+								t = t * t
+							elseif selectedPreset == "Ease In" then
+								t = t * t
+							elseif selectedPreset == "Ease Out" then
+								t = 1 - (1 - t) * (1 - t)
+							elseif selectedPreset == "Ease In Out" then
+								if t < 0.5 then
+									t = 2 * t * t
+								else
+									t = 1 - ((-2 * t + 2) ^ 2) / 2
+								end
+							end
+
+							return a + (b - a) * t
+						end
+
+						local renderGraph
+
+						local function drawCurve()
+							clearList(curveFrames)
+
+							if #graphsets < 2 then
+								return
+							end
+
+							local points = {}
+
+							for i, point in ipairs(graphsets) do
+								points[i] = toPixels(point)
+							end
+
+							for i = 1, #points - 1 do
+								local p1 = points[i]
+								local p2 = points[i + 1]
+
+								if selectedPreset == "Smooth" then
+									local p0 = points[math.max(1, i - 1)]
+									local p3 = points[math.min(#points, i + 2)]
+									local previous = p1
+
+									for step = 1, 20 do
+										local nextPoint = catmullRom(
+											p0, p1, p2, p3, step / 20
+										)
+
+										createSegment(previous, nextPoint)
+										previous = nextPoint
+									end
+								else
+									local previous = p1
+
+									for step = 1, 20 do
+										local t = step / 20
+
+										local nextPoint = Vector2.new(
+											p1.X + (p2.X - p1.X) * t,
+											interpolateY(p1.Y, p2.Y, t)
+										)
+
+										createSegment(previous, nextPoint)
+										previous = nextPoint
+									end
+								end
+							end
+						end
+
+						local function endDrag()
+							draggingPoint = nil
+
+							disconnectConnection(dragMoveConn)
+							disconnectConnection(dragEndConn)
+
+							dragMoveConn = nil
+							dragEndConn = nil
+
+							table.sort(graphsets, function(a, b)
+								return a.X < b.X
+							end)
+
+							if opened then
+								renderGraph()
+								notifyChanged()
+							end
+						end
+
+						local function startDrag(point)
+							if dragMoveConn then
+								dragMoveConn:Disconnect()
+								dragMoveConn = nil
+							end
+
+							if dragEndConn then
+								dragEndConn:Disconnect()
+								dragEndConn = nil
+							end
+
+							draggingPoint = point
+
+							dragMoveConn = addConnection(
+								UIS.InputChanged,
+								function(input)
+									if not draggingPoint or not opened then
+										return
+									end
+
+									if input.UserInputType ~= Enum.UserInputType.MouseMovement
+										and input.UserInputType ~= Enum.UserInputType.Touch then
+										return
+									end
+
+									local position = input.Position
+
+									if input.UserInputType == Enum.UserInputType.MouseMovement then
+										position = UIS:GetMouseLocation()
+									end
+
+									local origin = GraphHolder.AbsolutePosition
+									local size = GraphHolder.AbsoluteSize
+
+									if size.X <= 0 or size.Y <= 0 then
+										return
+									end
+
+									draggingPoint.X = math.clamp(
+										(position.X - origin.X) / size.X, 0, 1
+									)
+
+									draggingPoint.Y = math.clamp(
+										1 - (position.Y - origin.Y) / size.Y, 0, 1
+									)
+
+									renderGraph()
+									notifyChanged()
+								end
+							)
+
+							dragEndConn = addConnection(
+								UIS.InputEnded,
+								function(input)
+									if input.UserInputType == Enum.UserInputType.MouseButton1
+										or input.UserInputType == Enum.UserInputType.Touch then
+										endDrag()
+									end
+								end
+							)
+						end
+
+						renderGraph = function()
+							clearList(pointFrames)
+
+							for _, point in ipairs(graphsets) do
+								local pixel = toPixels(point)
+
+								local dot = library:Create("TextButton", {
+									Name = "CurveDot";
+									AnchorPoint = Vector2.new(0.5, 0.5);
+									Position = UDim2.fromOffset(pixel.X, pixel.Y);
+									Size = UDim2.fromOffset(10, 10);
+									BackgroundColor3 = library.AccentColor;
+									BorderSizePixel = 0;
+									Text = "";
+									AutoButtonColor = false;
+									ZIndex = 5;
+									Parent = pointLayer;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.AccentColor;
+								})
+
+								library:Create("UICorner", {
+									CornerRadius = UDim.new(1, 0);
+									Parent = dot;
+								})
+
+								library:Create("TextLabel", {
+									Name = "PointValue";
+									AnchorPoint = Vector2.new(0.5, 1);
+									Position = UDim2.new(0.5, 0, 0, -3);
+									Size = UDim2.fromOffset(90, 14);
+									BackgroundTransparency = 1;
+									Text = string.format("%.2f, %.2f", point.X, point.Y);
+									TextColor3 = library.FontColor;
+									Font = library.Font;
+									TextSize = 10;
+									ZIndex = 6;
+									Parent = dot;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								table.insert(pointFrames, dot)
+
+								addConnection(dot.InputBegan, function(input)
+									if input.UserInputType == Enum.UserInputType.MouseButton1
+										or input.UserInputType == Enum.UserInputType.Touch then
+										startDrag(point)
+									end
+								end)
+							end
+
+							drawCurve()
+						end
+
+						addConnection(GraphHolder.InputBegan, function(input)
+							if input.UserInputType ~= Enum.UserInputType.MouseButton1
+								and input.UserInputType ~= Enum.UserInputType.Touch then
+								return
+							end
+
+							local position = input.Position
+
+							if input.UserInputType == Enum.UserInputType.MouseButton1 then
+								position = UIS:GetMouseLocation()
+							end
+
+							local origin = GraphHolder.AbsolutePosition
+							local size = GraphHolder.AbsoluteSize
+
+							if size.X <= 0 or size.Y <= 0 then
+								return
+							end
+
+							local x = math.clamp((position.X - origin.X) / size.X, 0, 1)
+							local y = math.clamp(1 - (position.Y - origin.Y) / size.Y, 0, 1)
+
+							table.insert(graphsets, {
+								X = x;
+								Y = y;
+							})
+
+							table.sort(graphsets, function(a, b)
+								return a.X < b.X
+							end)
+
+							renderGraph()
+							notifyChanged()
+						end)
+
+						if opts.Presets == true then
+							local presetButton = library:Create("TextButton", {
+								Name = "PresetButton";
+								Position = UDim2.fromOffset(6, 197);
+								Size = UDim2.new(1, -12, 0, 20);
+								BackgroundColor3 = library.MainColor;
+								Text = "Curve: " .. selectedPreset .. "  v";
+								TextColor3 = library.FontColor;
+								Font = library.Font;
+								TextSize = 12;
+								BorderSizePixel = 0;
+								ZIndex = 10;
+								Parent = framewindow;
+							}, {
+								instancep = "BackgroundColor3";
+								tinstance = library.MainColor;
+							}, {
+								instancep = "TextColor3";
+								tinstance = library.FontColor;
+							}, {
+								instancep = "Font";
+								tinstance = library.Font;
+							})
+
+							local menu = library:Create("Frame", {
+								Name = "PresetMenu";
+								Position = UDim2.new(0, 6, 1, -48 - (#presets * 20));
+								Size = UDim2.new(1, -12, 0, #presets * 20);
+								BackgroundColor3 = library.MainColor;
+								BorderSizePixel = 0;
+								Visible = false;
+								ZIndex = 20;
+								Parent = framewindow;
+							}, {
+								instancep = "BackgroundColor3";
+								tinstance = library.MainColor;
+							})
+
+							library:Create("UIListLayout", {
+								SortOrder = Enum.SortOrder.LayoutOrder;
+								Parent = menu;
+							})
+
+							for i, preset in ipairs(presets) do
+								local option = library:Create("TextButton", {
+									Name = preset;
+									Size = UDim2.new(1, 0, 0, 20);
+									BackgroundColor3 = library.MainColor;
+									BorderSizePixel = 0;
+									Text = preset;
+									TextColor3 = library.FontColor;
+									Font = library.Font;
+									TextSize = 12;
+									LayoutOrder = i;
+									ZIndex = 21;
+									Parent = menu;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								addConnection(option.Activated, function()
+									selectedPreset = preset
+									presetButton.Text = "Curve: " .. preset .. "  v"
+									menu.Visible = false
+
+									renderGraph()
+									notifyChanged()
+								end)
+							end
+
+							addConnection(presetButton.Activated, function()
+								menu.Visible = not menu.Visible
+							end)
+						end
+
+						local resetButton = library:Create("TextButton", {
+							Name = "ResetGraph";
+							Position = UDim2.new(0, 6, 1, -25);
+							Size = UDim2.new(1, -12, 0, 20);
+							BackgroundColor3 = library.MainColor;
+							Text = "Reset Graph";
+							TextColor3 = library.FontColor;
+							Font = library.Font;
+							TextSize = 12;
+							BorderSizePixel = 0;
+							ZIndex = 10;
+							Parent = framewindow;
+						}, {
+							instancep = "BackgroundColor3";
+							tinstance = library.MainColor;
+						}, {
+							instancep = "TextColor3";
+							tinstance = library.FontColor;
+						}, {
+							instancep = "Font";
+							tinstance = library.Font;
+						})
+
+						addConnection(resetButton.Activated, function()
+							table.clear(graphsets)
+							renderGraph()
+							notifyChanged()
+						end)
+
+						addConnection(GraphHolder:GetPropertyChangedSignal("AbsoluteSize"), function()
+							renderGraph()
+						end)
+
+						outsideConn = addConnection(UIS.InputBegan, function(input)
+							if input.UserInputType ~= Enum.UserInputType.MouseButton1
+								and input.UserInputType ~= Enum.UserInputType.Touch then
+								return
+							end
+
+							if not instance or not instance.Parent then
+								return
+							end
+
+							local position = input.Position
+							local mouse = UIS:GetMouseLocation()
+
+							if input.UserInputType == Enum.UserInputType.MouseButton1 then
+								position = mouse
+							end
+
+							local a = lineG.AbsolutePosition
+							local b = lineG.AbsolutePosition + lineG.AbsoluteSize
+
+							local topLeft = framewindow.AbsolutePosition
+							local bottomRight = topLeft + framewindow.AbsoluteSize
+
+							local inWindow = position.X >= topLeft.X
+								and position.X <= bottomRight.X
+								and position.Y >= topLeft.Y
+								and position.Y <= bottomRight.Y
+
+							local inButton = position.X >= buttonopen.AbsolutePosition.X
+								and position.X <= buttonopen.AbsolutePosition.X + buttonopen.AbsoluteSize.X
+								and position.Y >= buttonopen.AbsolutePosition.Y
+								and position.Y <= buttonopen.AbsolutePosition.Y + buttonopen.AbsoluteSize.Y
+
+							if not inWindow and not inButton then
+								closeGraph()
+							end
+						end)
+
+						task.defer(function()
+							if opened and GraphHolder.Parent then
+								renderGraph()
+							end
+						end)
+					end
+
+					closeGraph = function()
+						if not opened then
+							return
+						end
+
+						opened = false
+						clearOpenConnections()
+
+						if instance then
+							instance:Destroy()
+							instance = nil
+						end
+					end
+
+					addConnection(buttonopen.Activated, function()
+						if opened then
+							closeGraph()
+						else
+							openGraph()
+						end
+					end)
+
+					function linegraph:Get()
+						return getData()
+					end
+
+					function linegraph:Set(values)
+						graphsets = copyPoints(values)
+						curvePoints = #graphsets
+
+						if opened then
+							closeGraph()
+							openGraph()
+						end
+
+						notifyChanged()
+					end
+
+					function linegraph:Reset()
+						graphsets = {}
+						curvePoints = 0
+
+						if opened then
+							closeGraph()
+							openGraph()
+						end
+
+						notifyChanged()
+					end
+
+					function linegraph:SetPreset(preset)
+						for _, name in ipairs(presets) do
+							if name == preset then
+								selectedPreset = name
+
+								if opened then
+									closeGraph()
+									openGraph()
+								end
+
+								notifyChanged()
+								return true
+							end
+						end
+
+						return false
+					end
+
+					function linegraph:Destroy()
+						if destroyed then
+							return
+						end
+
+						destroyed = true
+						closeGraph()
+
+						for _, connection in ipairs(openConnections) do
+							disconnectConnection(connection)
+						end
+
+						table.clear(openConnections)
+
+						if holder then
+							holder:Destroy()
+						end
+					end
+
+					return linegraph
+				end
 
 				return groupbox
 			end
@@ -17800,6 +20581,933 @@ function library:NewWindow(configuration)
 
 					return input
 				end	
+
+				function groubox:AddLineGraph(text, opts)
+					opts = opts or {}
+
+					local linegraph = {}
+					local graphsets = {}
+					local curvePoints = 0
+					local opened = false
+					local destroyed = false
+
+					local instance
+					local followConn
+					local outsideConn
+					local openConnections = {}
+					local pointFrames = {}
+					local curveFrames = {}
+
+					local UIS = InputService
+
+					local selectedPreset = opts.Preset or "Smooth"
+					local draggingPoint
+					local dragMoveConn
+					local dragEndConn
+
+					local presets = {
+						"Linear",
+						"Smooth",
+						"Exponential",
+						"Ease In",
+						"Ease Out",
+						"Ease In Out"
+					}
+
+					local function addConnection(signal, callback)
+						local connection = signal:Connect(callback)
+
+						if trackConnection then
+							trackConnection(connection)
+						end
+
+						table.insert(openConnections, connection)
+						return connection
+					end
+
+					local function disconnectConnection(connection)
+						if connection then
+							connection:Disconnect()
+						end
+					end
+
+					local function clearOpenConnections()
+						for _, connection in ipairs(openConnections) do
+							if connection.Connected then
+								connection:Disconnect()
+							end
+						end
+
+						table.clear(openConnections)
+
+						disconnectConnection(followConn)
+						disconnectConnection(outsideConn)
+						disconnectConnection(dragMoveConn)
+						disconnectConnection(dragEndConn)
+
+						followConn = nil
+						outsideConn = nil
+						dragMoveConn = nil
+						dragEndConn = nil
+						draggingPoint = nil
+					end
+
+					local function clearList(list)
+						for _, object in ipairs(list) do
+							if object and object.Parent then
+								object:Destroy()
+							end
+						end
+
+						table.clear(list)
+					end
+
+					local function copyPoints(values)
+						local result = {}
+
+						for i, point in ipairs(values or {}) do
+							local x = tonumber(point.X or point.x or point[1]) or 0
+							local y = tonumber(point.Y or point.y or point[2]) or 0
+
+							table.insert(result, {
+								X = math.clamp(x, 0, 1),
+								Y = math.clamp(y, 0, 1)
+							})
+						end
+
+						table.sort(result, function(a, b)
+							return a.X < b.X
+						end)
+
+						return result
+					end
+
+					graphsets = copyPoints(opts.default or opts.Default or {})
+					curvePoints = #graphsets
+
+					local function getData()
+						local result = {}
+
+						for i, point in ipairs(graphsets) do
+							result[i] = {
+								X = point.X,
+								Y = point.Y
+							}
+						end
+
+						return result
+					end
+
+					local function notifyChanged()
+						curvePoints = #graphsets
+
+						if type(opts.Callback) == "function" then
+							opts.Callback(getData())
+						end
+					end
+
+					local holder = library:Create("Frame", {
+						Name = "Holder";
+						Size = UDim2.new(0.95, 0, 0, 20);
+						BackgroundTransparency = 1;
+						LayoutOrder = #elementsholder:GetChildren();
+						Parent = elementsholder;
+					})
+
+					local uitext = library:Create("TextLabel", {
+						Name = "TextLabel";
+						Size = UDim2.new(0.937, 0, 1, 0);
+						BackgroundTransparency = 1;
+						Text = text;
+						TextSize = 13;
+						TextColor3 = library.FontColor;
+						Font = library.Font;
+						LayoutOrder = 1;
+						TextXAlignment = Enum.TextXAlignment.Left;
+						TextYAlignment = Enum.TextYAlignment.Center;
+						Parent = holder;
+					}, {
+						instancep = "TextColor3";
+						tinstance = library.FontColor;
+					}, {
+						instancep = "Font";
+						tinstance = library.Font;
+					})
+
+					library:Create("UITextSizeConstraint", {
+						Name = "UITextSizeConstraint";
+						MaxTextSize = 13;
+						Parent = uitext;
+					})
+
+					library:Create("UIStroke", {
+						Name = "UIStroke";
+						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+						Color = Color3.fromRGB(0, 0, 0);
+						Thickness = 1;
+						Parent = uitext;
+					}, {
+						instancep = "Color";
+						tinstance = library.UIstroke;
+					})
+
+					library:Create("UIListLayout", {
+						Name = "UIListLayout";
+						FillDirection = Enum.FillDirection.Horizontal;
+						HorizontalAlignment = Enum.HorizontalAlignment.Left;
+						SortOrder = Enum.SortOrder.LayoutOrder;
+						Parent = holder;
+					})
+
+					local buttonopen = library:Create("ImageButton", {
+						Name = "ButtonOpen";
+						Size = UDim2.new(0, 19, 0, 19);
+						LayoutOrder = 2;
+						BackgroundTransparency = 1;
+						Image = "rbxassetid://10734950309";
+						ImageColor3 = library.AccentColor;
+						Parent = holder;
+					}, {
+						instancep = "ImageColor3";
+						tinstance = library.AccentColor;
+					})
+
+					local function getPopupPosition()
+						local absolute = buttonopen.AbsolutePosition
+						local base = screengui.AbsolutePosition
+
+						return UDim2.fromOffset(
+							absolute.X - base.X,
+							absolute.Y - base.Y
+						)
+					end
+
+					local closeGraph
+
+					local function openGraph()
+						if opened or destroyed then
+							return
+						end
+
+						opened = true
+
+						local lineG = library:Create("Frame", {
+							Name = "CursorBox";
+							Size = UDim2.fromOffset(15, 15);
+							Position = getPopupPosition();
+							BackgroundColor3 = Color3.new(1, 1, 1);
+							BackgroundTransparency = 1;
+							ZIndex = 2;
+							Parent = screengui;
+						})
+
+						instance = lineG
+
+						followConn = addConnection(
+							buttonopen:GetPropertyChangedSignal("AbsolutePosition"),
+							function()
+								if instance and instance.Parent then
+									instance.Position = getPopupPosition()
+								end
+							end
+						)
+
+						local framewindow = library:Create("Frame", {
+							Name = "Frame";
+							Size = UDim2.fromOffset(323, 246);
+							Position = UDim2.new(1, 0, 1.4, 0);
+							BackgroundColor3 = library.MainColor;
+							BorderSizePixel = 0;
+							ZIndex = 2;
+							Parent = lineG;
+						}, {
+							instancep = "BackgroundColor3";
+							tinstance = library.MainColor;
+						})
+
+						library:Create("UIStroke", {
+							Name = "UIStroke";
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+							LineJoinMode = Enum.LineJoinMode.Miter;
+							Color = library.SecondaryColor;
+							Thickness = 1;
+							ZIndex = 2;
+							Parent = framewindow;
+						}, {
+							instancep = "Color";
+							tinstance = library.SecondaryColor;
+						})
+
+						library:Create("UIStroke", {
+							Name = "OuterStroke";
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+							LineJoinMode = Enum.LineJoinMode.Miter;
+							Color = library.MainColor;
+							Thickness = 4;
+							Parent = framewindow;
+						}, {
+							instancep = "Color";
+							tinstance = library.MainColor;
+						})
+
+						local title = library:Create("TextLabel", {
+							Name = "TextLabel";
+							Size = UDim2.new(1, 0, 0, 18);
+							Position = UDim2.fromOffset(0, 0);
+							BackgroundTransparency = 1;
+							Text = text or "Line Graph";
+							TextColor3 = library.FontColor;
+							Font = library.Font;
+							TextSize = 13;
+							TextXAlignment = Enum.TextXAlignment.Left;
+							ZIndex = 3;
+							Parent = framewindow;
+						}, {
+							instancep = "TextColor3";
+							tinstance = library.FontColor;
+						}, {
+							instancep = "Font";
+							tinstance = library.Font;
+						})
+
+						library:Create("UIPadding", {
+							PaddingLeft = UDim.new(0, 6);
+							Parent = title;
+						})
+
+						library:Create("UIStroke", {
+							Name = "UIStroke";
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+							Color = library.UIstroke;
+							Thickness = 1;
+							Parent = title;
+						}, {
+							instancep = "Color";
+							tinstance = library.UIstroke;
+						})
+
+						local GraphHolder = library:Create("Frame", {
+							Name = "GraphHolder";
+							Position = UDim2.fromOffset(4, 24);
+							Size = UDim2.fromOffset(315, 168);
+							BackgroundTransparency = 1;
+							BorderSizePixel = 0;
+							ClipsDescendants = false;
+							ZIndex = 2;
+							Parent = framewindow;
+						})
+
+						library:Create("UIStroke", {
+							Color = library.SecondaryColor;
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+							Parent = GraphHolder;
+						}, {
+							instancep = "Color";
+							tinstance = library.SecondaryColor;
+						})
+
+						local grid = library:Create("Frame", {
+							Name = "Grid";
+							Size = UDim2.fromScale(1, 1);
+							BackgroundTransparency = 1;
+							ZIndex = 2;
+							Parent = GraphHolder;
+						})
+
+						local curveLayer = library:Create("Frame", {
+							Name = "CurveLines";
+							Size = UDim2.fromScale(1, 1);
+							BackgroundTransparency = 1;
+							ZIndex = 3;
+							Parent = GraphHolder;
+						})
+
+						local pointLayer = library:Create("Frame", {
+							Name = "Points";
+							Size = UDim2.fromScale(1, 1);
+							BackgroundTransparency = 1;
+							ZIndex = 5;
+							Parent = GraphHolder;
+						})
+
+						for i = 1, 4 do
+							library:Create("Frame", {
+								Name = "HorizontalLine";
+								Position = UDim2.fromScale(0, i / 5);
+								Size = UDim2.new(1, 0, 0, 1);
+								BorderSizePixel = 0;
+								BackgroundColor3 = library.SecondaryColor;
+								ZIndex = 2;
+								Parent = grid;
+							}, {
+								instancep = "BackgroundColor3";
+								tinstance = library.SecondaryColor;
+							})
+						end
+
+						for i = 1, 7 do
+							library:Create("Frame", {
+								Name = "VerticalLine";
+								Position = UDim2.fromScale(i / 8, 0);
+								Size = UDim2.new(0, 1, 1, 0);
+								BorderSizePixel = 0;
+								BackgroundColor3 = library.SecondaryColor;
+								ZIndex = 2;
+								Parent = grid;
+							}, {
+								instancep = "BackgroundColor3";
+								tinstance = library.SecondaryColor;
+							})
+						end
+
+						local function toPixels(point)
+							local size = GraphHolder.AbsoluteSize
+
+							return Vector2.new(
+								point.X * size.X,
+								(1 - point.Y) * size.Y
+							)
+						end
+
+						local function createSegment(a, b)
+							local delta = b - a
+							local length = delta.Magnitude
+
+							if length < 0.5 then
+								return
+							end
+
+							local segment = library:Create("Frame", {
+								Name = "CurveSegment";
+								AnchorPoint = Vector2.new(0, 0.5);
+								Position = UDim2.fromOffset(a.X, a.Y);
+								Size = UDim2.fromOffset(length, 2);
+								Rotation = math.deg(math.atan2(delta.Y, delta.X));
+								BorderSizePixel = 0;
+								BackgroundColor3 = library.AccentColor;
+								ZIndex = 3;
+								Parent = curveLayer;
+							}, {
+								instancep = "BackgroundColor3";
+								tinstance = library.AccentColor;
+							})
+
+							table.insert(curveFrames, segment)
+						end
+
+						local function catmullRom(p0, p1, p2, p3, t)
+							local t2 = t * t
+							local t3 = t2 * t
+
+							return Vector2.new(
+								0.5 * (
+									2 * p1.X
+										+ (-p0.X + p2.X) * t
+										+ (2*p0.X - 5*p1.X + 4*p2.X - p3.X) * t2
+										+ (-p0.X + 3*p1.X - 3*p2.X + p3.X) * t3
+								),
+								0.5 * (
+									2 * p1.Y
+										+ (-p0.Y + p2.Y) * t
+										+ (2*p0.Y - 5*p1.Y + 4*p2.Y - p3.Y) * t2
+										+ (-p0.Y + 3*p1.Y - 3*p2.Y + p3.Y) * t3
+								)
+							)
+						end
+
+						local function interpolateY(a, b, t)
+							if selectedPreset == "Exponential" then
+								t = t * t
+							elseif selectedPreset == "Ease In" then
+								t = t * t
+							elseif selectedPreset == "Ease Out" then
+								t = 1 - (1 - t) * (1 - t)
+							elseif selectedPreset == "Ease In Out" then
+								if t < 0.5 then
+									t = 2 * t * t
+								else
+									t = 1 - ((-2 * t + 2) ^ 2) / 2
+								end
+							end
+
+							return a + (b - a) * t
+						end
+
+						local renderGraph
+
+						local function drawCurve()
+							clearList(curveFrames)
+
+							if #graphsets < 2 then
+								return
+							end
+
+							local points = {}
+
+							for i, point in ipairs(graphsets) do
+								points[i] = toPixels(point)
+							end
+
+							for i = 1, #points - 1 do
+								local p1 = points[i]
+								local p2 = points[i + 1]
+
+								if selectedPreset == "Smooth" then
+									local p0 = points[math.max(1, i - 1)]
+									local p3 = points[math.min(#points, i + 2)]
+									local previous = p1
+
+									for step = 1, 20 do
+										local nextPoint = catmullRom(
+											p0, p1, p2, p3, step / 20
+										)
+
+										createSegment(previous, nextPoint)
+										previous = nextPoint
+									end
+								else
+									local previous = p1
+
+									for step = 1, 20 do
+										local t = step / 20
+
+										local nextPoint = Vector2.new(
+											p1.X + (p2.X - p1.X) * t,
+											interpolateY(p1.Y, p2.Y, t)
+										)
+
+										createSegment(previous, nextPoint)
+										previous = nextPoint
+									end
+								end
+							end
+						end
+
+						local function endDrag()
+							draggingPoint = nil
+
+							disconnectConnection(dragMoveConn)
+							disconnectConnection(dragEndConn)
+
+							dragMoveConn = nil
+							dragEndConn = nil
+
+							table.sort(graphsets, function(a, b)
+								return a.X < b.X
+							end)
+
+							if opened then
+								renderGraph()
+								notifyChanged()
+							end
+						end
+
+						local function startDrag(point)
+							if dragMoveConn then
+								dragMoveConn:Disconnect()
+								dragMoveConn = nil
+							end
+
+							if dragEndConn then
+								dragEndConn:Disconnect()
+								dragEndConn = nil
+							end
+
+							draggingPoint = point
+
+							dragMoveConn = addConnection(
+								UIS.InputChanged,
+								function(input)
+									if not draggingPoint or not opened then
+										return
+									end
+
+									if input.UserInputType ~= Enum.UserInputType.MouseMovement
+										and input.UserInputType ~= Enum.UserInputType.Touch then
+										return
+									end
+
+									local position = input.Position
+
+									if input.UserInputType == Enum.UserInputType.MouseMovement then
+										position = UIS:GetMouseLocation()
+									end
+
+									local origin = GraphHolder.AbsolutePosition
+									local size = GraphHolder.AbsoluteSize
+
+									if size.X <= 0 or size.Y <= 0 then
+										return
+									end
+
+									draggingPoint.X = math.clamp(
+										(position.X - origin.X) / size.X, 0, 1
+									)
+
+									draggingPoint.Y = math.clamp(
+										1 - (position.Y - origin.Y) / size.Y, 0, 1
+									)
+
+									renderGraph()
+									notifyChanged()
+								end
+							)
+
+							dragEndConn = addConnection(
+								UIS.InputEnded,
+								function(input)
+									if input.UserInputType == Enum.UserInputType.MouseButton1
+										or input.UserInputType == Enum.UserInputType.Touch then
+										endDrag()
+									end
+								end
+							)
+						end
+
+						renderGraph = function()
+							clearList(pointFrames)
+
+							for _, point in ipairs(graphsets) do
+								local pixel = toPixels(point)
+
+								local dot = library:Create("TextButton", {
+									Name = "CurveDot";
+									AnchorPoint = Vector2.new(0.5, 0.5);
+									Position = UDim2.fromOffset(pixel.X, pixel.Y);
+									Size = UDim2.fromOffset(10, 10);
+									BackgroundColor3 = library.AccentColor;
+									BorderSizePixel = 0;
+									Text = "";
+									AutoButtonColor = false;
+									ZIndex = 5;
+									Parent = pointLayer;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.AccentColor;
+								})
+
+								library:Create("UICorner", {
+									CornerRadius = UDim.new(1, 0);
+									Parent = dot;
+								})
+
+								library:Create("TextLabel", {
+									Name = "PointValue";
+									AnchorPoint = Vector2.new(0.5, 1);
+									Position = UDim2.new(0.5, 0, 0, -3);
+									Size = UDim2.fromOffset(90, 14);
+									BackgroundTransparency = 1;
+									Text = string.format("%.2f, %.2f", point.X, point.Y);
+									TextColor3 = library.FontColor;
+									Font = library.Font;
+									TextSize = 10;
+									ZIndex = 6;
+									Parent = dot;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								table.insert(pointFrames, dot)
+
+								addConnection(dot.InputBegan, function(input)
+									if input.UserInputType == Enum.UserInputType.MouseButton1
+										or input.UserInputType == Enum.UserInputType.Touch then
+										startDrag(point)
+									end
+								end)
+							end
+
+							drawCurve()
+						end
+
+						addConnection(GraphHolder.InputBegan, function(input)
+							if input.UserInputType ~= Enum.UserInputType.MouseButton1
+								and input.UserInputType ~= Enum.UserInputType.Touch then
+								return
+							end
+
+							local position = input.Position
+
+							if input.UserInputType == Enum.UserInputType.MouseButton1 then
+								position = UIS:GetMouseLocation()
+							end
+
+							local origin = GraphHolder.AbsolutePosition
+							local size = GraphHolder.AbsoluteSize
+
+							if size.X <= 0 or size.Y <= 0 then
+								return
+							end
+
+							local x = math.clamp((position.X - origin.X) / size.X, 0, 1)
+							local y = math.clamp(1 - (position.Y - origin.Y) / size.Y, 0, 1)
+
+							table.insert(graphsets, {
+								X = x;
+								Y = y;
+							})
+
+							table.sort(graphsets, function(a, b)
+								return a.X < b.X
+							end)
+
+							renderGraph()
+							notifyChanged()
+						end)
+
+						if opts.Presets == true then
+							local presetButton = library:Create("TextButton", {
+								Name = "PresetButton";
+								Position = UDim2.fromOffset(6, 197);
+								Size = UDim2.new(1, -12, 0, 20);
+								BackgroundColor3 = library.MainColor;
+								Text = "Curve: " .. selectedPreset .. "  v";
+								TextColor3 = library.FontColor;
+								Font = library.Font;
+								TextSize = 12;
+								BorderSizePixel = 0;
+								ZIndex = 10;
+								Parent = framewindow;
+							}, {
+								instancep = "BackgroundColor3";
+								tinstance = library.MainColor;
+							}, {
+								instancep = "TextColor3";
+								tinstance = library.FontColor;
+							}, {
+								instancep = "Font";
+								tinstance = library.Font;
+							})
+
+							local menu = library:Create("Frame", {
+								Name = "PresetMenu";
+								Position = UDim2.new(0, 6, 1, -48 - (#presets * 20));
+								Size = UDim2.new(1, -12, 0, #presets * 20);
+								BackgroundColor3 = library.MainColor;
+								BorderSizePixel = 0;
+								Visible = false;
+								ZIndex = 20;
+								Parent = framewindow;
+							}, {
+								instancep = "BackgroundColor3";
+								tinstance = library.MainColor;
+							})
+
+							library:Create("UIListLayout", {
+								SortOrder = Enum.SortOrder.LayoutOrder;
+								Parent = menu;
+							})
+
+							for i, preset in ipairs(presets) do
+								local option = library:Create("TextButton", {
+									Name = preset;
+									Size = UDim2.new(1, 0, 0, 20);
+									BackgroundColor3 = library.MainColor;
+									BorderSizePixel = 0;
+									Text = preset;
+									TextColor3 = library.FontColor;
+									Font = library.Font;
+									TextSize = 12;
+									LayoutOrder = i;
+									ZIndex = 21;
+									Parent = menu;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								addConnection(option.Activated, function()
+									selectedPreset = preset
+									presetButton.Text = "Curve: " .. preset .. "  v"
+									menu.Visible = false
+
+									renderGraph()
+									notifyChanged()
+								end)
+							end
+
+							addConnection(presetButton.Activated, function()
+								menu.Visible = not menu.Visible
+							end)
+						end
+
+						local resetButton = library:Create("TextButton", {
+							Name = "ResetGraph";
+							Position = UDim2.new(0, 6, 1, -25);
+							Size = UDim2.new(1, -12, 0, 20);
+							BackgroundColor3 = library.MainColor;
+							Text = "Reset Graph";
+							TextColor3 = library.FontColor;
+							Font = library.Font;
+							TextSize = 12;
+							BorderSizePixel = 0;
+							ZIndex = 10;
+							Parent = framewindow;
+						}, {
+							instancep = "BackgroundColor3";
+							tinstance = library.MainColor;
+						}, {
+							instancep = "TextColor3";
+							tinstance = library.FontColor;
+						}, {
+							instancep = "Font";
+							tinstance = library.Font;
+						})
+
+						addConnection(resetButton.Activated, function()
+							table.clear(graphsets)
+							renderGraph()
+							notifyChanged()
+						end)
+
+						addConnection(GraphHolder:GetPropertyChangedSignal("AbsoluteSize"), function()
+							renderGraph()
+						end)
+
+						outsideConn = addConnection(UIS.InputBegan, function(input)
+							if input.UserInputType ~= Enum.UserInputType.MouseButton1
+								and input.UserInputType ~= Enum.UserInputType.Touch then
+								return
+							end
+
+							if not instance or not instance.Parent then
+								return
+							end
+
+							local position = input.Position
+							local mouse = UIS:GetMouseLocation()
+
+							if input.UserInputType == Enum.UserInputType.MouseButton1 then
+								position = mouse
+							end
+
+							local a = lineG.AbsolutePosition
+							local b = lineG.AbsolutePosition + lineG.AbsoluteSize
+
+							local topLeft = framewindow.AbsolutePosition
+							local bottomRight = topLeft + framewindow.AbsoluteSize
+
+							local inWindow = position.X >= topLeft.X
+								and position.X <= bottomRight.X
+								and position.Y >= topLeft.Y
+								and position.Y <= bottomRight.Y
+
+							local inButton = position.X >= buttonopen.AbsolutePosition.X
+								and position.X <= buttonopen.AbsolutePosition.X + buttonopen.AbsoluteSize.X
+								and position.Y >= buttonopen.AbsolutePosition.Y
+								and position.Y <= buttonopen.AbsolutePosition.Y + buttonopen.AbsoluteSize.Y
+
+							if not inWindow and not inButton then
+								closeGraph()
+							end
+						end)
+
+						task.defer(function()
+							if opened and GraphHolder.Parent then
+								renderGraph()
+							end
+						end)
+					end
+
+					closeGraph = function()
+						if not opened then
+							return
+						end
+
+						opened = false
+						clearOpenConnections()
+
+						if instance then
+							instance:Destroy()
+							instance = nil
+						end
+					end
+
+					addConnection(buttonopen.Activated, function()
+						if opened then
+							closeGraph()
+						else
+							openGraph()
+						end
+					end)
+
+					function linegraph:Get()
+						return getData()
+					end
+
+					function linegraph:Set(values)
+						graphsets = copyPoints(values)
+						curvePoints = #graphsets
+
+						if opened then
+							closeGraph()
+							openGraph()
+						end
+
+						notifyChanged()
+					end
+
+					function linegraph:Reset()
+						graphsets = {}
+						curvePoints = 0
+
+						if opened then
+							closeGraph()
+							openGraph()
+						end
+
+						notifyChanged()
+					end
+
+					function linegraph:SetPreset(preset)
+						for _, name in ipairs(presets) do
+							if name == preset then
+								selectedPreset = name
+
+								if opened then
+									closeGraph()
+									openGraph()
+								end
+
+								notifyChanged()
+								return true
+							end
+						end
+
+						return false
+					end
+
+					function linegraph:Destroy()
+						if destroyed then
+							return
+						end
+
+						destroyed = true
+						closeGraph()
+
+						for _, connection in ipairs(openConnections) do
+							disconnectConnection(connection)
+						end
+
+						table.clear(openConnections)
+
+						if holder then
+							holder:Destroy()
+						end
+					end
+
+					return linegraph
+				end
 
 				return groupbox
 			end
