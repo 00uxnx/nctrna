@@ -5493,6 +5493,7 @@ function library:NewWindow(configuration)
 					end	
 					
 					
+
 function groupbox:AddLineGraph(text, opts)
 	opts = opts or {}
 
@@ -5505,6 +5506,7 @@ function groupbox:AddLineGraph(text, opts)
 	local instance
 	local followConn
 	local outsideConn
+	local buttonConnection
 	local openConnections = {}
 	local pointFrames = {}
 	local pointConnections = {}
@@ -5512,7 +5514,6 @@ function groupbox:AddLineGraph(text, opts)
 
 	local UIS = game:GetService("UserInputService")
 
-	-- Linear is the default. Presets are optional.
 	local selectedPreset = opts.Preset or "Linear"
 	local draggingPoint
 	local dragMoveConn
@@ -5546,9 +5547,7 @@ function groupbox:AddLineGraph(text, opts)
 
 	local function clearPointConnections()
 		for _, connection in ipairs(pointConnections) do
-			if connection and connection.Connected then
-				connection:Disconnect()
-			end
+			disconnectConnection(connection)
 		end
 
 		table.clear(pointConnections)
@@ -5556,9 +5555,7 @@ function groupbox:AddLineGraph(text, opts)
 
 	local function clearOpenConnections()
 		for _, connection in ipairs(openConnections) do
-			if connection and connection.Connected then
-				connection:Disconnect()
-			end
+			disconnectConnection(connection)
 		end
 
 		table.clear(openConnections)
@@ -5578,7 +5575,7 @@ function groupbox:AddLineGraph(text, opts)
 
 	local function clearList(list)
 		for _, object in ipairs(list) do
-			if object and object.Parent then
+			if object then
 				object:Destroy()
 			end
 		end
@@ -5715,12 +5712,11 @@ function groupbox:AddLineGraph(text, opts)
 
 		opened = true
 
-		-- Keep the popup inside the library's existing ScreenGui.
+		-- Use the existing library ScreenGui; don't create another one.
 		local lineG = library:Create("Frame", {
 			Name = "CursorBox";
 			Size = UDim2.fromOffset(15, 15);
 			Position = getPopupPosition();
-			BackgroundColor3 = Color3.new(1, 1, 1);
 			BackgroundTransparency = 1;
 			ZIndex = 2;
 			Parent = screengui;
@@ -5728,14 +5724,17 @@ function groupbox:AddLineGraph(text, opts)
 
 		instance = lineG
 
-		followConn = addConnection(
-			buttonopen:GetPropertyChangedSignal("AbsolutePosition"),
-			function()
-				if instance and instance.Parent then
-					instance.Position = getPopupPosition()
-				end
+		followConn = buttonopen:GetPropertyChangedSignal(
+			"AbsolutePosition"
+		):Connect(function()
+			if opened and instance and instance.Parent then
+				instance.Position = getPopupPosition()
 			end
-		)
+		end)
+
+		if trackConnection then
+			trackConnection(followConn)
+		end
 
 		local framewindow = library:Create("Frame", {
 			Name = "Frame";
@@ -5930,20 +5929,21 @@ function groupbox:AddLineGraph(text, opts)
 				0.5 * (
 					2 * p1.X
 					+ (-p0.X + p2.X) * t
-					+ (2 * p0.X - 5 * p1.X + 4 * p2.X - p3.X) * t2
-					+ (-p0.X + 3 * p1.X - 3 * p2.X + p3.X) * t3
+					+ (2*p0.X - 5*p1.X + 4*p2.X - p3.X) * t2
+					+ (-p0.X + 3*p1.X - 3*p2.X + p3.X) * t3
 				),
 				0.5 * (
 					2 * p1.Y
 					+ (-p0.Y + p2.Y) * t
-					+ (2 * p0.Y - 5 * p1.Y + 4 * p2.Y - p3.Y) * t2
-					+ (-p0.Y + 3 * p1.Y - 3 * p2.Y + p3.Y) * t3
+					+ (2*p0.Y - 5*p1.Y + 4*p2.Y - p3.Y) * t2
+					+ (-p0.Y + 3*p1.Y - 3*p2.Y + p3.Y) * t3
 				)
 			)
 		end
 
 		local function interpolateY(a, b, t)
-			if selectedPreset == "Exponential" or selectedPreset == "Ease In" then
+			if selectedPreset == "Exponential"
+				or selectedPreset == "Ease In" then
 				t = t * t
 			elseif selectedPreset == "Ease Out" then
 				t = 1 - (1 - t) * (1 - t)
@@ -6166,7 +6166,6 @@ function groupbox:AddLineGraph(text, opts)
 				return
 			end
 
-			-- Use the same absolute-coordinate calculation as dragging.
 			local x = math.clamp(
 				(position.X - origin.X) / size.X, 0, 1
 			)
@@ -6308,14 +6307,14 @@ function groupbox:AddLineGraph(text, opts)
 			end
 		)
 
-		-- Close when clicking outside the actual popup window.
-		outsideConn = addConnection(UIS.InputBegan, function(input)
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then
+		-- Defer the outside-click check so the opening click cannot close it.
+		outsideConn = UIS.InputBegan:Connect(function(input)
+			if not opened or not instance or not instance.Parent then
 				return
 			end
 
-			if not instance or not instance.Parent or not opened then
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then
 				return
 			end
 
@@ -6343,6 +6342,10 @@ function groupbox:AddLineGraph(text, opts)
 			end
 		end)
 
+		if trackConnection then
+			trackConnection(outsideConn)
+		end
+
 		task.defer(function()
 			if opened and GraphHolder.Parent then
 				renderGraph()
@@ -6355,7 +6358,9 @@ function groupbox:AddLineGraph(text, opts)
 			return
 		end
 
+		-- Set this first so callbacks stop acting while the popup closes.
 		opened = false
+
 		clearOpenConnections()
 
 		if instance then
@@ -6364,7 +6369,9 @@ function groupbox:AddLineGraph(text, opts)
 		end
 	end
 
-	addConnection(buttonopen.Activated, function()
+	-- IMPORTANT: This connection is deliberately NOT added to
+	-- openConnections, so closing the popup won't kill the reopen button.
+	buttonConnection = buttonopen.Activated:Connect(function()
 		if destroyed then
 			return
 		end
@@ -6375,6 +6382,10 @@ function groupbox:AddLineGraph(text, opts)
 			openGraph()
 		end
 	end)
+
+	if trackConnection then
+		trackConnection(buttonConnection)
+	end
 
 	function linegraph:Get()
 		return getData()
@@ -6441,16 +6452,22 @@ function groupbox:AddLineGraph(text, opts)
 
 		destroyed = true
 		closeGraph()
+
+		disconnectConnection(buttonConnection)
+		buttonConnection = nil
+
 		clearOpenConnections()
 		clearPointConnections()
 
 		if holder then
 			holder:Destroy()
+			holder = nil
 		end
 	end
 
 	return linegraph
 end
+
 
 
 					return groupbox
@@ -10548,7 +10565,8 @@ end
 						return input
 					end	
 					
-					function groupbox:AddLineGraph(text, opts)
+					
+function groupbox:AddLineGraph(text, opts)
 	opts = opts or {}
 
 	local linegraph = {}
@@ -10560,6 +10578,7 @@ end
 	local instance
 	local followConn
 	local outsideConn
+	local buttonConnection
 	local openConnections = {}
 	local pointFrames = {}
 	local pointConnections = {}
@@ -10567,7 +10586,6 @@ end
 
 	local UIS = game:GetService("UserInputService")
 
-	-- Linear is the default. Presets are optional.
 	local selectedPreset = opts.Preset or "Linear"
 	local draggingPoint
 	local dragMoveConn
@@ -10601,9 +10619,7 @@ end
 
 	local function clearPointConnections()
 		for _, connection in ipairs(pointConnections) do
-			if connection and connection.Connected then
-				connection:Disconnect()
-			end
+			disconnectConnection(connection)
 		end
 
 		table.clear(pointConnections)
@@ -10611,9 +10627,7 @@ end
 
 	local function clearOpenConnections()
 		for _, connection in ipairs(openConnections) do
-			if connection and connection.Connected then
-				connection:Disconnect()
-			end
+			disconnectConnection(connection)
 		end
 
 		table.clear(openConnections)
@@ -10633,7 +10647,7 @@ end
 
 	local function clearList(list)
 		for _, object in ipairs(list) do
-			if object and object.Parent then
+			if object then
 				object:Destroy()
 			end
 		end
@@ -10770,12 +10784,11 @@ end
 
 		opened = true
 
-		-- Keep the popup inside the library's existing ScreenGui.
+		-- Use the existing library ScreenGui; don't create another one.
 		local lineG = library:Create("Frame", {
 			Name = "CursorBox";
 			Size = UDim2.fromOffset(15, 15);
 			Position = getPopupPosition();
-			BackgroundColor3 = Color3.new(1, 1, 1);
 			BackgroundTransparency = 1;
 			ZIndex = 2;
 			Parent = screengui;
@@ -10783,14 +10796,17 @@ end
 
 		instance = lineG
 
-		followConn = addConnection(
-			buttonopen:GetPropertyChangedSignal("AbsolutePosition"),
-			function()
-				if instance and instance.Parent then
-					instance.Position = getPopupPosition()
-				end
+		followConn = buttonopen:GetPropertyChangedSignal(
+			"AbsolutePosition"
+		):Connect(function()
+			if opened and instance and instance.Parent then
+				instance.Position = getPopupPosition()
 			end
-		)
+		end)
+
+		if trackConnection then
+			trackConnection(followConn)
+		end
 
 		local framewindow = library:Create("Frame", {
 			Name = "Frame";
@@ -10985,20 +11001,21 @@ end
 				0.5 * (
 					2 * p1.X
 					+ (-p0.X + p2.X) * t
-					+ (2 * p0.X - 5 * p1.X + 4 * p2.X - p3.X) * t2
-					+ (-p0.X + 3 * p1.X - 3 * p2.X + p3.X) * t3
+					+ (2*p0.X - 5*p1.X + 4*p2.X - p3.X) * t2
+					+ (-p0.X + 3*p1.X - 3*p2.X + p3.X) * t3
 				),
 				0.5 * (
 					2 * p1.Y
 					+ (-p0.Y + p2.Y) * t
-					+ (2 * p0.Y - 5 * p1.Y + 4 * p2.Y - p3.Y) * t2
-					+ (-p0.Y + 3 * p1.Y - 3 * p2.Y + p3.Y) * t3
+					+ (2*p0.Y - 5*p1.Y + 4*p2.Y - p3.Y) * t2
+					+ (-p0.Y + 3*p1.Y - 3*p2.Y + p3.Y) * t3
 				)
 			)
 		end
 
 		local function interpolateY(a, b, t)
-			if selectedPreset == "Exponential" or selectedPreset == "Ease In" then
+			if selectedPreset == "Exponential"
+				or selectedPreset == "Ease In" then
 				t = t * t
 			elseif selectedPreset == "Ease Out" then
 				t = 1 - (1 - t) * (1 - t)
@@ -11221,7 +11238,6 @@ end
 				return
 			end
 
-			-- Use the same absolute-coordinate calculation as dragging.
 			local x = math.clamp(
 				(position.X - origin.X) / size.X, 0, 1
 			)
@@ -11363,14 +11379,14 @@ end
 			end
 		)
 
-		-- Close when clicking outside the actual popup window.
-		outsideConn = addConnection(UIS.InputBegan, function(input)
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then
+		-- Defer the outside-click check so the opening click cannot close it.
+		outsideConn = UIS.InputBegan:Connect(function(input)
+			if not opened or not instance or not instance.Parent then
 				return
 			end
 
-			if not instance or not instance.Parent or not opened then
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then
 				return
 			end
 
@@ -11398,6 +11414,10 @@ end
 			end
 		end)
 
+		if trackConnection then
+			trackConnection(outsideConn)
+		end
+
 		task.defer(function()
 			if opened and GraphHolder.Parent then
 				renderGraph()
@@ -11410,7 +11430,9 @@ end
 			return
 		end
 
+		-- Set this first so callbacks stop acting while the popup closes.
 		opened = false
+
 		clearOpenConnections()
 
 		if instance then
@@ -11419,7 +11441,9 @@ end
 		end
 	end
 
-	addConnection(buttonopen.Activated, function()
+	-- IMPORTANT: This connection is deliberately NOT added to
+	-- openConnections, so closing the popup won't kill the reopen button.
+	buttonConnection = buttonopen.Activated:Connect(function()
 		if destroyed then
 			return
 		end
@@ -11430,6 +11454,10 @@ end
 			openGraph()
 		end
 	end)
+
+	if trackConnection then
+		trackConnection(buttonConnection)
+	end
 
 	function linegraph:Get()
 		return getData()
@@ -11496,16 +11524,22 @@ end
 
 		destroyed = true
 		closeGraph()
+
+		disconnectConnection(buttonConnection)
+		buttonConnection = nil
+
 		clearOpenConnections()
 		clearPointConnections()
 
 		if holder then
 			holder:Destroy()
+			holder = nil
 		end
 	end
 
 	return linegraph
 end
+
 					
 					return groupbox
 				end
@@ -15626,7 +15660,8 @@ end
 					return input
 				end	
 				
-				function groupbox:AddLineGraph(text, opts)
+				
+function groupbox:AddLineGraph(text, opts)
 	opts = opts or {}
 
 	local linegraph = {}
@@ -15638,6 +15673,7 @@ end
 	local instance
 	local followConn
 	local outsideConn
+	local buttonConnection
 	local openConnections = {}
 	local pointFrames = {}
 	local pointConnections = {}
@@ -15645,7 +15681,6 @@ end
 
 	local UIS = game:GetService("UserInputService")
 
-	-- Linear is the default. Presets are optional.
 	local selectedPreset = opts.Preset or "Linear"
 	local draggingPoint
 	local dragMoveConn
@@ -15679,9 +15714,7 @@ end
 
 	local function clearPointConnections()
 		for _, connection in ipairs(pointConnections) do
-			if connection and connection.Connected then
-				connection:Disconnect()
-			end
+			disconnectConnection(connection)
 		end
 
 		table.clear(pointConnections)
@@ -15689,9 +15722,7 @@ end
 
 	local function clearOpenConnections()
 		for _, connection in ipairs(openConnections) do
-			if connection and connection.Connected then
-				connection:Disconnect()
-			end
+			disconnectConnection(connection)
 		end
 
 		table.clear(openConnections)
@@ -15711,7 +15742,7 @@ end
 
 	local function clearList(list)
 		for _, object in ipairs(list) do
-			if object and object.Parent then
+			if object then
 				object:Destroy()
 			end
 		end
@@ -15848,12 +15879,11 @@ end
 
 		opened = true
 
-		-- Keep the popup inside the library's existing ScreenGui.
+		-- Use the existing library ScreenGui; don't create another one.
 		local lineG = library:Create("Frame", {
 			Name = "CursorBox";
 			Size = UDim2.fromOffset(15, 15);
 			Position = getPopupPosition();
-			BackgroundColor3 = Color3.new(1, 1, 1);
 			BackgroundTransparency = 1;
 			ZIndex = 2;
 			Parent = screengui;
@@ -15861,14 +15891,17 @@ end
 
 		instance = lineG
 
-		followConn = addConnection(
-			buttonopen:GetPropertyChangedSignal("AbsolutePosition"),
-			function()
-				if instance and instance.Parent then
-					instance.Position = getPopupPosition()
-				end
+		followConn = buttonopen:GetPropertyChangedSignal(
+			"AbsolutePosition"
+		):Connect(function()
+			if opened and instance and instance.Parent then
+				instance.Position = getPopupPosition()
 			end
-		)
+		end)
+
+		if trackConnection then
+			trackConnection(followConn)
+		end
 
 		local framewindow = library:Create("Frame", {
 			Name = "Frame";
@@ -16063,20 +16096,21 @@ end
 				0.5 * (
 					2 * p1.X
 					+ (-p0.X + p2.X) * t
-					+ (2 * p0.X - 5 * p1.X + 4 * p2.X - p3.X) * t2
-					+ (-p0.X + 3 * p1.X - 3 * p2.X + p3.X) * t3
+					+ (2*p0.X - 5*p1.X + 4*p2.X - p3.X) * t2
+					+ (-p0.X + 3*p1.X - 3*p2.X + p3.X) * t3
 				),
 				0.5 * (
 					2 * p1.Y
 					+ (-p0.Y + p2.Y) * t
-					+ (2 * p0.Y - 5 * p1.Y + 4 * p2.Y - p3.Y) * t2
-					+ (-p0.Y + 3 * p1.Y - 3 * p2.Y + p3.Y) * t3
+					+ (2*p0.Y - 5*p1.Y + 4*p2.Y - p3.Y) * t2
+					+ (-p0.Y + 3*p1.Y - 3*p2.Y + p3.Y) * t3
 				)
 			)
 		end
 
 		local function interpolateY(a, b, t)
-			if selectedPreset == "Exponential" or selectedPreset == "Ease In" then
+			if selectedPreset == "Exponential"
+				or selectedPreset == "Ease In" then
 				t = t * t
 			elseif selectedPreset == "Ease Out" then
 				t = 1 - (1 - t) * (1 - t)
@@ -16299,7 +16333,6 @@ end
 				return
 			end
 
-			-- Use the same absolute-coordinate calculation as dragging.
 			local x = math.clamp(
 				(position.X - origin.X) / size.X, 0, 1
 			)
@@ -16441,14 +16474,14 @@ end
 			end
 		)
 
-		-- Close when clicking outside the actual popup window.
-		outsideConn = addConnection(UIS.InputBegan, function(input)
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then
+		-- Defer the outside-click check so the opening click cannot close it.
+		outsideConn = UIS.InputBegan:Connect(function(input)
+			if not opened or not instance or not instance.Parent then
 				return
 			end
 
-			if not instance or not instance.Parent or not opened then
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then
 				return
 			end
 
@@ -16476,6 +16509,10 @@ end
 			end
 		end)
 
+		if trackConnection then
+			trackConnection(outsideConn)
+		end
+
 		task.defer(function()
 			if opened and GraphHolder.Parent then
 				renderGraph()
@@ -16488,7 +16525,9 @@ end
 			return
 		end
 
+		-- Set this first so callbacks stop acting while the popup closes.
 		opened = false
+
 		clearOpenConnections()
 
 		if instance then
@@ -16497,7 +16536,9 @@ end
 		end
 	end
 
-	addConnection(buttonopen.Activated, function()
+	-- IMPORTANT: This connection is deliberately NOT added to
+	-- openConnections, so closing the popup won't kill the reopen button.
+	buttonConnection = buttonopen.Activated:Connect(function()
 		if destroyed then
 			return
 		end
@@ -16508,6 +16549,10 @@ end
 			openGraph()
 		end
 	end)
+
+	if trackConnection then
+		trackConnection(buttonConnection)
+	end
 
 	function linegraph:Get()
 		return getData()
@@ -16574,16 +16619,22 @@ end
 
 		destroyed = true
 		closeGraph()
+
+		disconnectConnection(buttonConnection)
+		buttonConnection = nil
+
 		clearOpenConnections()
 		clearPointConnections()
 
 		if holder then
 			holder:Destroy()
+			holder = nil
 		end
 	end
 
 	return linegraph
 end
+
 
 				return groupbox
 			end
@@ -20680,7 +20731,8 @@ end
 					return input
 				end	
 
-				function groupbox:AddLineGraph(text, opts)
+				
+function groupbox:AddLineGraph(text, opts)
 	opts = opts or {}
 
 	local linegraph = {}
@@ -20692,6 +20744,7 @@ end
 	local instance
 	local followConn
 	local outsideConn
+	local buttonConnection
 	local openConnections = {}
 	local pointFrames = {}
 	local pointConnections = {}
@@ -20699,7 +20752,6 @@ end
 
 	local UIS = game:GetService("UserInputService")
 
-	-- Linear is the default. Presets are optional.
 	local selectedPreset = opts.Preset or "Linear"
 	local draggingPoint
 	local dragMoveConn
@@ -20733,9 +20785,7 @@ end
 
 	local function clearPointConnections()
 		for _, connection in ipairs(pointConnections) do
-			if connection and connection.Connected then
-				connection:Disconnect()
-			end
+			disconnectConnection(connection)
 		end
 
 		table.clear(pointConnections)
@@ -20743,9 +20793,7 @@ end
 
 	local function clearOpenConnections()
 		for _, connection in ipairs(openConnections) do
-			if connection and connection.Connected then
-				connection:Disconnect()
-			end
+			disconnectConnection(connection)
 		end
 
 		table.clear(openConnections)
@@ -20765,7 +20813,7 @@ end
 
 	local function clearList(list)
 		for _, object in ipairs(list) do
-			if object and object.Parent then
+			if object then
 				object:Destroy()
 			end
 		end
@@ -20902,12 +20950,11 @@ end
 
 		opened = true
 
-		-- Keep the popup inside the library's existing ScreenGui.
+		-- Use the existing library ScreenGui; don't create another one.
 		local lineG = library:Create("Frame", {
 			Name = "CursorBox";
 			Size = UDim2.fromOffset(15, 15);
 			Position = getPopupPosition();
-			BackgroundColor3 = Color3.new(1, 1, 1);
 			BackgroundTransparency = 1;
 			ZIndex = 2;
 			Parent = screengui;
@@ -20915,14 +20962,17 @@ end
 
 		instance = lineG
 
-		followConn = addConnection(
-			buttonopen:GetPropertyChangedSignal("AbsolutePosition"),
-			function()
-				if instance and instance.Parent then
-					instance.Position = getPopupPosition()
-				end
+		followConn = buttonopen:GetPropertyChangedSignal(
+			"AbsolutePosition"
+		):Connect(function()
+			if opened and instance and instance.Parent then
+				instance.Position = getPopupPosition()
 			end
-		)
+		end)
+
+		if trackConnection then
+			trackConnection(followConn)
+		end
 
 		local framewindow = library:Create("Frame", {
 			Name = "Frame";
@@ -21117,20 +21167,21 @@ end
 				0.5 * (
 					2 * p1.X
 					+ (-p0.X + p2.X) * t
-					+ (2 * p0.X - 5 * p1.X + 4 * p2.X - p3.X) * t2
-					+ (-p0.X + 3 * p1.X - 3 * p2.X + p3.X) * t3
+					+ (2*p0.X - 5*p1.X + 4*p2.X - p3.X) * t2
+					+ (-p0.X + 3*p1.X - 3*p2.X + p3.X) * t3
 				),
 				0.5 * (
 					2 * p1.Y
 					+ (-p0.Y + p2.Y) * t
-					+ (2 * p0.Y - 5 * p1.Y + 4 * p2.Y - p3.Y) * t2
-					+ (-p0.Y + 3 * p1.Y - 3 * p2.Y + p3.Y) * t3
+					+ (2*p0.Y - 5*p1.Y + 4*p2.Y - p3.Y) * t2
+					+ (-p0.Y + 3*p1.Y - 3*p2.Y + p3.Y) * t3
 				)
 			)
 		end
 
 		local function interpolateY(a, b, t)
-			if selectedPreset == "Exponential" or selectedPreset == "Ease In" then
+			if selectedPreset == "Exponential"
+				or selectedPreset == "Ease In" then
 				t = t * t
 			elseif selectedPreset == "Ease Out" then
 				t = 1 - (1 - t) * (1 - t)
@@ -21353,7 +21404,6 @@ end
 				return
 			end
 
-			-- Use the same absolute-coordinate calculation as dragging.
 			local x = math.clamp(
 				(position.X - origin.X) / size.X, 0, 1
 			)
@@ -21495,14 +21545,14 @@ end
 			end
 		)
 
-		-- Close when clicking outside the actual popup window.
-		outsideConn = addConnection(UIS.InputBegan, function(input)
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then
+		-- Defer the outside-click check so the opening click cannot close it.
+		outsideConn = UIS.InputBegan:Connect(function(input)
+			if not opened or not instance or not instance.Parent then
 				return
 			end
 
-			if not instance or not instance.Parent or not opened then
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then
 				return
 			end
 
@@ -21530,6 +21580,10 @@ end
 			end
 		end)
 
+		if trackConnection then
+			trackConnection(outsideConn)
+		end
+
 		task.defer(function()
 			if opened and GraphHolder.Parent then
 				renderGraph()
@@ -21542,7 +21596,9 @@ end
 			return
 		end
 
+		-- Set this first so callbacks stop acting while the popup closes.
 		opened = false
+
 		clearOpenConnections()
 
 		if instance then
@@ -21551,7 +21607,9 @@ end
 		end
 	end
 
-	addConnection(buttonopen.Activated, function()
+	-- IMPORTANT: This connection is deliberately NOT added to
+	-- openConnections, so closing the popup won't kill the reopen button.
+	buttonConnection = buttonopen.Activated:Connect(function()
 		if destroyed then
 			return
 		end
@@ -21562,6 +21620,10 @@ end
 			openGraph()
 		end
 	end)
+
+	if trackConnection then
+		trackConnection(buttonConnection)
+	end
 
 	function linegraph:Get()
 		return getData()
@@ -21628,16 +21690,22 @@ end
 
 		destroyed = true
 		closeGraph()
+
+		disconnectConnection(buttonConnection)
+		buttonConnection = nil
+
 		clearOpenConnections()
 		clearPointConnections()
 
 		if holder then
 			holder:Destroy()
+			holder = nil
 		end
 	end
 
 	return linegraph
 end
+
 
 				return groupbox
 			end
