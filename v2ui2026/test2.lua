@@ -5492,771 +5492,966 @@ function library:NewWindow(configuration)
 						return input
 					end	
 					
-					function groupbox:AddLineGraph(text, opts)
-						opts = opts or {}
+					
+function groupbox:AddLineGraph(text, opts)
+	opts = opts or {}
 
-						local Players = game:GetService("Players")
-						local UserInputService = game:GetService("UserInputService")
-						local GuiService = game:GetService("GuiService")
+	local linegraph = {}
+	local graphsets = {}
+	local curvePoints = 0
+	local opened = false
+	local destroyed = false
 
-						local LocalPlayer = Players.LocalPlayer
-						local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+	local instance
+	local followConn
+	local outsideConn
+	local openConnections = {}
+	local pointFrames = {}
+	local pointConnections = {}
+	local curveFrames = {}
 
-						local graphAPI = {}
-						local connections = {}
-						local destroyed = false
-						local draggingPoint = nil
-						local dragInput = nil
-						local redrawPending = false
+	local UIS = game:GetService("UserInputService")
 
-						local graphTitle = tostring(text or "Line Graph")
-						local graphColor = opts.Color or Color3.fromRGB(120, 170, 255)
-						local backgroundColor = opts.BackgroundColor or Color3.fromRGB(20, 20, 24)
-						local panelColor = opts.PanelColor or Color3.fromRGB(29, 29, 35)
-						local textColor = opts.TextColor or Color3.fromRGB(240, 240, 245)
+	-- Linear is the default. Presets are optional.
+	local selectedPreset = opts.Preset or "Linear"
+	local draggingPoint
+	local dragMoveConn
+	local dragEndConn
 
-						local function connect(signal, callback)
-							local connection = signal:Connect(callback)
-							table.insert(connections, connection)
-							return connection
-						end
+	local presets = {
+		"Linear",
+		"Smooth",
+		"Exponential",
+		"Ease In",
+		"Ease Out",
+		"Ease In Out"
+	}
 
-						local function create(className, properties, parent)
-							local object = Instance.new(className)
+	local function addConnection(signal, callback)
+		local connection = signal:Connect(callback)
 
-							for property, value in pairs(properties or {}) do
-								object[property] = value
-							end
+		if trackConnection then
+			trackConnection(connection)
+		end
 
-							object.Parent = parent
-							return object
-						end
+		table.insert(openConnections, connection)
+		return connection
+	end
 
-						local function round(object, radius)
-							create("UICorner", {
-								CornerRadius = UDim.new(0, radius or 6)
-							}, object)
-						end
+	local function disconnectConnection(connection)
+		if connection then
+			connection:Disconnect()
+		end
+	end
 
-						local function stroke(object, color, thickness, transparency)
-							create("UIStroke", {
-								Color = color or Color3.fromRGB(55, 55, 65),
-								Thickness = thickness or 1,
-								Transparency = transparency or 0
-							}, object)
-						end
+	local function clearPointConnections()
+		for _, connection in ipairs(pointConnections) do
+			if connection and connection.Connected then
+				connection:Disconnect()
+			end
+		end
 
-						local function makeButton(parent, label, size, position)
-							local button = create("TextButton", {
-								Name = "Button",
-								Size = size,
-								Position = position or UDim2.new(),
-								BackgroundColor3 = panelColor,
-								BorderSizePixel = 0,
-								Text = label,
-								TextColor3 = textColor,
-								TextSize = 13,
-								Font = Enum.Font.Gotham,
-								AutoButtonColor = true,
-								Active = true,
-								ZIndex = 20
-							}, parent)
+		table.clear(pointConnections)
+	end
 
-							round(button, 5)
-							return button
-						end
+	local function clearOpenConnections()
+		for _, connection in ipairs(openConnections) do
+			if connection and connection.Connected then
+				connection:Disconnect()
+			end
+		end
 
-						-- Data is normalized to X/Y values between 0 and 1.
-						-- Y=0 is the bottom; Y=1 is the top.
-						local function cleanPoints(source)
-							local result = {}
+		table.clear(openConnections)
+		clearPointConnections()
 
-							if type(source) ~= "table" then
-								return result
-							end
+		disconnectConnection(followConn)
+		disconnectConnection(outsideConn)
+		disconnectConnection(dragMoveConn)
+		disconnectConnection(dragEndConn)
 
-							for _, point in ipairs(source) do
-								if type(point) == "table" then
-									local x = tonumber(point.X or point.x or point[1])
-									local y = tonumber(point.Y or point.y or point[2])
+		followConn = nil
+		outsideConn = nil
+		dragMoveConn = nil
+		dragEndConn = nil
+		draggingPoint = nil
+	end
 
-									if x and y then
-										table.insert(result, {
-											X = math.clamp(x, 0, 1),
-											Y = math.clamp(y, 0, 1)
-										})
-									end
-								end
-							end
+	local function clearList(list)
+		for _, object in ipairs(list) do
+			if object and object.Parent then
+				object:Destroy()
+			end
+		end
 
-							table.sort(result, function(a, b)
-								return a.X < b.X
-							end)
+		table.clear(list)
+	end
 
-							return result
-						end
+	local function copyPoints(values)
+		local result = {}
 
-						local defaultPoints =
-							opts.DefaultPoints
-							or opts.default
-							or {
-								{ X = 0, Y = 0 },
-								{ X = 1, Y = 1 }
-							}
+		for _, point in ipairs(values or {}) do
+			local x = tonumber(point.X or point.x or point[1]) or 0
+			local y = tonumber(point.Y or point.y or point[2]) or 0
 
-						local points = cleanPoints(defaultPoints)
+			table.insert(result, {
+				X = math.clamp(x, 0, 1),
+				Y = math.clamp(y, 0, 1)
+			})
+		end
 
-						if #points == 0 then
-							points = {
-								{ X = 0, Y = 0 },
-								{ X = 1, Y = 1 }
-							}
-						elseif #points == 1 then
-							points = {
-								{ X = 0, Y = points[1].Y },
-								{ X = 1, Y = points[1].Y }
-							}
-						end
+		table.sort(result, function(a, b)
+			return a.X < b.X
+		end)
 
-						local curveMode = "Linear"
-						local pointObjects = {}
-						local drawObjects = {}
-						local dragChanged = false
+		return result
+	end
 
-						--==========================================================
-						-- LIBRARY ROW / OPEN BUTTON
-						--==========================================================
+	graphsets = copyPoints(opts.default or opts.Default or {})
+	curvePoints = #graphsets
 
-						local row = create("Frame", {
-							Name = "LineGraphRow",
-							Size = UDim2.new(0.95, 0, 0, 32),
-							BackgroundTransparency = 1,
-							BorderSizePixel = 0,
-							LayoutOrder = #elementsholder:GetChildren() + 1
-						}, elementsholder)
+	local function getData()
+		local result = {}
 
-						local openButton = makeButton(
-							row,
-							graphTitle .. "  [Open Graph]",
-							UDim2.new(1, 0, 1, 0),
-							UDim2.new()
+		for i, point in ipairs(graphsets) do
+			result[i] = {
+				X = point.X,
+				Y = point.Y
+			}
+		end
+
+		return result
+	end
+
+	local function notifyChanged()
+		curvePoints = #graphsets
+
+		if type(opts.Callback) == "function" then
+			opts.Callback(getData())
+		end
+	end
+
+	local holder = library:Create("Frame", {
+		Name = "Holder";
+		Size = UDim2.new(0.95, 0, 0, 20);
+		BackgroundTransparency = 1;
+		LayoutOrder = #elementsholder:GetChildren();
+		Parent = elementsholder;
+	})
+
+	local uitext = library:Create("TextLabel", {
+		Name = "TextLabel";
+		Size = UDim2.new(0.937, 0, 1, 0);
+		BackgroundTransparency = 1;
+		Text = text;
+		TextSize = 13;
+		TextColor3 = library.FontColor;
+		Font = library.Font;
+		LayoutOrder = 1;
+		TextXAlignment = Enum.TextXAlignment.Left;
+		TextYAlignment = Enum.TextYAlignment.Center;
+		Parent = holder;
+	}, {
+		instancep = "TextColor3";
+		tinstance = library.FontColor;
+	}, {
+		instancep = "Font";
+		tinstance = library.Font;
+	})
+
+	library:Create("UITextSizeConstraint", {
+		Name = "UITextSizeConstraint";
+		MaxTextSize = 13;
+		Parent = uitext;
+	})
+
+	library:Create("UIStroke", {
+		Name = "UIStroke";
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+		Color = Color3.fromRGB(0, 0, 0);
+		Thickness = 1;
+		Parent = uitext;
+	}, {
+		instancep = "Color";
+		tinstance = library.UIstroke;
+	})
+
+	library:Create("UIListLayout", {
+		Name = "UIListLayout";
+		FillDirection = Enum.FillDirection.Horizontal;
+		HorizontalAlignment = Enum.HorizontalAlignment.Left;
+		SortOrder = Enum.SortOrder.LayoutOrder;
+		Parent = holder;
+	})
+
+	local buttonopen = library:Create("ImageButton", {
+		Name = "ButtonOpen";
+		Size = UDim2.new(0, 19, 0, 19);
+		LayoutOrder = 2;
+		BackgroundTransparency = 1;
+		Image = "rbxassetid://10734950309";
+		ImageColor3 = library.AccentColor;
+		Parent = holder;
+	}, {
+		instancep = "ImageColor3";
+		tinstance = library.AccentColor;
+	})
+
+	local function getPopupPosition()
+		local absolute = buttonopen.AbsolutePosition
+		local base = screengui.AbsolutePosition
+
+		return UDim2.fromOffset(
+			absolute.X - base.X,
+			absolute.Y - base.Y
+		)
+	end
+
+	local closeGraph
+
+	local function openGraph()
+		if opened or destroyed then
+			return
+		end
+
+		opened = true
+
+		-- Keep the popup inside the library's existing ScreenGui.
+		local lineG = library:Create("Frame", {
+			Name = "CursorBox";
+			Size = UDim2.fromOffset(15, 15);
+			Position = getPopupPosition();
+			BackgroundColor3 = Color3.new(1, 1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 2;
+			Parent = screengui;
+		})
+
+		instance = lineG
+
+		followConn = addConnection(
+			buttonopen:GetPropertyChangedSignal("AbsolutePosition"),
+			function()
+				if instance and instance.Parent then
+					instance.Position = getPopupPosition()
+				end
+			end
+		)
+
+		local framewindow = library:Create("Frame", {
+			Name = "Frame";
+			Size = UDim2.fromOffset(323, 246);
+			Position = UDim2.new(1, 0, 1.4, 0);
+			BackgroundColor3 = library.MainColor;
+			BorderSizePixel = 0;
+			ZIndex = 2;
+			Parent = lineG;
+		}, {
+			instancep = "BackgroundColor3";
+			tinstance = library.MainColor;
+		})
+
+		library:Create("UIStroke", {
+			Name = "UIStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			LineJoinMode = Enum.LineJoinMode.Miter;
+			Color = library.SecondaryColor;
+			Thickness = 1;
+			ZIndex = 2;
+			Parent = framewindow;
+		}, {
+			instancep = "Color";
+			tinstance = library.SecondaryColor;
+		})
+
+		library:Create("UIStroke", {
+			Name = "OuterStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			LineJoinMode = Enum.LineJoinMode.Miter;
+			Color = library.MainColor;
+			Thickness = 4;
+			ZIndex = 2;
+			Parent = framewindow;
+		}, {
+			instancep = "Color";
+			tinstance = library.MainColor;
+		})
+
+		local title = library:Create("TextLabel", {
+			Name = "TextLabel";
+			Size = UDim2.new(1, 0, 0, 18);
+			Position = UDim2.fromOffset(0, 0);
+			BackgroundTransparency = 1;
+			Text = text or "Line Graph";
+			TextColor3 = library.FontColor;
+			Font = library.Font;
+			TextSize = 13;
+			TextXAlignment = Enum.TextXAlignment.Left;
+			ZIndex = 3;
+			Parent = framewindow;
+		}, {
+			instancep = "TextColor3";
+			tinstance = library.FontColor;
+		}, {
+			instancep = "Font";
+			tinstance = library.Font;
+		})
+
+		library:Create("UIPadding", {
+			PaddingLeft = UDim.new(0, 6);
+			Parent = title;
+		})
+
+		library:Create("UIStroke", {
+			Name = "UIStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+			Color = library.UIstroke;
+			Thickness = 1;
+			Parent = title;
+		}, {
+			instancep = "Color";
+			tinstance = library.UIstroke;
+		})
+
+		local GraphHolder = library:Create("Frame", {
+			Name = "GraphHolder";
+			Position = UDim2.fromOffset(4, 24);
+			Size = UDim2.fromOffset(315, 168);
+			BackgroundTransparency = 1;
+			BorderSizePixel = 0;
+			ClipsDescendants = false;
+			Active = true;
+			ZIndex = 2;
+			Parent = framewindow;
+		})
+
+		library:Create("UIStroke", {
+			Color = library.SecondaryColor;
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			Parent = GraphHolder;
+		}, {
+			instancep = "Color";
+			tinstance = library.SecondaryColor;
+		})
+
+		local grid = library:Create("Frame", {
+			Name = "Grid";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 2;
+			Parent = GraphHolder;
+		})
+
+		local curveLayer = library:Create("Frame", {
+			Name = "CurveLines";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 3;
+			Parent = GraphHolder;
+		})
+
+		local pointLayer = library:Create("Frame", {
+			Name = "Points";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 5;
+			Parent = GraphHolder;
+		})
+
+		for i = 1, 4 do
+			library:Create("Frame", {
+				Name = "HorizontalLine";
+				Position = UDim2.fromScale(0, i / 5);
+				Size = UDim2.new(1, 0, 0, 1);
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.SecondaryColor;
+				ZIndex = 2;
+				Parent = grid;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.SecondaryColor;
+			})
+		end
+
+		for i = 1, 7 do
+			library:Create("Frame", {
+				Name = "VerticalLine";
+				Position = UDim2.fromScale(i / 8, 0);
+				Size = UDim2.new(0, 1, 1, 0);
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.SecondaryColor;
+				ZIndex = 2;
+				Parent = grid;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.SecondaryColor;
+			})
+		end
+
+		local function toPixels(point)
+			local size = GraphHolder.AbsoluteSize
+
+			return Vector2.new(
+				point.X * size.X,
+				(1 - point.Y) * size.Y
+			)
+		end
+
+		local function createSegment(a, b)
+			local delta = b - a
+			local length = delta.Magnitude
+
+			if length < 0.5 then
+				return
+			end
+
+			local segment = library:Create("Frame", {
+				Name = "CurveSegment";
+				AnchorPoint = Vector2.new(0, 0.5);
+				Position = UDim2.fromOffset(a.X, a.Y);
+				Size = UDim2.fromOffset(length, 2);
+				Rotation = math.deg(math.atan2(delta.Y, delta.X));
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.AccentColor;
+				ZIndex = 3;
+				Parent = curveLayer;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.AccentColor;
+			})
+
+			table.insert(curveFrames, segment)
+		end
+
+		local function catmullRom(p0, p1, p2, p3, t)
+			local t2 = t * t
+			local t3 = t2 * t
+
+			return Vector2.new(
+				0.5 * (
+					2 * p1.X
+					+ (-p0.X + p2.X) * t
+					+ (2 * p0.X - 5 * p1.X + 4 * p2.X - p3.X) * t2
+					+ (-p0.X + 3 * p1.X - 3 * p2.X + p3.X) * t3
+				),
+				0.5 * (
+					2 * p1.Y
+					+ (-p0.Y + p2.Y) * t
+					+ (2 * p0.Y - 5 * p1.Y + 4 * p2.Y - p3.Y) * t2
+					+ (-p0.Y + 3 * p1.Y - 3 * p2.Y + p3.Y) * t3
+				)
+			)
+		end
+
+		local function interpolateY(a, b, t)
+			if selectedPreset == "Exponential" or selectedPreset == "Ease In" then
+				t = t * t
+			elseif selectedPreset == "Ease Out" then
+				t = 1 - (1 - t) * (1 - t)
+			elseif selectedPreset == "Ease In Out" then
+				if t < 0.5 then
+					t = 2 * t * t
+				else
+					t = 1 - ((-2 * t + 2) ^ 2) / 2
+				end
+			end
+
+			return a + (b - a) * t
+		end
+
+		local renderGraph
+
+		local function drawCurve()
+			clearList(curveFrames)
+
+			if #graphsets < 2 then
+				return
+			end
+
+			local points = {}
+
+			for i, point in ipairs(graphsets) do
+				points[i] = toPixels(point)
+			end
+
+			for i = 1, #points - 1 do
+				local p1 = points[i]
+				local p2 = points[i + 1]
+
+				if selectedPreset == "Smooth" then
+					local p0 = points[math.max(1, i - 1)]
+					local p3 = points[math.min(#points, i + 2)]
+					local previous = p1
+
+					for step = 1, 20 do
+						local nextPoint = catmullRom(
+							p0, p1, p2, p3, step / 20
 						)
 
-						--==========================================================
-						-- GRAPH WINDOW
-						--==========================================================
-
-						local screenGui = create("ScreenGui", {
-							Name = "LineGraph_" .. graphTitle:gsub("%W", ""),
-							ResetOnSpawn = false,
-							IgnoreGuiInset = true,
-							DisplayOrder = 10000,
-							ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-						}, PlayerGui)
-
-						local window = create("Frame", {
-							Name = "Window",
-							AnchorPoint = Vector2.new(0.5, 0.5),
-							Position = UDim2.fromScale(0.5, 0.5),
-							Size = UDim2.new(0, 430, 0, opts.Height or 350),
-							BackgroundColor3 = backgroundColor,
-							BorderSizePixel = 0,
-							Visible = false,
-							Active = true,
-							ZIndex = 10
-						}, screenGui)
-
-						round(window, 8)
-						stroke(window, Color3.fromRGB(60, 60, 72), 1)
-
-						local header = create("Frame", {
-							Name = "Header",
-							Size = UDim2.new(1, 0, 0, 38),
-							BackgroundColor3 = panelColor,
-							BorderSizePixel = 0,
-							ZIndex = 11
-						}, window)
-
-						round(header, 8)
-
-						local titleLabel = create("TextLabel", {
-							Name = "Title",
-							Position = UDim2.new(0, 12, 0, 0),
-							Size = UDim2.new(1, -65, 1, 0),
-							BackgroundTransparency = 1,
-							Text = graphTitle,
-							TextColor3 = textColor,
-							TextSize = 14,
-							Font = Enum.Font.GothamSemibold,
-							TextXAlignment = Enum.TextXAlignment.Left,
-							ZIndex = 12
-						}, header)
-
-						local closeButton = makeButton(
-							header,
-							"X",
-							UDim2.new(0, 28, 0, 26),
-							UDim2.new(1, -33, 0, 6)
-						)
-						closeButton.ZIndex = 13
-
-						local instructions = create("TextLabel", {
-							Name = "Instructions",
-							Position = UDim2.new(0, 10, 0, 42),
-							Size = UDim2.new(1, -20, 0, 20),
-							BackgroundTransparency = 1,
-							Text = "Click the graph to add a point  |  Drag a dot to move it",
-							TextColor3 = Color3.fromRGB(165, 165, 180),
-							TextSize = 11,
-							Font = Enum.Font.Gotham,
-							TextXAlignment = Enum.TextXAlignment.Left,
-							ZIndex = 12
-						}, window)
-
-						local plot = create("Frame", {
-							Name = "Plot",
-							Position = UDim2.new(0, 18, 0, 70),
-							Size = UDim2.new(1, -36, 1, -125),
-							BackgroundColor3 = Color3.fromRGB(15, 15, 19),
-							BorderSizePixel = 0,
-							ClipsDescendants = false,
-							Active = true,
-							ZIndex = 11
-						}, window)
-
-						stroke(plot, Color3.fromRGB(48, 48, 58), 1)
-
-						--==========================================================
-						-- GRID
-						--==========================================================
-
-						for i = 1, 3 do
-							local fraction = i / 4
-
-							create("Frame", {
-								Name = "GridVertical",
-								Position = UDim2.new(fraction, 0, 0, 0),
-								Size = UDim2.new(0, 1, 1, 0),
-								BackgroundColor3 = Color3.fromRGB(43, 43, 52),
-								BorderSizePixel = 0,
-								ZIndex = 11
-							}, plot)
-
-							create("Frame", {
-								Name = "GridHorizontal",
-								Position = UDim2.new(0, 0, fraction, 0),
-								Size = UDim2.new(1, 0, 0, 1),
-								BackgroundColor3 = Color3.fromRGB(43, 43, 52),
-								BorderSizePixel = 0,
-								ZIndex = 11
-							}, plot)
-						end
-
-						local footer = create("Frame", {
-							Name = "Footer",
-							Position = UDim2.new(0, 10, 1, -43),
-							Size = UDim2.new(1, -20, 0, 32),
-							BackgroundTransparency = 1,
-							ZIndex = 12
-						}, window)
-
-						local resetButton = makeButton(
-							footer,
-							"Reset",
-							UDim2.new(0, 74, 1, 0),
-							UDim2.new(0, 0, 0, 0)
-						)
-
-						local linearButton = makeButton(
-							footer,
-							"Linear",
-							UDim2.new(0, 74, 1, 0),
-							UDim2.new(0, 82, 0, 0)
-						)
-
-						local presets = {}
-
-						if opts.Presets == true then
-							local presetButton = makeButton(
-								footer,
-								"Ease In",
-								UDim2.new(0, 74, 1, 0),
-								UDim2.new(0, 164, 0, 0)
-							)
-
-							local presetButton2 = makeButton(
-								footer,
-								"Ease Out",
-								UDim2.new(0, 74, 1, 0),
-								UDim2.new(0, 246, 0, 0)
-							)
-
-							local presetButton3 = makeButton(
-								footer,
-								"S Curve",
-								UDim2.new(0, 74, 1, 0),
-								UDim2.new(0, 328, 0, 0)
-							)
-
-							presets = { presetButton, presetButton2, presetButton3 }
-						end
-
-						--==========================================================
-						-- GRAPH DRAWING
-						--==========================================================
-
-						local function clearDrawObjects()
-							for _, object in ipairs(drawObjects) do
-								if object and object.Parent then
-									object:Destroy()
-								end
-							end
-
-							table.clear(drawObjects)
-							table.clear(pointObjects)
-						end
-
-						local function addDrawObject(object)
-							table.insert(drawObjects, object)
-							return object
-						end
-
-						local function plotPosition(point)
-							local size = plot.AbsoluteSize
-							return Vector2.new(
-								point.X * size.X,
-								(1 - point.Y) * size.Y
-							)
-						end
-
-						local function addSegment(a, b)
-							local delta = b - a
-							local length = delta.Magnitude
-
-							if length < 0.5 then
-								return
-							end
-
-							local segment = addDrawObject(create("Frame", {
-								Name = "CurveSegment",
-								AnchorPoint = Vector2.new(0, 0.5),
-								Position = UDim2.fromOffset(a.X, a.Y),
-								Size = UDim2.new(0, length, 0, 2),
-								Rotation = math.deg(math.atan2(delta.Y, delta.X)),
-								BackgroundColor3 = graphColor,
-								BorderSizePixel = 0,
-								ZIndex = 13
-							}, plot))
-
-							segment.Active = false
-						end
-
-						local function getRenderedPoints()
-							local sorted = cleanPoints(points)
-
-							if curveMode == "Linear" or #sorted < 3 then
-								return sorted
-							end
-
-							local rendered = {}
-
-							for i = 1, #sorted - 1 do
-								local p1 = sorted[i]
-								local p2 = sorted[i + 1]
-
-								for step = 0, 12 do
-									local t = step / 12
-									local x = p1.X + (p2.X - p1.X) * t
-									local y
-
-									if curveMode == "Ease In" then
-										y = p1.Y + (p2.Y - p1.Y) * (t * t)
-									elseif curveMode == "Ease Out" then
-										y = p1.Y + (p2.Y - p1.Y) * (1 - (1 - t) * (1 - t))
-									elseif curveMode == "S Curve" then
-										local smoothT = t * t * (3 - 2 * t)
-										y = p1.Y + (p2.Y - p1.Y) * smoothT
-									else
-										y = p1.Y + (p2.Y - p1.Y) * t
-									end
-
-									table.insert(rendered, { X = x, Y = y })
-								end
-							end
-
-							if #sorted == 1 then
-								table.insert(rendered, sorted[1])
-							end
-
-							return rendered
-						end
-
-						local renderGraph
-
-						local function fireCallback()
-							if type(opts.Callback) == "function" then
-								local output = {}
-
-								for i, point in ipairs(points) do
-									output[i] = {
-										X = point.X,
-										Y = point.Y
-									}
-								end
-
-								task.spawn(function()
-									local ok, err = pcall(opts.Callback, output)
-									if not ok then
-										warn("[LineGraph] Callback error:", err)
-									end
-								end)
-							end
-						end
-
-						local function updatePointPosition(index, screenPosition)
-							if destroyed or not plot.Parent then
-								return
-							end
-
-							local plotPositionAbs = plot.AbsolutePosition
-							local plotSize = plot.AbsoluteSize
-
-							if plotSize.X <= 0 or plotSize.Y <= 0 then
-								return
-							end
-
-							-- IgnoreGuiInset=true means these screen coordinates line up
-							-- with AbsolutePosition; no extra mouse inset subtraction.
-							local localX = screenPosition.X - plotPositionAbs.X
-							local localY = screenPosition.Y - plotPositionAbs.Y
-
-							local x = math.clamp(localX / plotSize.X, 0, 1)
-							local y = math.clamp(1 - localY / plotSize.Y, 0, 1)
-
-							points[index].X = x
-							points[index].Y = y
-
-							table.sort(points, function(a, b)
-								return a.X < b.X
-							end)
-
-							dragChanged = true
-							renderGraph(false)
-						end
-
-						renderGraph = function(notify)
-							if destroyed or not plot.Parent then
-								return
-							end
-
-							clearDrawObjects()
-
-							local sortedPoints = cleanPoints(points)
-							points = sortedPoints
-
-							-- Draw curve behind the dots.
-							local renderedPoints = getRenderedPoints()
-
-							for i = 1, #renderedPoints - 1 do
-								addSegment(
-									plotPosition(renderedPoints[i]),
-									plotPosition(renderedPoints[i + 1])
-								)
-							end
-
-							-- Create dot buttons once per render. Their handlers are
-							-- connected once and removed when their instance is destroyed.
-							for index, point in ipairs(points) do
-								local pos = plotPosition(point)
-
-								local dot = create("TextButton", {
-									Name = "Point_" .. index,
-									AnchorPoint = Vector2.new(0.5, 0.5),
-									Position = UDim2.fromOffset(pos.X, pos.Y),
-									Size = UDim2.fromOffset(12, 12),
-									BackgroundColor3 = graphColor,
-									BorderSizePixel = 0,
-									Text = "",
-									AutoButtonColor = false,
-									Active = true,
-									ZIndex = 16
-								}, plot)
-
-								round(dot, 100)
-								stroke(dot, Color3.fromRGB(255, 255, 255), 1)
-
-								local pointLabel = create("TextLabel", {
-									Name = "Coordinates",
-									AnchorPoint = Vector2.new(0.5, 1),
-									Position = UDim2.new(0.5, 0, 0, -5),
-									Size = UDim2.fromOffset(70, 15),
-									BackgroundTransparency = 1,
-									Text = string.format("%.2f, %.2f", point.X, point.Y),
-									TextColor3 = textColor,
-									TextSize = 10,
-									Font = Enum.Font.Gotham,
-									ZIndex = 17
-								}, dot)
-
-								pointObjects[index] = dot
-
-								local thisIndex = index
-
-								connect(dot.InputBegan, function(input)
-									if destroyed then
-										return
-									end
-
-									if input.UserInputType == Enum.UserInputType.MouseButton1
-										or input.UserInputType == Enum.UserInputType.Touch then
-										draggingPoint = thisIndex
-										dragInput = input
-										dragChanged = false
-									end
-								end)
-							end
-
-							if notify then
-								fireCallback()
-							end
-						end
-
-						--==========================================================
-						-- ADD POINTS / DRAG HANDLING
-						--==========================================================
-
-						connect(plot.InputBegan, function(input)
-							if destroyed or draggingPoint then
-								return
-							end
-
-							if input.UserInputType ~= Enum.UserInputType.MouseButton1
-								and input.UserInputType ~= Enum.UserInputType.Touch then
-								return
-							end
-
-							local mousePosition
-
-							if input.UserInputType == Enum.UserInputType.Touch then
-								mousePosition = Vector2.new(input.Position.X, input.Position.Y)
-							else
-								mousePosition = UserInputService:GetMouseLocation()
-							end
-
-							local plotPositionAbs = plot.AbsolutePosition
-							local plotSize = plot.AbsoluteSize
-
-							if plotSize.X <= 0 or plotSize.Y <= 0 then
-								return
-							end
-
-							local localX = mousePosition.X - plotPositionAbs.X
-							local localY = mousePosition.Y - plotPositionAbs.Y
-
-							if localX < 0 or localY < 0
-								or localX > plotSize.X or localY > plotSize.Y then
-								return
-							end
-
-							table.insert(points, {
-								X = math.clamp(localX / plotSize.X, 0, 1),
-								Y = math.clamp(1 - localY / plotSize.Y, 0, 1)
-							})
-
-							table.sort(points, function(a, b)
-								return a.X < b.X
-							end)
-
-							renderGraph(true)
-						end)
-
-						connect(UserInputService.InputChanged, function(input)
-							if destroyed or not draggingPoint then
-								return
-							end
-
-							if input.UserInputType == Enum.UserInputType.MouseMovement then
-								local mousePosition = UserInputService:GetMouseLocation()
-								updatePointPosition(draggingPoint, mousePosition)
-							elseif input.UserInputType == Enum.UserInputType.Touch
-								and input == dragInput then
-								updatePointPosition(
-									draggingPoint,
-									Vector2.new(input.Position.X, input.Position.Y)
-								)
-							end
-						end)
-
-						connect(UserInputService.InputEnded, function(input)
-							if not draggingPoint then
-								return
-							end
-
-							if input.UserInputType == Enum.UserInputType.MouseButton1
-								or input.UserInputType == Enum.UserInputType.Touch then
-								draggingPoint = nil
-								dragInput = nil
-
-								if dragChanged then
-									dragChanged = false
-									fireCallback()
-								end
-							end
-						end)
-
-						--==========================================================
-						-- WINDOW CONTROLS
-						--==========================================================
-
-						connect(openButton.Activated, function()
-							if not destroyed then
-								window.Visible = true
-								renderGraph(false)
-							end
-						end)
-
-						connect(closeButton.Activated, function()
-							-- Hide only. Do not destroy the window or opener.
-							window.Visible = false
-							draggingPoint = nil
-							dragInput = nil
-						end)
-
-						connect(resetButton.Activated, function()
-							if destroyed then
-								return
-							end
-
-							points = cleanPoints(defaultPoints)
-							if #points < 2 then
-								points = {
-									{ X = 0, Y = 0 },
-									{ X = 1, Y = 1 }
-								}
-							end
-
-							curveMode = "Linear"
-							renderGraph(true)
-						end)
-
-						connect(linearButton.Activated, function()
-							curveMode = "Linear"
-							renderGraph(true)
-						end)
-
-						if opts.Presets == true then
-							connect(presets[1].Activated, function()
-								curveMode = "Ease In"
-								renderGraph(true)
-							end)
-
-							connect(presets[2].Activated, function()
-								curveMode = "Ease Out"
-								renderGraph(true)
-							end)
-
-							connect(presets[3].Activated, function()
-								curveMode = "S Curve"
-								renderGraph(true)
-							end)
-						end
-
-						--==========================================================
-						-- PUBLIC API
-						--==========================================================
-
-						function graphAPI:Open()
-							if destroyed then return end
-							window.Visible = true
-							renderGraph(false)
-						end
-
-						function graphAPI:Close()
-							if destroyed then return end
-							window.Visible = false
-							draggingPoint = nil
-							dragInput = nil
-						end
-
-						function graphAPI:Toggle()
-							if destroyed then return end
-							window.Visible = not window.Visible
-
-							if window.Visible then
-								renderGraph(false)
-							end
-						end
-
-						function graphAPI:GetPoints()
-							local result = {}
-
-							for i, point in ipairs(points) do
-								result[i] = {
-									X = point.X,
-									Y = point.Y
-								}
-							end
-
-							return result
-						end
-
-						function graphAPI:SetPoints(newPoints)
-							if destroyed then return end
-
-							local cleaned = cleanPoints(newPoints)
-							if #cleaned < 2 then
-								warn("[LineGraph] SetPoints requires at least two valid points.")
-								return
-							end
-
-							points = cleaned
-							renderGraph(true)
-						end
-
-						function graphAPI:Reset()
-							if destroyed then return end
-
-							points = cleanPoints(defaultPoints)
-							if #points < 2 then
-								points = {
-									{ X = 0, Y = 0 },
-									{ X = 1, Y = 1 }
-								}
-							end
-
-							curveMode = "Linear"
-							renderGraph(true)
-						end
-
-						function graphAPI:Destroy()
-							if destroyed then return end
-							destroyed = true
-
-							for _, connection in ipairs(connections) do
-								pcall(function()
-									connection:Disconnect()
-								end)
-							end
-
-							table.clear(connections)
-
-							if screenGui then
-								screenGui:Destroy()
-							end
-
-							if row then
-								row:Destroy()
-							end
-						end
-
-						-- Compatibility alias for cleanup code.
-						graphAPI.Unload = graphAPI.Destroy
-
-						-- Initial draw: linear by default.
-						renderGraph(false)
-
-						return graphAPI
+						createSegment(previous, nextPoint)
+						previous = nextPoint
 					end
+				else
+					local previous = p1
+
+					for step = 1, 20 do
+						local t = step / 20
+
+						local nextPoint = Vector2.new(
+							p1.X + (p2.X - p1.X) * t,
+							interpolateY(p1.Y, p2.Y, t)
+						)
+
+						createSegment(previous, nextPoint)
+						previous = nextPoint
+					end
+				end
+			end
+		end
+
+		local function endDrag()
+			draggingPoint = nil
+
+			disconnectConnection(dragMoveConn)
+			disconnectConnection(dragEndConn)
+
+			dragMoveConn = nil
+			dragEndConn = nil
+
+			table.sort(graphsets, function(a, b)
+				return a.X < b.X
+			end)
+
+			if opened then
+				renderGraph()
+				notifyChanged()
+			end
+		end
+
+		local function startDrag(point)
+			disconnectConnection(dragMoveConn)
+			disconnectConnection(dragEndConn)
+
+			draggingPoint = point
+
+			dragMoveConn = UIS.InputChanged:Connect(function(input)
+				if not draggingPoint or not opened or destroyed then
+					return
+				end
+
+				if input.UserInputType ~= Enum.UserInputType.MouseMovement
+					and input.UserInputType ~= Enum.UserInputType.Touch then
+					return
+				end
+
+				local position = input.Position
+				local origin = GraphHolder.AbsolutePosition
+				local size = GraphHolder.AbsoluteSize
+
+				if size.X <= 0 or size.Y <= 0 then
+					return
+				end
+
+				draggingPoint.X = math.clamp(
+					(position.X - origin.X) / size.X, 0, 1
+				)
+
+				draggingPoint.Y = math.clamp(
+					1 - (position.Y - origin.Y) / size.Y, 0, 1
+				)
+
+				renderGraph()
+				notifyChanged()
+			end)
+
+			dragEndConn = UIS.InputEnded:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch then
+					endDrag()
+				end
+			end)
+
+			if trackConnection then
+				trackConnection(dragMoveConn)
+				trackConnection(dragEndConn)
+			end
+		end
+
+		renderGraph = function()
+			clearPointConnections()
+			clearList(pointFrames)
+
+			for _, point in ipairs(graphsets) do
+				local pixel = toPixels(point)
+
+				local dot = library:Create("TextButton", {
+					Name = "CurveDot";
+					AnchorPoint = Vector2.new(0.5, 0.5);
+					Position = UDim2.fromOffset(pixel.X, pixel.Y);
+					Size = UDim2.fromOffset(10, 10);
+					BackgroundColor3 = library.AccentColor;
+					BorderSizePixel = 0;
+					Text = "";
+					AutoButtonColor = false;
+					Active = true;
+					ZIndex = 5;
+					Parent = pointLayer;
+				}, {
+					instancep = "BackgroundColor3";
+					tinstance = library.AccentColor;
+				})
+
+				library:Create("UICorner", {
+					CornerRadius = UDim.new(1, 0);
+					Parent = dot;
+				})
+
+				library:Create("TextLabel", {
+					Name = "PointValue";
+					AnchorPoint = Vector2.new(0.5, 1);
+					Position = UDim2.new(0.5, 0, 0, -3);
+					Size = UDim2.fromOffset(90, 14);
+					BackgroundTransparency = 1;
+					Text = string.format("%.2f, %.2f", point.X, point.Y);
+					TextColor3 = library.FontColor;
+					Font = library.Font;
+					TextSize = 10;
+					ZIndex = 6;
+					Parent = dot;
+				}, {
+					instancep = "TextColor3";
+					tinstance = library.FontColor;
+				}, {
+					instancep = "Font";
+					tinstance = library.Font;
+				})
+
+				table.insert(pointFrames, dot)
+
+				local connection = dot.InputBegan:Connect(function(input)
+					if not opened or destroyed then
+						return
+					end
+
+					if input.UserInputType == Enum.UserInputType.MouseButton1
+						or input.UserInputType == Enum.UserInputType.Touch then
+						startDrag(point)
+					end
+				end)
+
+				table.insert(pointConnections, connection)
+
+				if trackConnection then
+					trackConnection(connection)
+				end
+			end
+
+			drawCurve()
+		end
+
+		addConnection(GraphHolder.InputBegan, function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+
+			if not opened or destroyed then
+				return
+			end
+
+			local position = input.Position
+			local origin = GraphHolder.AbsolutePosition
+			local size = GraphHolder.AbsoluteSize
+
+			if size.X <= 0 or size.Y <= 0 then
+				return
+			end
+
+			-- Use the same absolute-coordinate calculation as dragging.
+			local x = math.clamp(
+				(position.X - origin.X) / size.X, 0, 1
+			)
+
+			local y = math.clamp(
+				1 - (position.Y - origin.Y) / size.Y, 0, 1
+			)
+
+			table.insert(graphsets, {
+				X = x;
+				Y = y;
+			})
+
+			table.sort(graphsets, function(a, b)
+				return a.X < b.X
+			end)
+
+			renderGraph()
+			notifyChanged()
+		end)
+
+		if opts.Presets == true then
+			local presetButton = library:Create("TextButton", {
+				Name = "PresetButton";
+				Position = UDim2.fromOffset(6, 197);
+				Size = UDim2.new(1, -12, 0, 20);
+				BackgroundColor3 = library.MainColor;
+				Text = "Curve: " .. selectedPreset .. "  v";
+				TextColor3 = library.FontColor;
+				Font = library.Font;
+				TextSize = 12;
+				BorderSizePixel = 0;
+				ZIndex = 10;
+				Parent = framewindow;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.MainColor;
+			}, {
+				instancep = "TextColor3";
+				tinstance = library.FontColor;
+			}, {
+				instancep = "Font";
+				tinstance = library.Font;
+			})
+
+			local menu = library:Create("Frame", {
+				Name = "PresetMenu";
+				Position = UDim2.new(0, 6, 1, -48 - (#presets * 20));
+				Size = UDim2.new(1, -12, 0, #presets * 20);
+				BackgroundColor3 = library.MainColor;
+				BorderSizePixel = 0;
+				Visible = false;
+				ZIndex = 20;
+				Parent = framewindow;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.MainColor;
+			})
+
+			library:Create("UIListLayout", {
+				SortOrder = Enum.SortOrder.LayoutOrder;
+				Parent = menu;
+			})
+
+			for i, preset in ipairs(presets) do
+				local option = library:Create("TextButton", {
+					Name = preset;
+					Size = UDim2.new(1, 0, 0, 20);
+					BackgroundColor3 = library.MainColor;
+					BorderSizePixel = 0;
+					Text = preset;
+					TextColor3 = library.FontColor;
+					Font = library.Font;
+					TextSize = 12;
+					LayoutOrder = i;
+					ZIndex = 21;
+					Parent = menu;
+				}, {
+					instancep = "BackgroundColor3";
+					tinstance = library.MainColor;
+				}, {
+					instancep = "TextColor3";
+					tinstance = library.FontColor;
+				}, {
+					instancep = "Font";
+					tinstance = library.Font;
+				})
+
+				addConnection(option.Activated, function()
+					selectedPreset = preset
+					presetButton.Text = "Curve: " .. preset .. "  v"
+					menu.Visible = false
+
+					renderGraph()
+					notifyChanged()
+				end)
+			end
+
+			addConnection(presetButton.Activated, function()
+				menu.Visible = not menu.Visible
+			end)
+		end
+
+		local resetButton = library:Create("TextButton", {
+			Name = "ResetGraph";
+			Position = UDim2.new(0, 6, 1, -25);
+			Size = UDim2.new(1, -12, 0, 20);
+			BackgroundColor3 = library.MainColor;
+			Text = "Reset Graph";
+			TextColor3 = library.FontColor;
+			Font = library.Font;
+			TextSize = 12;
+			BorderSizePixel = 0;
+			ZIndex = 10;
+			Parent = framewindow;
+		}, {
+			instancep = "BackgroundColor3";
+			tinstance = library.MainColor;
+		}, {
+			instancep = "TextColor3";
+			tinstance = library.FontColor;
+		}, {
+			instancep = "Font";
+			tinstance = library.Font;
+		})
+
+		addConnection(resetButton.Activated, function()
+			table.clear(graphsets)
+			renderGraph()
+			notifyChanged()
+		end)
+
+		addConnection(
+			GraphHolder:GetPropertyChangedSignal("AbsoluteSize"),
+			function()
+				if opened then
+					renderGraph()
+				end
+			end
+		)
+
+		-- Close when clicking outside the actual popup window.
+		outsideConn = addConnection(UIS.InputBegan, function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+
+			if not instance or not instance.Parent or not opened then
+				return
+			end
+
+			local position = input.Position
+			local topLeft = framewindow.AbsolutePosition
+			local bottomRight = topLeft + framewindow.AbsoluteSize
+
+			local inWindow =
+				position.X >= topLeft.X
+				and position.X <= bottomRight.X
+				and position.Y >= topLeft.Y
+				and position.Y <= bottomRight.Y
+
+			local buttonPos = buttonopen.AbsolutePosition
+			local buttonSize = buttonopen.AbsoluteSize
+
+			local inButton =
+				position.X >= buttonPos.X
+				and position.X <= buttonPos.X + buttonSize.X
+				and position.Y >= buttonPos.Y
+				and position.Y <= buttonPos.Y + buttonSize.Y
+
+			if not inWindow and not inButton then
+				closeGraph()
+			end
+		end)
+
+		task.defer(function()
+			if opened and GraphHolder.Parent then
+				renderGraph()
+			end
+		end)
+	end
+
+	closeGraph = function()
+		if not opened then
+			return
+		end
+
+		opened = false
+		clearOpenConnections()
+
+		if instance then
+			instance:Destroy()
+			instance = nil
+		end
+	end
+
+	addConnection(buttonopen.Activated, function()
+		if destroyed then
+			return
+		end
+
+		if opened then
+			closeGraph()
+		else
+			openGraph()
+		end
+	end)
+
+	function linegraph:Get()
+		return getData()
+	end
+
+	function linegraph:Set(values)
+		if destroyed then
+			return
+		end
+
+		graphsets = copyPoints(values)
+		curvePoints = #graphsets
+
+		if opened then
+			closeGraph()
+			openGraph()
+		end
+
+		notifyChanged()
+	end
+
+	function linegraph:Reset()
+		if destroyed then
+			return
+		end
+
+		graphsets = {}
+		curvePoints = 0
+
+		if opened then
+			closeGraph()
+			openGraph()
+		end
+
+		notifyChanged()
+	end
+
+	function linegraph:SetPreset(preset)
+		if destroyed then
+			return false
+		end
+
+		for _, name in ipairs(presets) do
+			if name == preset then
+				selectedPreset = name
+
+				if opened then
+					closeGraph()
+					openGraph()
+				end
+
+				notifyChanged()
+				return true
+			end
+		end
+
+		return false
+	end
+
+	function linegraph:Destroy()
+		if destroyed then
+			return
+		end
+
+		destroyed = true
+		closeGraph()
+		clearOpenConnections()
+		clearPointConnections()
+
+		if holder then
+			holder:Destroy()
+		end
+	end
+
+	return linegraph
+end
+
 
 					return groupbox
 				end
@@ -10354,770 +10549,963 @@ function library:NewWindow(configuration)
 					end	
 					
 					function groupbox:AddLineGraph(text, opts)
-						opts = opts or {}
+	opts = opts or {}
 
-						local Players = game:GetService("Players")
-						local UserInputService = game:GetService("UserInputService")
-						local GuiService = game:GetService("GuiService")
+	local linegraph = {}
+	local graphsets = {}
+	local curvePoints = 0
+	local opened = false
+	local destroyed = false
 
-						local LocalPlayer = Players.LocalPlayer
-						local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+	local instance
+	local followConn
+	local outsideConn
+	local openConnections = {}
+	local pointFrames = {}
+	local pointConnections = {}
+	local curveFrames = {}
 
-						local graphAPI = {}
-						local connections = {}
-						local destroyed = false
-						local draggingPoint = nil
-						local dragInput = nil
-						local redrawPending = false
+	local UIS = game:GetService("UserInputService")
 
-						local graphTitle = tostring(text or "Line Graph")
-						local graphColor = opts.Color or Color3.fromRGB(120, 170, 255)
-						local backgroundColor = opts.BackgroundColor or Color3.fromRGB(20, 20, 24)
-						local panelColor = opts.PanelColor or Color3.fromRGB(29, 29, 35)
-						local textColor = opts.TextColor or Color3.fromRGB(240, 240, 245)
+	-- Linear is the default. Presets are optional.
+	local selectedPreset = opts.Preset or "Linear"
+	local draggingPoint
+	local dragMoveConn
+	local dragEndConn
 
-						local function connect(signal, callback)
-							local connection = signal:Connect(callback)
-							table.insert(connections, connection)
-							return connection
-						end
+	local presets = {
+		"Linear",
+		"Smooth",
+		"Exponential",
+		"Ease In",
+		"Ease Out",
+		"Ease In Out"
+	}
 
-						local function create(className, properties, parent)
-							local object = Instance.new(className)
+	local function addConnection(signal, callback)
+		local connection = signal:Connect(callback)
 
-							for property, value in pairs(properties or {}) do
-								object[property] = value
-							end
+		if trackConnection then
+			trackConnection(connection)
+		end
 
-							object.Parent = parent
-							return object
-						end
+		table.insert(openConnections, connection)
+		return connection
+	end
 
-						local function round(object, radius)
-							create("UICorner", {
-								CornerRadius = UDim.new(0, radius or 6)
-							}, object)
-						end
+	local function disconnectConnection(connection)
+		if connection then
+			connection:Disconnect()
+		end
+	end
 
-						local function stroke(object, color, thickness, transparency)
-							create("UIStroke", {
-								Color = color or Color3.fromRGB(55, 55, 65),
-								Thickness = thickness or 1,
-								Transparency = transparency or 0
-							}, object)
-						end
+	local function clearPointConnections()
+		for _, connection in ipairs(pointConnections) do
+			if connection and connection.Connected then
+				connection:Disconnect()
+			end
+		end
 
-						local function makeButton(parent, label, size, position)
-							local button = create("TextButton", {
-								Name = "Button",
-								Size = size,
-								Position = position or UDim2.new(),
-								BackgroundColor3 = panelColor,
-								BorderSizePixel = 0,
-								Text = label,
-								TextColor3 = textColor,
-								TextSize = 13,
-								Font = Enum.Font.Gotham,
-								AutoButtonColor = true,
-								Active = true,
-								ZIndex = 20
-							}, parent)
+		table.clear(pointConnections)
+	end
 
-							round(button, 5)
-							return button
-						end
+	local function clearOpenConnections()
+		for _, connection in ipairs(openConnections) do
+			if connection and connection.Connected then
+				connection:Disconnect()
+			end
+		end
 
-						-- Data is normalized to X/Y values between 0 and 1.
-						-- Y=0 is the bottom; Y=1 is the top.
-						local function cleanPoints(source)
-							local result = {}
+		table.clear(openConnections)
+		clearPointConnections()
 
-							if type(source) ~= "table" then
-								return result
-							end
+		disconnectConnection(followConn)
+		disconnectConnection(outsideConn)
+		disconnectConnection(dragMoveConn)
+		disconnectConnection(dragEndConn)
 
-							for _, point in ipairs(source) do
-								if type(point) == "table" then
-									local x = tonumber(point.X or point.x or point[1])
-									local y = tonumber(point.Y or point.y or point[2])
+		followConn = nil
+		outsideConn = nil
+		dragMoveConn = nil
+		dragEndConn = nil
+		draggingPoint = nil
+	end
 
-									if x and y then
-										table.insert(result, {
-											X = math.clamp(x, 0, 1),
-											Y = math.clamp(y, 0, 1)
-										})
-									end
-								end
-							end
+	local function clearList(list)
+		for _, object in ipairs(list) do
+			if object and object.Parent then
+				object:Destroy()
+			end
+		end
 
-							table.sort(result, function(a, b)
-								return a.X < b.X
-							end)
+		table.clear(list)
+	end
 
-							return result
-						end
+	local function copyPoints(values)
+		local result = {}
 
-						local defaultPoints =
-							opts.DefaultPoints
-							or opts.default
-							or {
-								{ X = 0, Y = 0 },
-								{ X = 1, Y = 1 }
-							}
+		for _, point in ipairs(values or {}) do
+			local x = tonumber(point.X or point.x or point[1]) or 0
+			local y = tonumber(point.Y or point.y or point[2]) or 0
 
-						local points = cleanPoints(defaultPoints)
+			table.insert(result, {
+				X = math.clamp(x, 0, 1),
+				Y = math.clamp(y, 0, 1)
+			})
+		end
 
-						if #points == 0 then
-							points = {
-								{ X = 0, Y = 0 },
-								{ X = 1, Y = 1 }
-							}
-						elseif #points == 1 then
-							points = {
-								{ X = 0, Y = points[1].Y },
-								{ X = 1, Y = points[1].Y }
-							}
-						end
+		table.sort(result, function(a, b)
+			return a.X < b.X
+		end)
 
-						local curveMode = "Linear"
-						local pointObjects = {}
-						local drawObjects = {}
-						local dragChanged = false
+		return result
+	end
 
-						--==========================================================
-						-- LIBRARY ROW / OPEN BUTTON
-						--==========================================================
+	graphsets = copyPoints(opts.default or opts.Default or {})
+	curvePoints = #graphsets
 
-						local row = create("Frame", {
-							Name = "LineGraphRow",
-							Size = UDim2.new(0.95, 0, 0, 32),
-							BackgroundTransparency = 1,
-							BorderSizePixel = 0,
-							LayoutOrder = #elementsholder:GetChildren() + 1
-						}, elementsholder)
+	local function getData()
+		local result = {}
 
-						local openButton = makeButton(
-							row,
-							graphTitle .. "  [Open Graph]",
-							UDim2.new(1, 0, 1, 0),
-							UDim2.new()
+		for i, point in ipairs(graphsets) do
+			result[i] = {
+				X = point.X,
+				Y = point.Y
+			}
+		end
+
+		return result
+	end
+
+	local function notifyChanged()
+		curvePoints = #graphsets
+
+		if type(opts.Callback) == "function" then
+			opts.Callback(getData())
+		end
+	end
+
+	local holder = library:Create("Frame", {
+		Name = "Holder";
+		Size = UDim2.new(0.95, 0, 0, 20);
+		BackgroundTransparency = 1;
+		LayoutOrder = #elementsholder:GetChildren();
+		Parent = elementsholder;
+	})
+
+	local uitext = library:Create("TextLabel", {
+		Name = "TextLabel";
+		Size = UDim2.new(0.937, 0, 1, 0);
+		BackgroundTransparency = 1;
+		Text = text;
+		TextSize = 13;
+		TextColor3 = library.FontColor;
+		Font = library.Font;
+		LayoutOrder = 1;
+		TextXAlignment = Enum.TextXAlignment.Left;
+		TextYAlignment = Enum.TextYAlignment.Center;
+		Parent = holder;
+	}, {
+		instancep = "TextColor3";
+		tinstance = library.FontColor;
+	}, {
+		instancep = "Font";
+		tinstance = library.Font;
+	})
+
+	library:Create("UITextSizeConstraint", {
+		Name = "UITextSizeConstraint";
+		MaxTextSize = 13;
+		Parent = uitext;
+	})
+
+	library:Create("UIStroke", {
+		Name = "UIStroke";
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+		Color = Color3.fromRGB(0, 0, 0);
+		Thickness = 1;
+		Parent = uitext;
+	}, {
+		instancep = "Color";
+		tinstance = library.UIstroke;
+	})
+
+	library:Create("UIListLayout", {
+		Name = "UIListLayout";
+		FillDirection = Enum.FillDirection.Horizontal;
+		HorizontalAlignment = Enum.HorizontalAlignment.Left;
+		SortOrder = Enum.SortOrder.LayoutOrder;
+		Parent = holder;
+	})
+
+	local buttonopen = library:Create("ImageButton", {
+		Name = "ButtonOpen";
+		Size = UDim2.new(0, 19, 0, 19);
+		LayoutOrder = 2;
+		BackgroundTransparency = 1;
+		Image = "rbxassetid://10734950309";
+		ImageColor3 = library.AccentColor;
+		Parent = holder;
+	}, {
+		instancep = "ImageColor3";
+		tinstance = library.AccentColor;
+	})
+
+	local function getPopupPosition()
+		local absolute = buttonopen.AbsolutePosition
+		local base = screengui.AbsolutePosition
+
+		return UDim2.fromOffset(
+			absolute.X - base.X,
+			absolute.Y - base.Y
+		)
+	end
+
+	local closeGraph
+
+	local function openGraph()
+		if opened or destroyed then
+			return
+		end
+
+		opened = true
+
+		-- Keep the popup inside the library's existing ScreenGui.
+		local lineG = library:Create("Frame", {
+			Name = "CursorBox";
+			Size = UDim2.fromOffset(15, 15);
+			Position = getPopupPosition();
+			BackgroundColor3 = Color3.new(1, 1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 2;
+			Parent = screengui;
+		})
+
+		instance = lineG
+
+		followConn = addConnection(
+			buttonopen:GetPropertyChangedSignal("AbsolutePosition"),
+			function()
+				if instance and instance.Parent then
+					instance.Position = getPopupPosition()
+				end
+			end
+		)
+
+		local framewindow = library:Create("Frame", {
+			Name = "Frame";
+			Size = UDim2.fromOffset(323, 246);
+			Position = UDim2.new(1, 0, 1.4, 0);
+			BackgroundColor3 = library.MainColor;
+			BorderSizePixel = 0;
+			ZIndex = 2;
+			Parent = lineG;
+		}, {
+			instancep = "BackgroundColor3";
+			tinstance = library.MainColor;
+		})
+
+		library:Create("UIStroke", {
+			Name = "UIStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			LineJoinMode = Enum.LineJoinMode.Miter;
+			Color = library.SecondaryColor;
+			Thickness = 1;
+			ZIndex = 2;
+			Parent = framewindow;
+		}, {
+			instancep = "Color";
+			tinstance = library.SecondaryColor;
+		})
+
+		library:Create("UIStroke", {
+			Name = "OuterStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			LineJoinMode = Enum.LineJoinMode.Miter;
+			Color = library.MainColor;
+			Thickness = 4;
+			ZIndex = 2;
+			Parent = framewindow;
+		}, {
+			instancep = "Color";
+			tinstance = library.MainColor;
+		})
+
+		local title = library:Create("TextLabel", {
+			Name = "TextLabel";
+			Size = UDim2.new(1, 0, 0, 18);
+			Position = UDim2.fromOffset(0, 0);
+			BackgroundTransparency = 1;
+			Text = text or "Line Graph";
+			TextColor3 = library.FontColor;
+			Font = library.Font;
+			TextSize = 13;
+			TextXAlignment = Enum.TextXAlignment.Left;
+			ZIndex = 3;
+			Parent = framewindow;
+		}, {
+			instancep = "TextColor3";
+			tinstance = library.FontColor;
+		}, {
+			instancep = "Font";
+			tinstance = library.Font;
+		})
+
+		library:Create("UIPadding", {
+			PaddingLeft = UDim.new(0, 6);
+			Parent = title;
+		})
+
+		library:Create("UIStroke", {
+			Name = "UIStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+			Color = library.UIstroke;
+			Thickness = 1;
+			Parent = title;
+		}, {
+			instancep = "Color";
+			tinstance = library.UIstroke;
+		})
+
+		local GraphHolder = library:Create("Frame", {
+			Name = "GraphHolder";
+			Position = UDim2.fromOffset(4, 24);
+			Size = UDim2.fromOffset(315, 168);
+			BackgroundTransparency = 1;
+			BorderSizePixel = 0;
+			ClipsDescendants = false;
+			Active = true;
+			ZIndex = 2;
+			Parent = framewindow;
+		})
+
+		library:Create("UIStroke", {
+			Color = library.SecondaryColor;
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			Parent = GraphHolder;
+		}, {
+			instancep = "Color";
+			tinstance = library.SecondaryColor;
+		})
+
+		local grid = library:Create("Frame", {
+			Name = "Grid";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 2;
+			Parent = GraphHolder;
+		})
+
+		local curveLayer = library:Create("Frame", {
+			Name = "CurveLines";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 3;
+			Parent = GraphHolder;
+		})
+
+		local pointLayer = library:Create("Frame", {
+			Name = "Points";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 5;
+			Parent = GraphHolder;
+		})
+
+		for i = 1, 4 do
+			library:Create("Frame", {
+				Name = "HorizontalLine";
+				Position = UDim2.fromScale(0, i / 5);
+				Size = UDim2.new(1, 0, 0, 1);
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.SecondaryColor;
+				ZIndex = 2;
+				Parent = grid;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.SecondaryColor;
+			})
+		end
+
+		for i = 1, 7 do
+			library:Create("Frame", {
+				Name = "VerticalLine";
+				Position = UDim2.fromScale(i / 8, 0);
+				Size = UDim2.new(0, 1, 1, 0);
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.SecondaryColor;
+				ZIndex = 2;
+				Parent = grid;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.SecondaryColor;
+			})
+		end
+
+		local function toPixels(point)
+			local size = GraphHolder.AbsoluteSize
+
+			return Vector2.new(
+				point.X * size.X,
+				(1 - point.Y) * size.Y
+			)
+		end
+
+		local function createSegment(a, b)
+			local delta = b - a
+			local length = delta.Magnitude
+
+			if length < 0.5 then
+				return
+			end
+
+			local segment = library:Create("Frame", {
+				Name = "CurveSegment";
+				AnchorPoint = Vector2.new(0, 0.5);
+				Position = UDim2.fromOffset(a.X, a.Y);
+				Size = UDim2.fromOffset(length, 2);
+				Rotation = math.deg(math.atan2(delta.Y, delta.X));
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.AccentColor;
+				ZIndex = 3;
+				Parent = curveLayer;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.AccentColor;
+			})
+
+			table.insert(curveFrames, segment)
+		end
+
+		local function catmullRom(p0, p1, p2, p3, t)
+			local t2 = t * t
+			local t3 = t2 * t
+
+			return Vector2.new(
+				0.5 * (
+					2 * p1.X
+					+ (-p0.X + p2.X) * t
+					+ (2 * p0.X - 5 * p1.X + 4 * p2.X - p3.X) * t2
+					+ (-p0.X + 3 * p1.X - 3 * p2.X + p3.X) * t3
+				),
+				0.5 * (
+					2 * p1.Y
+					+ (-p0.Y + p2.Y) * t
+					+ (2 * p0.Y - 5 * p1.Y + 4 * p2.Y - p3.Y) * t2
+					+ (-p0.Y + 3 * p1.Y - 3 * p2.Y + p3.Y) * t3
+				)
+			)
+		end
+
+		local function interpolateY(a, b, t)
+			if selectedPreset == "Exponential" or selectedPreset == "Ease In" then
+				t = t * t
+			elseif selectedPreset == "Ease Out" then
+				t = 1 - (1 - t) * (1 - t)
+			elseif selectedPreset == "Ease In Out" then
+				if t < 0.5 then
+					t = 2 * t * t
+				else
+					t = 1 - ((-2 * t + 2) ^ 2) / 2
+				end
+			end
+
+			return a + (b - a) * t
+		end
+
+		local renderGraph
+
+		local function drawCurve()
+			clearList(curveFrames)
+
+			if #graphsets < 2 then
+				return
+			end
+
+			local points = {}
+
+			for i, point in ipairs(graphsets) do
+				points[i] = toPixels(point)
+			end
+
+			for i = 1, #points - 1 do
+				local p1 = points[i]
+				local p2 = points[i + 1]
+
+				if selectedPreset == "Smooth" then
+					local p0 = points[math.max(1, i - 1)]
+					local p3 = points[math.min(#points, i + 2)]
+					local previous = p1
+
+					for step = 1, 20 do
+						local nextPoint = catmullRom(
+							p0, p1, p2, p3, step / 20
 						)
 
-						--==========================================================
-						-- GRAPH WINDOW
-						--==========================================================
-
-						local screenGui = create("ScreenGui", {
-							Name = "LineGraph_" .. graphTitle:gsub("%W", ""),
-							ResetOnSpawn = false,
-							IgnoreGuiInset = true,
-							DisplayOrder = 10000,
-							ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-						}, PlayerGui)
-
-						local window = create("Frame", {
-							Name = "Window",
-							AnchorPoint = Vector2.new(0.5, 0.5),
-							Position = UDim2.fromScale(0.5, 0.5),
-							Size = UDim2.new(0, 430, 0, opts.Height or 350),
-							BackgroundColor3 = backgroundColor,
-							BorderSizePixel = 0,
-							Visible = false,
-							Active = true,
-							ZIndex = 10
-						}, screenGui)
-
-						round(window, 8)
-						stroke(window, Color3.fromRGB(60, 60, 72), 1)
-
-						local header = create("Frame", {
-							Name = "Header",
-							Size = UDim2.new(1, 0, 0, 38),
-							BackgroundColor3 = panelColor,
-							BorderSizePixel = 0,
-							ZIndex = 11
-						}, window)
-
-						round(header, 8)
-
-						local titleLabel = create("TextLabel", {
-							Name = "Title",
-							Position = UDim2.new(0, 12, 0, 0),
-							Size = UDim2.new(1, -65, 1, 0),
-							BackgroundTransparency = 1,
-							Text = graphTitle,
-							TextColor3 = textColor,
-							TextSize = 14,
-							Font = Enum.Font.GothamSemibold,
-							TextXAlignment = Enum.TextXAlignment.Left,
-							ZIndex = 12
-						}, header)
-
-						local closeButton = makeButton(
-							header,
-							"X",
-							UDim2.new(0, 28, 0, 26),
-							UDim2.new(1, -33, 0, 6)
-						)
-						closeButton.ZIndex = 13
-
-						local instructions = create("TextLabel", {
-							Name = "Instructions",
-							Position = UDim2.new(0, 10, 0, 42),
-							Size = UDim2.new(1, -20, 0, 20),
-							BackgroundTransparency = 1,
-							Text = "Click the graph to add a point  |  Drag a dot to move it",
-							TextColor3 = Color3.fromRGB(165, 165, 180),
-							TextSize = 11,
-							Font = Enum.Font.Gotham,
-							TextXAlignment = Enum.TextXAlignment.Left,
-							ZIndex = 12
-						}, window)
-
-						local plot = create("Frame", {
-							Name = "Plot",
-							Position = UDim2.new(0, 18, 0, 70),
-							Size = UDim2.new(1, -36, 1, -125),
-							BackgroundColor3 = Color3.fromRGB(15, 15, 19),
-							BorderSizePixel = 0,
-							ClipsDescendants = false,
-							Active = true,
-							ZIndex = 11
-						}, window)
-
-						stroke(plot, Color3.fromRGB(48, 48, 58), 1)
-
-						--==========================================================
-						-- GRID
-						--==========================================================
-
-						for i = 1, 3 do
-							local fraction = i / 4
-
-							create("Frame", {
-								Name = "GridVertical",
-								Position = UDim2.new(fraction, 0, 0, 0),
-								Size = UDim2.new(0, 1, 1, 0),
-								BackgroundColor3 = Color3.fromRGB(43, 43, 52),
-								BorderSizePixel = 0,
-								ZIndex = 11
-							}, plot)
-
-							create("Frame", {
-								Name = "GridHorizontal",
-								Position = UDim2.new(0, 0, fraction, 0),
-								Size = UDim2.new(1, 0, 0, 1),
-								BackgroundColor3 = Color3.fromRGB(43, 43, 52),
-								BorderSizePixel = 0,
-								ZIndex = 11
-							}, plot)
-						end
-
-						local footer = create("Frame", {
-							Name = "Footer",
-							Position = UDim2.new(0, 10, 1, -43),
-							Size = UDim2.new(1, -20, 0, 32),
-							BackgroundTransparency = 1,
-							ZIndex = 12
-						}, window)
-
-						local resetButton = makeButton(
-							footer,
-							"Reset",
-							UDim2.new(0, 74, 1, 0),
-							UDim2.new(0, 0, 0, 0)
-						)
-
-						local linearButton = makeButton(
-							footer,
-							"Linear",
-							UDim2.new(0, 74, 1, 0),
-							UDim2.new(0, 82, 0, 0)
-						)
-
-						local presets = {}
-
-						if opts.Presets == true then
-							local presetButton = makeButton(
-								footer,
-								"Ease In",
-								UDim2.new(0, 74, 1, 0),
-								UDim2.new(0, 164, 0, 0)
-							)
-
-							local presetButton2 = makeButton(
-								footer,
-								"Ease Out",
-								UDim2.new(0, 74, 1, 0),
-								UDim2.new(0, 246, 0, 0)
-							)
-
-							local presetButton3 = makeButton(
-								footer,
-								"S Curve",
-								UDim2.new(0, 74, 1, 0),
-								UDim2.new(0, 328, 0, 0)
-							)
-
-							presets = { presetButton, presetButton2, presetButton3 }
-						end
-
-						--==========================================================
-						-- GRAPH DRAWING
-						--==========================================================
-
-						local function clearDrawObjects()
-							for _, object in ipairs(drawObjects) do
-								if object and object.Parent then
-									object:Destroy()
-								end
-							end
-
-							table.clear(drawObjects)
-							table.clear(pointObjects)
-						end
-
-						local function addDrawObject(object)
-							table.insert(drawObjects, object)
-							return object
-						end
-
-						local function plotPosition(point)
-							local size = plot.AbsoluteSize
-							return Vector2.new(
-								point.X * size.X,
-								(1 - point.Y) * size.Y
-							)
-						end
-
-						local function addSegment(a, b)
-							local delta = b - a
-							local length = delta.Magnitude
-
-							if length < 0.5 then
-								return
-							end
-
-							local segment = addDrawObject(create("Frame", {
-								Name = "CurveSegment",
-								AnchorPoint = Vector2.new(0, 0.5),
-								Position = UDim2.fromOffset(a.X, a.Y),
-								Size = UDim2.new(0, length, 0, 2),
-								Rotation = math.deg(math.atan2(delta.Y, delta.X)),
-								BackgroundColor3 = graphColor,
-								BorderSizePixel = 0,
-								ZIndex = 13
-							}, plot))
-
-							segment.Active = false
-						end
-
-						local function getRenderedPoints()
-							local sorted = cleanPoints(points)
-
-							if curveMode == "Linear" or #sorted < 3 then
-								return sorted
-							end
-
-							local rendered = {}
-
-							for i = 1, #sorted - 1 do
-								local p1 = sorted[i]
-								local p2 = sorted[i + 1]
-
-								for step = 0, 12 do
-									local t = step / 12
-									local x = p1.X + (p2.X - p1.X) * t
-									local y
-
-									if curveMode == "Ease In" then
-										y = p1.Y + (p2.Y - p1.Y) * (t * t)
-									elseif curveMode == "Ease Out" then
-										y = p1.Y + (p2.Y - p1.Y) * (1 - (1 - t) * (1 - t))
-									elseif curveMode == "S Curve" then
-										local smoothT = t * t * (3 - 2 * t)
-										y = p1.Y + (p2.Y - p1.Y) * smoothT
-									else
-										y = p1.Y + (p2.Y - p1.Y) * t
-									end
-
-									table.insert(rendered, { X = x, Y = y })
-								end
-							end
-
-							if #sorted == 1 then
-								table.insert(rendered, sorted[1])
-							end
-
-							return rendered
-						end
-
-						local renderGraph
-
-						local function fireCallback()
-							if type(opts.Callback) == "function" then
-								local output = {}
-
-								for i, point in ipairs(points) do
-									output[i] = {
-										X = point.X,
-										Y = point.Y
-									}
-								end
-
-								task.spawn(function()
-									local ok, err = pcall(opts.Callback, output)
-									if not ok then
-										warn("[LineGraph] Callback error:", err)
-									end
-								end)
-							end
-						end
-
-						local function updatePointPosition(index, screenPosition)
-							if destroyed or not plot.Parent then
-								return
-							end
-
-							local plotPositionAbs = plot.AbsolutePosition
-							local plotSize = plot.AbsoluteSize
-
-							if plotSize.X <= 0 or plotSize.Y <= 0 then
-								return
-							end
-
-							-- IgnoreGuiInset=true means these screen coordinates line up
-							-- with AbsolutePosition; no extra mouse inset subtraction.
-							local localX = screenPosition.X - plotPositionAbs.X
-							local localY = screenPosition.Y - plotPositionAbs.Y
-
-							local x = math.clamp(localX / plotSize.X, 0, 1)
-							local y = math.clamp(1 - localY / plotSize.Y, 0, 1)
-
-							points[index].X = x
-							points[index].Y = y
-
-							table.sort(points, function(a, b)
-								return a.X < b.X
-							end)
-
-							dragChanged = true
-							renderGraph(false)
-						end
-
-						renderGraph = function(notify)
-							if destroyed or not plot.Parent then
-								return
-							end
-
-							clearDrawObjects()
-
-							local sortedPoints = cleanPoints(points)
-							points = sortedPoints
-
-							-- Draw curve behind the dots.
-							local renderedPoints = getRenderedPoints()
-
-							for i = 1, #renderedPoints - 1 do
-								addSegment(
-									plotPosition(renderedPoints[i]),
-									plotPosition(renderedPoints[i + 1])
-								)
-							end
-
-							-- Create dot buttons once per render. Their handlers are
-							-- connected once and removed when their instance is destroyed.
-							for index, point in ipairs(points) do
-								local pos = plotPosition(point)
-
-								local dot = create("TextButton", {
-									Name = "Point_" .. index,
-									AnchorPoint = Vector2.new(0.5, 0.5),
-									Position = UDim2.fromOffset(pos.X, pos.Y),
-									Size = UDim2.fromOffset(12, 12),
-									BackgroundColor3 = graphColor,
-									BorderSizePixel = 0,
-									Text = "",
-									AutoButtonColor = false,
-									Active = true,
-									ZIndex = 16
-								}, plot)
-
-								round(dot, 100)
-								stroke(dot, Color3.fromRGB(255, 255, 255), 1)
-
-								local pointLabel = create("TextLabel", {
-									Name = "Coordinates",
-									AnchorPoint = Vector2.new(0.5, 1),
-									Position = UDim2.new(0.5, 0, 0, -5),
-									Size = UDim2.fromOffset(70, 15),
-									BackgroundTransparency = 1,
-									Text = string.format("%.2f, %.2f", point.X, point.Y),
-									TextColor3 = textColor,
-									TextSize = 10,
-									Font = Enum.Font.Gotham,
-									ZIndex = 17
-								}, dot)
-
-								pointObjects[index] = dot
-
-								local thisIndex = index
-
-								connect(dot.InputBegan, function(input)
-									if destroyed then
-										return
-									end
-
-									if input.UserInputType == Enum.UserInputType.MouseButton1
-										or input.UserInputType == Enum.UserInputType.Touch then
-										draggingPoint = thisIndex
-										dragInput = input
-										dragChanged = false
-									end
-								end)
-							end
-
-							if notify then
-								fireCallback()
-							end
-						end
-
-						--==========================================================
-						-- ADD POINTS / DRAG HANDLING
-						--==========================================================
-
-						connect(plot.InputBegan, function(input)
-							if destroyed or draggingPoint then
-								return
-							end
-
-							if input.UserInputType ~= Enum.UserInputType.MouseButton1
-								and input.UserInputType ~= Enum.UserInputType.Touch then
-								return
-							end
-
-							local mousePosition
-
-							if input.UserInputType == Enum.UserInputType.Touch then
-								mousePosition = Vector2.new(input.Position.X, input.Position.Y)
-							else
-								mousePosition = UserInputService:GetMouseLocation()
-							end
-
-							local plotPositionAbs = plot.AbsolutePosition
-							local plotSize = plot.AbsoluteSize
-
-							if plotSize.X <= 0 or plotSize.Y <= 0 then
-								return
-							end
-
-							local localX = mousePosition.X - plotPositionAbs.X
-							local localY = mousePosition.Y - plotPositionAbs.Y
-
-							if localX < 0 or localY < 0
-								or localX > plotSize.X or localY > plotSize.Y then
-								return
-							end
-
-							table.insert(points, {
-								X = math.clamp(localX / plotSize.X, 0, 1),
-								Y = math.clamp(1 - localY / plotSize.Y, 0, 1)
-							})
-
-							table.sort(points, function(a, b)
-								return a.X < b.X
-							end)
-
-							renderGraph(true)
-						end)
-
-						connect(UserInputService.InputChanged, function(input)
-							if destroyed or not draggingPoint then
-								return
-							end
-
-							if input.UserInputType == Enum.UserInputType.MouseMovement then
-								local mousePosition = UserInputService:GetMouseLocation()
-								updatePointPosition(draggingPoint, mousePosition)
-							elseif input.UserInputType == Enum.UserInputType.Touch
-								and input == dragInput then
-								updatePointPosition(
-									draggingPoint,
-									Vector2.new(input.Position.X, input.Position.Y)
-								)
-							end
-						end)
-
-						connect(UserInputService.InputEnded, function(input)
-							if not draggingPoint then
-								return
-							end
-
-							if input.UserInputType == Enum.UserInputType.MouseButton1
-								or input.UserInputType == Enum.UserInputType.Touch then
-								draggingPoint = nil
-								dragInput = nil
-
-								if dragChanged then
-									dragChanged = false
-									fireCallback()
-								end
-							end
-						end)
-
-						--==========================================================
-						-- WINDOW CONTROLS
-						--==========================================================
-
-						connect(openButton.Activated, function()
-							if not destroyed then
-								window.Visible = true
-								renderGraph(false)
-							end
-						end)
-
-						connect(closeButton.Activated, function()
-							-- Hide only. Do not destroy the window or opener.
-							window.Visible = false
-							draggingPoint = nil
-							dragInput = nil
-						end)
-
-						connect(resetButton.Activated, function()
-							if destroyed then
-								return
-							end
-
-							points = cleanPoints(defaultPoints)
-							if #points < 2 then
-								points = {
-									{ X = 0, Y = 0 },
-									{ X = 1, Y = 1 }
-								}
-							end
-
-							curveMode = "Linear"
-							renderGraph(true)
-						end)
-
-						connect(linearButton.Activated, function()
-							curveMode = "Linear"
-							renderGraph(true)
-						end)
-
-						if opts.Presets == true then
-							connect(presets[1].Activated, function()
-								curveMode = "Ease In"
-								renderGraph(true)
-							end)
-
-							connect(presets[2].Activated, function()
-								curveMode = "Ease Out"
-								renderGraph(true)
-							end)
-
-							connect(presets[3].Activated, function()
-								curveMode = "S Curve"
-								renderGraph(true)
-							end)
-						end
-
-						--==========================================================
-						-- PUBLIC API
-						--==========================================================
-
-						function graphAPI:Open()
-							if destroyed then return end
-							window.Visible = true
-							renderGraph(false)
-						end
-
-						function graphAPI:Close()
-							if destroyed then return end
-							window.Visible = false
-							draggingPoint = nil
-							dragInput = nil
-						end
-
-						function graphAPI:Toggle()
-							if destroyed then return end
-							window.Visible = not window.Visible
-
-							if window.Visible then
-								renderGraph(false)
-							end
-						end
-
-						function graphAPI:GetPoints()
-							local result = {}
-
-							for i, point in ipairs(points) do
-								result[i] = {
-									X = point.X,
-									Y = point.Y
-								}
-							end
-
-							return result
-						end
-
-						function graphAPI:SetPoints(newPoints)
-							if destroyed then return end
-
-							local cleaned = cleanPoints(newPoints)
-							if #cleaned < 2 then
-								warn("[LineGraph] SetPoints requires at least two valid points.")
-								return
-							end
-
-							points = cleaned
-							renderGraph(true)
-						end
-
-						function graphAPI:Reset()
-							if destroyed then return end
-
-							points = cleanPoints(defaultPoints)
-							if #points < 2 then
-								points = {
-									{ X = 0, Y = 0 },
-									{ X = 1, Y = 1 }
-								}
-							end
-
-							curveMode = "Linear"
-							renderGraph(true)
-						end
-
-						function graphAPI:Destroy()
-							if destroyed then return end
-							destroyed = true
-
-							for _, connection in ipairs(connections) do
-								pcall(function()
-									connection:Disconnect()
-								end)
-							end
-
-							table.clear(connections)
-
-							if screenGui then
-								screenGui:Destroy()
-							end
-
-							if row then
-								row:Destroy()
-							end
-						end
-
-						-- Compatibility alias for cleanup code.
-						graphAPI.Unload = graphAPI.Destroy
-
-						-- Initial draw: linear by default.
-						renderGraph(false)
-
-						return graphAPI
+						createSegment(previous, nextPoint)
+						previous = nextPoint
 					end
+				else
+					local previous = p1
+
+					for step = 1, 20 do
+						local t = step / 20
+
+						local nextPoint = Vector2.new(
+							p1.X + (p2.X - p1.X) * t,
+							interpolateY(p1.Y, p2.Y, t)
+						)
+
+						createSegment(previous, nextPoint)
+						previous = nextPoint
+					end
+				end
+			end
+		end
+
+		local function endDrag()
+			draggingPoint = nil
+
+			disconnectConnection(dragMoveConn)
+			disconnectConnection(dragEndConn)
+
+			dragMoveConn = nil
+			dragEndConn = nil
+
+			table.sort(graphsets, function(a, b)
+				return a.X < b.X
+			end)
+
+			if opened then
+				renderGraph()
+				notifyChanged()
+			end
+		end
+
+		local function startDrag(point)
+			disconnectConnection(dragMoveConn)
+			disconnectConnection(dragEndConn)
+
+			draggingPoint = point
+
+			dragMoveConn = UIS.InputChanged:Connect(function(input)
+				if not draggingPoint or not opened or destroyed then
+					return
+				end
+
+				if input.UserInputType ~= Enum.UserInputType.MouseMovement
+					and input.UserInputType ~= Enum.UserInputType.Touch then
+					return
+				end
+
+				local position = input.Position
+				local origin = GraphHolder.AbsolutePosition
+				local size = GraphHolder.AbsoluteSize
+
+				if size.X <= 0 or size.Y <= 0 then
+					return
+				end
+
+				draggingPoint.X = math.clamp(
+					(position.X - origin.X) / size.X, 0, 1
+				)
+
+				draggingPoint.Y = math.clamp(
+					1 - (position.Y - origin.Y) / size.Y, 0, 1
+				)
+
+				renderGraph()
+				notifyChanged()
+			end)
+
+			dragEndConn = UIS.InputEnded:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch then
+					endDrag()
+				end
+			end)
+
+			if trackConnection then
+				trackConnection(dragMoveConn)
+				trackConnection(dragEndConn)
+			end
+		end
+
+		renderGraph = function()
+			clearPointConnections()
+			clearList(pointFrames)
+
+			for _, point in ipairs(graphsets) do
+				local pixel = toPixels(point)
+
+				local dot = library:Create("TextButton", {
+					Name = "CurveDot";
+					AnchorPoint = Vector2.new(0.5, 0.5);
+					Position = UDim2.fromOffset(pixel.X, pixel.Y);
+					Size = UDim2.fromOffset(10, 10);
+					BackgroundColor3 = library.AccentColor;
+					BorderSizePixel = 0;
+					Text = "";
+					AutoButtonColor = false;
+					Active = true;
+					ZIndex = 5;
+					Parent = pointLayer;
+				}, {
+					instancep = "BackgroundColor3";
+					tinstance = library.AccentColor;
+				})
+
+				library:Create("UICorner", {
+					CornerRadius = UDim.new(1, 0);
+					Parent = dot;
+				})
+
+				library:Create("TextLabel", {
+					Name = "PointValue";
+					AnchorPoint = Vector2.new(0.5, 1);
+					Position = UDim2.new(0.5, 0, 0, -3);
+					Size = UDim2.fromOffset(90, 14);
+					BackgroundTransparency = 1;
+					Text = string.format("%.2f, %.2f", point.X, point.Y);
+					TextColor3 = library.FontColor;
+					Font = library.Font;
+					TextSize = 10;
+					ZIndex = 6;
+					Parent = dot;
+				}, {
+					instancep = "TextColor3";
+					tinstance = library.FontColor;
+				}, {
+					instancep = "Font";
+					tinstance = library.Font;
+				})
+
+				table.insert(pointFrames, dot)
+
+				local connection = dot.InputBegan:Connect(function(input)
+					if not opened or destroyed then
+						return
+					end
+
+					if input.UserInputType == Enum.UserInputType.MouseButton1
+						or input.UserInputType == Enum.UserInputType.Touch then
+						startDrag(point)
+					end
+				end)
+
+				table.insert(pointConnections, connection)
+
+				if trackConnection then
+					trackConnection(connection)
+				end
+			end
+
+			drawCurve()
+		end
+
+		addConnection(GraphHolder.InputBegan, function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+
+			if not opened or destroyed then
+				return
+			end
+
+			local position = input.Position
+			local origin = GraphHolder.AbsolutePosition
+			local size = GraphHolder.AbsoluteSize
+
+			if size.X <= 0 or size.Y <= 0 then
+				return
+			end
+
+			-- Use the same absolute-coordinate calculation as dragging.
+			local x = math.clamp(
+				(position.X - origin.X) / size.X, 0, 1
+			)
+
+			local y = math.clamp(
+				1 - (position.Y - origin.Y) / size.Y, 0, 1
+			)
+
+			table.insert(graphsets, {
+				X = x;
+				Y = y;
+			})
+
+			table.sort(graphsets, function(a, b)
+				return a.X < b.X
+			end)
+
+			renderGraph()
+			notifyChanged()
+		end)
+
+		if opts.Presets == true then
+			local presetButton = library:Create("TextButton", {
+				Name = "PresetButton";
+				Position = UDim2.fromOffset(6, 197);
+				Size = UDim2.new(1, -12, 0, 20);
+				BackgroundColor3 = library.MainColor;
+				Text = "Curve: " .. selectedPreset .. "  v";
+				TextColor3 = library.FontColor;
+				Font = library.Font;
+				TextSize = 12;
+				BorderSizePixel = 0;
+				ZIndex = 10;
+				Parent = framewindow;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.MainColor;
+			}, {
+				instancep = "TextColor3";
+				tinstance = library.FontColor;
+			}, {
+				instancep = "Font";
+				tinstance = library.Font;
+			})
+
+			local menu = library:Create("Frame", {
+				Name = "PresetMenu";
+				Position = UDim2.new(0, 6, 1, -48 - (#presets * 20));
+				Size = UDim2.new(1, -12, 0, #presets * 20);
+				BackgroundColor3 = library.MainColor;
+				BorderSizePixel = 0;
+				Visible = false;
+				ZIndex = 20;
+				Parent = framewindow;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.MainColor;
+			})
+
+			library:Create("UIListLayout", {
+				SortOrder = Enum.SortOrder.LayoutOrder;
+				Parent = menu;
+			})
+
+			for i, preset in ipairs(presets) do
+				local option = library:Create("TextButton", {
+					Name = preset;
+					Size = UDim2.new(1, 0, 0, 20);
+					BackgroundColor3 = library.MainColor;
+					BorderSizePixel = 0;
+					Text = preset;
+					TextColor3 = library.FontColor;
+					Font = library.Font;
+					TextSize = 12;
+					LayoutOrder = i;
+					ZIndex = 21;
+					Parent = menu;
+				}, {
+					instancep = "BackgroundColor3";
+					tinstance = library.MainColor;
+				}, {
+					instancep = "TextColor3";
+					tinstance = library.FontColor;
+				}, {
+					instancep = "Font";
+					tinstance = library.Font;
+				})
+
+				addConnection(option.Activated, function()
+					selectedPreset = preset
+					presetButton.Text = "Curve: " .. preset .. "  v"
+					menu.Visible = false
+
+					renderGraph()
+					notifyChanged()
+				end)
+			end
+
+			addConnection(presetButton.Activated, function()
+				menu.Visible = not menu.Visible
+			end)
+		end
+
+		local resetButton = library:Create("TextButton", {
+			Name = "ResetGraph";
+			Position = UDim2.new(0, 6, 1, -25);
+			Size = UDim2.new(1, -12, 0, 20);
+			BackgroundColor3 = library.MainColor;
+			Text = "Reset Graph";
+			TextColor3 = library.FontColor;
+			Font = library.Font;
+			TextSize = 12;
+			BorderSizePixel = 0;
+			ZIndex = 10;
+			Parent = framewindow;
+		}, {
+			instancep = "BackgroundColor3";
+			tinstance = library.MainColor;
+		}, {
+			instancep = "TextColor3";
+			tinstance = library.FontColor;
+		}, {
+			instancep = "Font";
+			tinstance = library.Font;
+		})
+
+		addConnection(resetButton.Activated, function()
+			table.clear(graphsets)
+			renderGraph()
+			notifyChanged()
+		end)
+
+		addConnection(
+			GraphHolder:GetPropertyChangedSignal("AbsoluteSize"),
+			function()
+				if opened then
+					renderGraph()
+				end
+			end
+		)
+
+		-- Close when clicking outside the actual popup window.
+		outsideConn = addConnection(UIS.InputBegan, function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+
+			if not instance or not instance.Parent or not opened then
+				return
+			end
+
+			local position = input.Position
+			local topLeft = framewindow.AbsolutePosition
+			local bottomRight = topLeft + framewindow.AbsoluteSize
+
+			local inWindow =
+				position.X >= topLeft.X
+				and position.X <= bottomRight.X
+				and position.Y >= topLeft.Y
+				and position.Y <= bottomRight.Y
+
+			local buttonPos = buttonopen.AbsolutePosition
+			local buttonSize = buttonopen.AbsoluteSize
+
+			local inButton =
+				position.X >= buttonPos.X
+				and position.X <= buttonPos.X + buttonSize.X
+				and position.Y >= buttonPos.Y
+				and position.Y <= buttonPos.Y + buttonSize.Y
+
+			if not inWindow and not inButton then
+				closeGraph()
+			end
+		end)
+
+		task.defer(function()
+			if opened and GraphHolder.Parent then
+				renderGraph()
+			end
+		end)
+	end
+
+	closeGraph = function()
+		if not opened then
+			return
+		end
+
+		opened = false
+		clearOpenConnections()
+
+		if instance then
+			instance:Destroy()
+			instance = nil
+		end
+	end
+
+	addConnection(buttonopen.Activated, function()
+		if destroyed then
+			return
+		end
+
+		if opened then
+			closeGraph()
+		else
+			openGraph()
+		end
+	end)
+
+	function linegraph:Get()
+		return getData()
+	end
+
+	function linegraph:Set(values)
+		if destroyed then
+			return
+		end
+
+		graphsets = copyPoints(values)
+		curvePoints = #graphsets
+
+		if opened then
+			closeGraph()
+			openGraph()
+		end
+
+		notifyChanged()
+	end
+
+	function linegraph:Reset()
+		if destroyed then
+			return
+		end
+
+		graphsets = {}
+		curvePoints = 0
+
+		if opened then
+			closeGraph()
+			openGraph()
+		end
+
+		notifyChanged()
+	end
+
+	function linegraph:SetPreset(preset)
+		if destroyed then
+			return false
+		end
+
+		for _, name in ipairs(presets) do
+			if name == preset then
+				selectedPreset = name
+
+				if opened then
+					closeGraph()
+					openGraph()
+				end
+
+				notifyChanged()
+				return true
+			end
+		end
+
+		return false
+	end
+
+	function linegraph:Destroy()
+		if destroyed then
+			return
+		end
+
+		destroyed = true
+		closeGraph()
+		clearOpenConnections()
+		clearPointConnections()
+
+		if holder then
+			holder:Destroy()
+		end
+	end
+
+	return linegraph
+end
 					
 					return groupbox
 				end
@@ -15239,770 +15627,963 @@ function library:NewWindow(configuration)
 				end	
 				
 				function groupbox:AddLineGraph(text, opts)
-					opts = opts or {}
-
-					local Players = game:GetService("Players")
-					local UserInputService = game:GetService("UserInputService")
-					local GuiService = game:GetService("GuiService")
-
-					local LocalPlayer = Players.LocalPlayer
-					local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
-					local graphAPI = {}
-					local connections = {}
-					local destroyed = false
-					local draggingPoint = nil
-					local dragInput = nil
-					local redrawPending = false
-
-					local graphTitle = tostring(text or "Line Graph")
-					local graphColor = opts.Color or Color3.fromRGB(120, 170, 255)
-					local backgroundColor = opts.BackgroundColor or Color3.fromRGB(20, 20, 24)
-					local panelColor = opts.PanelColor or Color3.fromRGB(29, 29, 35)
-					local textColor = opts.TextColor or Color3.fromRGB(240, 240, 245)
-
-					local function connect(signal, callback)
-						local connection = signal:Connect(callback)
-						table.insert(connections, connection)
-						return connection
-					end
-
-					local function create(className, properties, parent)
-						local object = Instance.new(className)
-
-						for property, value in pairs(properties or {}) do
-							object[property] = value
-						end
-
-						object.Parent = parent
-						return object
-					end
-
-					local function round(object, radius)
-						create("UICorner", {
-							CornerRadius = UDim.new(0, radius or 6)
-						}, object)
-					end
-
-					local function stroke(object, color, thickness, transparency)
-						create("UIStroke", {
-							Color = color or Color3.fromRGB(55, 55, 65),
-							Thickness = thickness or 1,
-							Transparency = transparency or 0
-						}, object)
-					end
-
-					local function makeButton(parent, label, size, position)
-						local button = create("TextButton", {
-							Name = "Button",
-							Size = size,
-							Position = position or UDim2.new(),
-							BackgroundColor3 = panelColor,
-							BorderSizePixel = 0,
-							Text = label,
-							TextColor3 = textColor,
-							TextSize = 13,
-							Font = Enum.Font.Gotham,
-							AutoButtonColor = true,
-							Active = true,
-							ZIndex = 20
-						}, parent)
-
-						round(button, 5)
-						return button
-					end
-
-					-- Data is normalized to X/Y values between 0 and 1.
-					-- Y=0 is the bottom; Y=1 is the top.
-					local function cleanPoints(source)
-						local result = {}
-
-						if type(source) ~= "table" then
-							return result
-						end
-
-						for _, point in ipairs(source) do
-							if type(point) == "table" then
-								local x = tonumber(point.X or point.x or point[1])
-								local y = tonumber(point.Y or point.y or point[2])
-
-								if x and y then
-									table.insert(result, {
-										X = math.clamp(x, 0, 1),
-										Y = math.clamp(y, 0, 1)
-									})
-								end
-							end
-						end
-
-						table.sort(result, function(a, b)
-							return a.X < b.X
-						end)
-
-						return result
-					end
-
-					local defaultPoints =
-						opts.DefaultPoints
-						or opts.default
-						or {
-							{ X = 0, Y = 0 },
-							{ X = 1, Y = 1 }
-						}
-
-					local points = cleanPoints(defaultPoints)
-
-					if #points == 0 then
-						points = {
-							{ X = 0, Y = 0 },
-							{ X = 1, Y = 1 }
-						}
-					elseif #points == 1 then
-						points = {
-							{ X = 0, Y = points[1].Y },
-							{ X = 1, Y = points[1].Y }
-						}
-					end
-
-					local curveMode = "Linear"
-					local pointObjects = {}
-					local drawObjects = {}
-					local dragChanged = false
-
-					--==========================================================
-					-- LIBRARY ROW / OPEN BUTTON
-					--==========================================================
-
-					local row = create("Frame", {
-						Name = "LineGraphRow",
-						Size = UDim2.new(0.95, 0, 0, 32),
-						BackgroundTransparency = 1,
-						BorderSizePixel = 0,
-						LayoutOrder = #elementsholder:GetChildren() + 1
-					}, elementsholder)
-
-					local openButton = makeButton(
-						row,
-						graphTitle .. "  [Open Graph]",
-						UDim2.new(1, 0, 1, 0),
-						UDim2.new()
-					)
-
-					--==========================================================
-					-- GRAPH WINDOW
-					--==========================================================
-
-					local screenGui = create("ScreenGui", {
-						Name = "LineGraph_" .. graphTitle:gsub("%W", ""),
-						ResetOnSpawn = false,
-						IgnoreGuiInset = true,
-						DisplayOrder = 10000,
-						ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-					}, PlayerGui)
-
-					local window = create("Frame", {
-						Name = "Window",
-						AnchorPoint = Vector2.new(0.5, 0.5),
-						Position = UDim2.fromScale(0.5, 0.5),
-						Size = UDim2.new(0, 430, 0, opts.Height or 350),
-						BackgroundColor3 = backgroundColor,
-						BorderSizePixel = 0,
-						Visible = false,
-						Active = true,
-						ZIndex = 10
-					}, screenGui)
-
-					round(window, 8)
-					stroke(window, Color3.fromRGB(60, 60, 72), 1)
-
-					local header = create("Frame", {
-						Name = "Header",
-						Size = UDim2.new(1, 0, 0, 38),
-						BackgroundColor3 = panelColor,
-						BorderSizePixel = 0,
-						ZIndex = 11
-					}, window)
-
-					round(header, 8)
-
-					local titleLabel = create("TextLabel", {
-						Name = "Title",
-						Position = UDim2.new(0, 12, 0, 0),
-						Size = UDim2.new(1, -65, 1, 0),
-						BackgroundTransparency = 1,
-						Text = graphTitle,
-						TextColor3 = textColor,
-						TextSize = 14,
-						Font = Enum.Font.GothamSemibold,
-						TextXAlignment = Enum.TextXAlignment.Left,
-						ZIndex = 12
-					}, header)
-
-					local closeButton = makeButton(
-						header,
-						"X",
-						UDim2.new(0, 28, 0, 26),
-						UDim2.new(1, -33, 0, 6)
-					)
-					closeButton.ZIndex = 13
-
-					local instructions = create("TextLabel", {
-						Name = "Instructions",
-						Position = UDim2.new(0, 10, 0, 42),
-						Size = UDim2.new(1, -20, 0, 20),
-						BackgroundTransparency = 1,
-						Text = "Click the graph to add a point  |  Drag a dot to move it",
-						TextColor3 = Color3.fromRGB(165, 165, 180),
-						TextSize = 11,
-						Font = Enum.Font.Gotham,
-						TextXAlignment = Enum.TextXAlignment.Left,
-						ZIndex = 12
-					}, window)
-
-					local plot = create("Frame", {
-						Name = "Plot",
-						Position = UDim2.new(0, 18, 0, 70),
-						Size = UDim2.new(1, -36, 1, -125),
-						BackgroundColor3 = Color3.fromRGB(15, 15, 19),
-						BorderSizePixel = 0,
-						ClipsDescendants = false,
-						Active = true,
-						ZIndex = 11
-					}, window)
-
-					stroke(plot, Color3.fromRGB(48, 48, 58), 1)
-
-					--==========================================================
-					-- GRID
-					--==========================================================
-
-					for i = 1, 3 do
-						local fraction = i / 4
-
-						create("Frame", {
-							Name = "GridVertical",
-							Position = UDim2.new(fraction, 0, 0, 0),
-							Size = UDim2.new(0, 1, 1, 0),
-							BackgroundColor3 = Color3.fromRGB(43, 43, 52),
-							BorderSizePixel = 0,
-							ZIndex = 11
-						}, plot)
-
-						create("Frame", {
-							Name = "GridHorizontal",
-							Position = UDim2.new(0, 0, fraction, 0),
-							Size = UDim2.new(1, 0, 0, 1),
-							BackgroundColor3 = Color3.fromRGB(43, 43, 52),
-							BorderSizePixel = 0,
-							ZIndex = 11
-						}, plot)
-					end
-
-					local footer = create("Frame", {
-						Name = "Footer",
-						Position = UDim2.new(0, 10, 1, -43),
-						Size = UDim2.new(1, -20, 0, 32),
-						BackgroundTransparency = 1,
-						ZIndex = 12
-					}, window)
-
-					local resetButton = makeButton(
-						footer,
-						"Reset",
-						UDim2.new(0, 74, 1, 0),
-						UDim2.new(0, 0, 0, 0)
-					)
-
-					local linearButton = makeButton(
-						footer,
-						"Linear",
-						UDim2.new(0, 74, 1, 0),
-						UDim2.new(0, 82, 0, 0)
-					)
-
-					local presets = {}
-
-					if opts.Presets == true then
-						local presetButton = makeButton(
-							footer,
-							"Ease In",
-							UDim2.new(0, 74, 1, 0),
-							UDim2.new(0, 164, 0, 0)
-						)
-
-						local presetButton2 = makeButton(
-							footer,
-							"Ease Out",
-							UDim2.new(0, 74, 1, 0),
-							UDim2.new(0, 246, 0, 0)
-						)
-
-						local presetButton3 = makeButton(
-							footer,
-							"S Curve",
-							UDim2.new(0, 74, 1, 0),
-							UDim2.new(0, 328, 0, 0)
-						)
-
-						presets = { presetButton, presetButton2, presetButton3 }
-					end
-
-					--==========================================================
-					-- GRAPH DRAWING
-					--==========================================================
-
-					local function clearDrawObjects()
-						for _, object in ipairs(drawObjects) do
-							if object and object.Parent then
-								object:Destroy()
-							end
-						end
-
-						table.clear(drawObjects)
-						table.clear(pointObjects)
-					end
-
-					local function addDrawObject(object)
-						table.insert(drawObjects, object)
-						return object
-					end
-
-					local function plotPosition(point)
-						local size = plot.AbsoluteSize
-						return Vector2.new(
-							point.X * size.X,
-							(1 - point.Y) * size.Y
-						)
-					end
-
-					local function addSegment(a, b)
-						local delta = b - a
-						local length = delta.Magnitude
-
-						if length < 0.5 then
-							return
-						end
-
-						local segment = addDrawObject(create("Frame", {
-							Name = "CurveSegment",
-							AnchorPoint = Vector2.new(0, 0.5),
-							Position = UDim2.fromOffset(a.X, a.Y),
-							Size = UDim2.new(0, length, 0, 2),
-							Rotation = math.deg(math.atan2(delta.Y, delta.X)),
-							BackgroundColor3 = graphColor,
-							BorderSizePixel = 0,
-							ZIndex = 13
-						}, plot))
-
-						segment.Active = false
-					end
-
-					local function getRenderedPoints()
-						local sorted = cleanPoints(points)
-
-						if curveMode == "Linear" or #sorted < 3 then
-							return sorted
-						end
-
-						local rendered = {}
-
-						for i = 1, #sorted - 1 do
-							local p1 = sorted[i]
-							local p2 = sorted[i + 1]
-
-							for step = 0, 12 do
-								local t = step / 12
-								local x = p1.X + (p2.X - p1.X) * t
-								local y
-
-								if curveMode == "Ease In" then
-									y = p1.Y + (p2.Y - p1.Y) * (t * t)
-								elseif curveMode == "Ease Out" then
-									y = p1.Y + (p2.Y - p1.Y) * (1 - (1 - t) * (1 - t))
-								elseif curveMode == "S Curve" then
-									local smoothT = t * t * (3 - 2 * t)
-									y = p1.Y + (p2.Y - p1.Y) * smoothT
-								else
-									y = p1.Y + (p2.Y - p1.Y) * t
-								end
-
-								table.insert(rendered, { X = x, Y = y })
-							end
-						end
-
-						if #sorted == 1 then
-							table.insert(rendered, sorted[1])
-						end
-
-						return rendered
-					end
-
-					local renderGraph
-
-					local function fireCallback()
-						if type(opts.Callback) == "function" then
-							local output = {}
-
-							for i, point in ipairs(points) do
-								output[i] = {
-									X = point.X,
-									Y = point.Y
-								}
-							end
-
-							task.spawn(function()
-								local ok, err = pcall(opts.Callback, output)
-								if not ok then
-									warn("[LineGraph] Callback error:", err)
-								end
-							end)
-						end
-					end
-
-					local function updatePointPosition(index, screenPosition)
-						if destroyed or not plot.Parent then
-							return
-						end
-
-						local plotPositionAbs = plot.AbsolutePosition
-						local plotSize = plot.AbsoluteSize
-
-						if plotSize.X <= 0 or plotSize.Y <= 0 then
-							return
-						end
-
-						-- IgnoreGuiInset=true means these screen coordinates line up
-						-- with AbsolutePosition; no extra mouse inset subtraction.
-						local localX = screenPosition.X - plotPositionAbs.X
-						local localY = screenPosition.Y - plotPositionAbs.Y
-
-						local x = math.clamp(localX / plotSize.X, 0, 1)
-						local y = math.clamp(1 - localY / plotSize.Y, 0, 1)
-
-						points[index].X = x
-						points[index].Y = y
-
-						table.sort(points, function(a, b)
-							return a.X < b.X
-						end)
-
-						dragChanged = true
-						renderGraph(false)
-					end
-
-					renderGraph = function(notify)
-						if destroyed or not plot.Parent then
-							return
-						end
-
-						clearDrawObjects()
-
-						local sortedPoints = cleanPoints(points)
-						points = sortedPoints
-
-						-- Draw curve behind the dots.
-						local renderedPoints = getRenderedPoints()
-
-						for i = 1, #renderedPoints - 1 do
-							addSegment(
-								plotPosition(renderedPoints[i]),
-								plotPosition(renderedPoints[i + 1])
-							)
-						end
-
-						-- Create dot buttons once per render. Their handlers are
-						-- connected once and removed when their instance is destroyed.
-						for index, point in ipairs(points) do
-							local pos = plotPosition(point)
-
-							local dot = create("TextButton", {
-								Name = "Point_" .. index,
-								AnchorPoint = Vector2.new(0.5, 0.5),
-								Position = UDim2.fromOffset(pos.X, pos.Y),
-								Size = UDim2.fromOffset(12, 12),
-								BackgroundColor3 = graphColor,
-								BorderSizePixel = 0,
-								Text = "",
-								AutoButtonColor = false,
-								Active = true,
-								ZIndex = 16
-							}, plot)
-
-							round(dot, 100)
-							stroke(dot, Color3.fromRGB(255, 255, 255), 1)
-
-							local pointLabel = create("TextLabel", {
-								Name = "Coordinates",
-								AnchorPoint = Vector2.new(0.5, 1),
-								Position = UDim2.new(0.5, 0, 0, -5),
-								Size = UDim2.fromOffset(70, 15),
-								BackgroundTransparency = 1,
-								Text = string.format("%.2f, %.2f", point.X, point.Y),
-								TextColor3 = textColor,
-								TextSize = 10,
-								Font = Enum.Font.Gotham,
-								ZIndex = 17
-							}, dot)
-
-							pointObjects[index] = dot
-
-							local thisIndex = index
-
-							connect(dot.InputBegan, function(input)
-								if destroyed then
-									return
-								end
-
-								if input.UserInputType == Enum.UserInputType.MouseButton1
-									or input.UserInputType == Enum.UserInputType.Touch then
-									draggingPoint = thisIndex
-									dragInput = input
-									dragChanged = false
-								end
-							end)
-						end
-
-						if notify then
-							fireCallback()
-						end
-					end
-
-					--==========================================================
-					-- ADD POINTS / DRAG HANDLING
-					--==========================================================
-
-					connect(plot.InputBegan, function(input)
-						if destroyed or draggingPoint then
-							return
-						end
-
-						if input.UserInputType ~= Enum.UserInputType.MouseButton1
-							and input.UserInputType ~= Enum.UserInputType.Touch then
-							return
-						end
-
-						local mousePosition
-
-						if input.UserInputType == Enum.UserInputType.Touch then
-							mousePosition = Vector2.new(input.Position.X, input.Position.Y)
-						else
-							mousePosition = UserInputService:GetMouseLocation()
-						end
-
-						local plotPositionAbs = plot.AbsolutePosition
-						local plotSize = plot.AbsoluteSize
-
-						if plotSize.X <= 0 or plotSize.Y <= 0 then
-							return
-						end
-
-						local localX = mousePosition.X - plotPositionAbs.X
-						local localY = mousePosition.Y - plotPositionAbs.Y
-
-						if localX < 0 or localY < 0
-							or localX > plotSize.X or localY > plotSize.Y then
-							return
-						end
-
-						table.insert(points, {
-							X = math.clamp(localX / plotSize.X, 0, 1),
-							Y = math.clamp(1 - localY / plotSize.Y, 0, 1)
-						})
-
-						table.sort(points, function(a, b)
-							return a.X < b.X
-						end)
-
-						renderGraph(true)
-					end)
-
-					connect(UserInputService.InputChanged, function(input)
-						if destroyed or not draggingPoint then
-							return
-						end
-
-						if input.UserInputType == Enum.UserInputType.MouseMovement then
-							local mousePosition = UserInputService:GetMouseLocation()
-							updatePointPosition(draggingPoint, mousePosition)
-						elseif input.UserInputType == Enum.UserInputType.Touch
-							and input == dragInput then
-							updatePointPosition(
-								draggingPoint,
-								Vector2.new(input.Position.X, input.Position.Y)
-							)
-						end
-					end)
-
-					connect(UserInputService.InputEnded, function(input)
-						if not draggingPoint then
-							return
-						end
-
-						if input.UserInputType == Enum.UserInputType.MouseButton1
-							or input.UserInputType == Enum.UserInputType.Touch then
-							draggingPoint = nil
-							dragInput = nil
-
-							if dragChanged then
-								dragChanged = false
-								fireCallback()
-							end
-						end
-					end)
-
-					--==========================================================
-					-- WINDOW CONTROLS
-					--==========================================================
-
-					connect(openButton.Activated, function()
-						if not destroyed then
-							window.Visible = true
-							renderGraph(false)
-						end
-					end)
-
-					connect(closeButton.Activated, function()
-						-- Hide only. Do not destroy the window or opener.
-						window.Visible = false
-						draggingPoint = nil
-						dragInput = nil
-					end)
-
-					connect(resetButton.Activated, function()
-						if destroyed then
-							return
-						end
-
-						points = cleanPoints(defaultPoints)
-						if #points < 2 then
-							points = {
-								{ X = 0, Y = 0 },
-								{ X = 1, Y = 1 }
-							}
-						end
-
-						curveMode = "Linear"
-						renderGraph(true)
-					end)
-
-					connect(linearButton.Activated, function()
-						curveMode = "Linear"
-						renderGraph(true)
-					end)
-
-					if opts.Presets == true then
-						connect(presets[1].Activated, function()
-							curveMode = "Ease In"
-							renderGraph(true)
-						end)
-
-						connect(presets[2].Activated, function()
-							curveMode = "Ease Out"
-							renderGraph(true)
-						end)
-
-						connect(presets[3].Activated, function()
-							curveMode = "S Curve"
-							renderGraph(true)
-						end)
-					end
-
-					--==========================================================
-					-- PUBLIC API
-					--==========================================================
-
-					function graphAPI:Open()
-						if destroyed then return end
-						window.Visible = true
-						renderGraph(false)
-					end
-
-					function graphAPI:Close()
-						if destroyed then return end
-						window.Visible = false
-						draggingPoint = nil
-						dragInput = nil
-					end
-
-					function graphAPI:Toggle()
-						if destroyed then return end
-						window.Visible = not window.Visible
-
-						if window.Visible then
-							renderGraph(false)
-						end
-					end
-
-					function graphAPI:GetPoints()
-						local result = {}
-
-						for i, point in ipairs(points) do
-							result[i] = {
-								X = point.X,
-								Y = point.Y
-							}
-						end
-
-						return result
-					end
-
-					function graphAPI:SetPoints(newPoints)
-						if destroyed then return end
-
-						local cleaned = cleanPoints(newPoints)
-						if #cleaned < 2 then
-							warn("[LineGraph] SetPoints requires at least two valid points.")
-							return
-						end
-
-						points = cleaned
-						renderGraph(true)
-					end
-
-					function graphAPI:Reset()
-						if destroyed then return end
-
-						points = cleanPoints(defaultPoints)
-						if #points < 2 then
-							points = {
-								{ X = 0, Y = 0 },
-								{ X = 1, Y = 1 }
-							}
-						end
-
-						curveMode = "Linear"
-						renderGraph(true)
-					end
-
-					function graphAPI:Destroy()
-						if destroyed then return end
-						destroyed = true
-
-						for _, connection in ipairs(connections) do
-							pcall(function()
-								connection:Disconnect()
-							end)
-						end
-
-						table.clear(connections)
-
-						if screenGui then
-							screenGui:Destroy()
-						end
-
-						if row then
-							row:Destroy()
-						end
-					end
-
-					-- Compatibility alias for cleanup code.
-					graphAPI.Unload = graphAPI.Destroy
-
-					-- Initial draw: linear by default.
-					renderGraph(false)
-
-					return graphAPI
+	opts = opts or {}
+
+	local linegraph = {}
+	local graphsets = {}
+	local curvePoints = 0
+	local opened = false
+	local destroyed = false
+
+	local instance
+	local followConn
+	local outsideConn
+	local openConnections = {}
+	local pointFrames = {}
+	local pointConnections = {}
+	local curveFrames = {}
+
+	local UIS = game:GetService("UserInputService")
+
+	-- Linear is the default. Presets are optional.
+	local selectedPreset = opts.Preset or "Linear"
+	local draggingPoint
+	local dragMoveConn
+	local dragEndConn
+
+	local presets = {
+		"Linear",
+		"Smooth",
+		"Exponential",
+		"Ease In",
+		"Ease Out",
+		"Ease In Out"
+	}
+
+	local function addConnection(signal, callback)
+		local connection = signal:Connect(callback)
+
+		if trackConnection then
+			trackConnection(connection)
+		end
+
+		table.insert(openConnections, connection)
+		return connection
+	end
+
+	local function disconnectConnection(connection)
+		if connection then
+			connection:Disconnect()
+		end
+	end
+
+	local function clearPointConnections()
+		for _, connection in ipairs(pointConnections) do
+			if connection and connection.Connected then
+				connection:Disconnect()
+			end
+		end
+
+		table.clear(pointConnections)
+	end
+
+	local function clearOpenConnections()
+		for _, connection in ipairs(openConnections) do
+			if connection and connection.Connected then
+				connection:Disconnect()
+			end
+		end
+
+		table.clear(openConnections)
+		clearPointConnections()
+
+		disconnectConnection(followConn)
+		disconnectConnection(outsideConn)
+		disconnectConnection(dragMoveConn)
+		disconnectConnection(dragEndConn)
+
+		followConn = nil
+		outsideConn = nil
+		dragMoveConn = nil
+		dragEndConn = nil
+		draggingPoint = nil
+	end
+
+	local function clearList(list)
+		for _, object in ipairs(list) do
+			if object and object.Parent then
+				object:Destroy()
+			end
+		end
+
+		table.clear(list)
+	end
+
+	local function copyPoints(values)
+		local result = {}
+
+		for _, point in ipairs(values or {}) do
+			local x = tonumber(point.X or point.x or point[1]) or 0
+			local y = tonumber(point.Y or point.y or point[2]) or 0
+
+			table.insert(result, {
+				X = math.clamp(x, 0, 1),
+				Y = math.clamp(y, 0, 1)
+			})
+		end
+
+		table.sort(result, function(a, b)
+			return a.X < b.X
+		end)
+
+		return result
+	end
+
+	graphsets = copyPoints(opts.default or opts.Default or {})
+	curvePoints = #graphsets
+
+	local function getData()
+		local result = {}
+
+		for i, point in ipairs(graphsets) do
+			result[i] = {
+				X = point.X,
+				Y = point.Y
+			}
+		end
+
+		return result
+	end
+
+	local function notifyChanged()
+		curvePoints = #graphsets
+
+		if type(opts.Callback) == "function" then
+			opts.Callback(getData())
+		end
+	end
+
+	local holder = library:Create("Frame", {
+		Name = "Holder";
+		Size = UDim2.new(0.95, 0, 0, 20);
+		BackgroundTransparency = 1;
+		LayoutOrder = #elementsholder:GetChildren();
+		Parent = elementsholder;
+	})
+
+	local uitext = library:Create("TextLabel", {
+		Name = "TextLabel";
+		Size = UDim2.new(0.937, 0, 1, 0);
+		BackgroundTransparency = 1;
+		Text = text;
+		TextSize = 13;
+		TextColor3 = library.FontColor;
+		Font = library.Font;
+		LayoutOrder = 1;
+		TextXAlignment = Enum.TextXAlignment.Left;
+		TextYAlignment = Enum.TextYAlignment.Center;
+		Parent = holder;
+	}, {
+		instancep = "TextColor3";
+		tinstance = library.FontColor;
+	}, {
+		instancep = "Font";
+		tinstance = library.Font;
+	})
+
+	library:Create("UITextSizeConstraint", {
+		Name = "UITextSizeConstraint";
+		MaxTextSize = 13;
+		Parent = uitext;
+	})
+
+	library:Create("UIStroke", {
+		Name = "UIStroke";
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+		Color = Color3.fromRGB(0, 0, 0);
+		Thickness = 1;
+		Parent = uitext;
+	}, {
+		instancep = "Color";
+		tinstance = library.UIstroke;
+	})
+
+	library:Create("UIListLayout", {
+		Name = "UIListLayout";
+		FillDirection = Enum.FillDirection.Horizontal;
+		HorizontalAlignment = Enum.HorizontalAlignment.Left;
+		SortOrder = Enum.SortOrder.LayoutOrder;
+		Parent = holder;
+	})
+
+	local buttonopen = library:Create("ImageButton", {
+		Name = "ButtonOpen";
+		Size = UDim2.new(0, 19, 0, 19);
+		LayoutOrder = 2;
+		BackgroundTransparency = 1;
+		Image = "rbxassetid://10734950309";
+		ImageColor3 = library.AccentColor;
+		Parent = holder;
+	}, {
+		instancep = "ImageColor3";
+		tinstance = library.AccentColor;
+	})
+
+	local function getPopupPosition()
+		local absolute = buttonopen.AbsolutePosition
+		local base = screengui.AbsolutePosition
+
+		return UDim2.fromOffset(
+			absolute.X - base.X,
+			absolute.Y - base.Y
+		)
+	end
+
+	local closeGraph
+
+	local function openGraph()
+		if opened or destroyed then
+			return
+		end
+
+		opened = true
+
+		-- Keep the popup inside the library's existing ScreenGui.
+		local lineG = library:Create("Frame", {
+			Name = "CursorBox";
+			Size = UDim2.fromOffset(15, 15);
+			Position = getPopupPosition();
+			BackgroundColor3 = Color3.new(1, 1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 2;
+			Parent = screengui;
+		})
+
+		instance = lineG
+
+		followConn = addConnection(
+			buttonopen:GetPropertyChangedSignal("AbsolutePosition"),
+			function()
+				if instance and instance.Parent then
+					instance.Position = getPopupPosition()
 				end
+			end
+		)
+
+		local framewindow = library:Create("Frame", {
+			Name = "Frame";
+			Size = UDim2.fromOffset(323, 246);
+			Position = UDim2.new(1, 0, 1.4, 0);
+			BackgroundColor3 = library.MainColor;
+			BorderSizePixel = 0;
+			ZIndex = 2;
+			Parent = lineG;
+		}, {
+			instancep = "BackgroundColor3";
+			tinstance = library.MainColor;
+		})
+
+		library:Create("UIStroke", {
+			Name = "UIStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			LineJoinMode = Enum.LineJoinMode.Miter;
+			Color = library.SecondaryColor;
+			Thickness = 1;
+			ZIndex = 2;
+			Parent = framewindow;
+		}, {
+			instancep = "Color";
+			tinstance = library.SecondaryColor;
+		})
+
+		library:Create("UIStroke", {
+			Name = "OuterStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			LineJoinMode = Enum.LineJoinMode.Miter;
+			Color = library.MainColor;
+			Thickness = 4;
+			ZIndex = 2;
+			Parent = framewindow;
+		}, {
+			instancep = "Color";
+			tinstance = library.MainColor;
+		})
+
+		local title = library:Create("TextLabel", {
+			Name = "TextLabel";
+			Size = UDim2.new(1, 0, 0, 18);
+			Position = UDim2.fromOffset(0, 0);
+			BackgroundTransparency = 1;
+			Text = text or "Line Graph";
+			TextColor3 = library.FontColor;
+			Font = library.Font;
+			TextSize = 13;
+			TextXAlignment = Enum.TextXAlignment.Left;
+			ZIndex = 3;
+			Parent = framewindow;
+		}, {
+			instancep = "TextColor3";
+			tinstance = library.FontColor;
+		}, {
+			instancep = "Font";
+			tinstance = library.Font;
+		})
+
+		library:Create("UIPadding", {
+			PaddingLeft = UDim.new(0, 6);
+			Parent = title;
+		})
+
+		library:Create("UIStroke", {
+			Name = "UIStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+			Color = library.UIstroke;
+			Thickness = 1;
+			Parent = title;
+		}, {
+			instancep = "Color";
+			tinstance = library.UIstroke;
+		})
+
+		local GraphHolder = library:Create("Frame", {
+			Name = "GraphHolder";
+			Position = UDim2.fromOffset(4, 24);
+			Size = UDim2.fromOffset(315, 168);
+			BackgroundTransparency = 1;
+			BorderSizePixel = 0;
+			ClipsDescendants = false;
+			Active = true;
+			ZIndex = 2;
+			Parent = framewindow;
+		})
+
+		library:Create("UIStroke", {
+			Color = library.SecondaryColor;
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			Parent = GraphHolder;
+		}, {
+			instancep = "Color";
+			tinstance = library.SecondaryColor;
+		})
+
+		local grid = library:Create("Frame", {
+			Name = "Grid";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 2;
+			Parent = GraphHolder;
+		})
+
+		local curveLayer = library:Create("Frame", {
+			Name = "CurveLines";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 3;
+			Parent = GraphHolder;
+		})
+
+		local pointLayer = library:Create("Frame", {
+			Name = "Points";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 5;
+			Parent = GraphHolder;
+		})
+
+		for i = 1, 4 do
+			library:Create("Frame", {
+				Name = "HorizontalLine";
+				Position = UDim2.fromScale(0, i / 5);
+				Size = UDim2.new(1, 0, 0, 1);
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.SecondaryColor;
+				ZIndex = 2;
+				Parent = grid;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.SecondaryColor;
+			})
+		end
+
+		for i = 1, 7 do
+			library:Create("Frame", {
+				Name = "VerticalLine";
+				Position = UDim2.fromScale(i / 8, 0);
+				Size = UDim2.new(0, 1, 1, 0);
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.SecondaryColor;
+				ZIndex = 2;
+				Parent = grid;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.SecondaryColor;
+			})
+		end
+
+		local function toPixels(point)
+			local size = GraphHolder.AbsoluteSize
+
+			return Vector2.new(
+				point.X * size.X,
+				(1 - point.Y) * size.Y
+			)
+		end
+
+		local function createSegment(a, b)
+			local delta = b - a
+			local length = delta.Magnitude
+
+			if length < 0.5 then
+				return
+			end
+
+			local segment = library:Create("Frame", {
+				Name = "CurveSegment";
+				AnchorPoint = Vector2.new(0, 0.5);
+				Position = UDim2.fromOffset(a.X, a.Y);
+				Size = UDim2.fromOffset(length, 2);
+				Rotation = math.deg(math.atan2(delta.Y, delta.X));
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.AccentColor;
+				ZIndex = 3;
+				Parent = curveLayer;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.AccentColor;
+			})
+
+			table.insert(curveFrames, segment)
+		end
+
+		local function catmullRom(p0, p1, p2, p3, t)
+			local t2 = t * t
+			local t3 = t2 * t
+
+			return Vector2.new(
+				0.5 * (
+					2 * p1.X
+					+ (-p0.X + p2.X) * t
+					+ (2 * p0.X - 5 * p1.X + 4 * p2.X - p3.X) * t2
+					+ (-p0.X + 3 * p1.X - 3 * p2.X + p3.X) * t3
+				),
+				0.5 * (
+					2 * p1.Y
+					+ (-p0.Y + p2.Y) * t
+					+ (2 * p0.Y - 5 * p1.Y + 4 * p2.Y - p3.Y) * t2
+					+ (-p0.Y + 3 * p1.Y - 3 * p2.Y + p3.Y) * t3
+				)
+			)
+		end
+
+		local function interpolateY(a, b, t)
+			if selectedPreset == "Exponential" or selectedPreset == "Ease In" then
+				t = t * t
+			elseif selectedPreset == "Ease Out" then
+				t = 1 - (1 - t) * (1 - t)
+			elseif selectedPreset == "Ease In Out" then
+				if t < 0.5 then
+					t = 2 * t * t
+				else
+					t = 1 - ((-2 * t + 2) ^ 2) / 2
+				end
+			end
+
+			return a + (b - a) * t
+		end
+
+		local renderGraph
+
+		local function drawCurve()
+			clearList(curveFrames)
+
+			if #graphsets < 2 then
+				return
+			end
+
+			local points = {}
+
+			for i, point in ipairs(graphsets) do
+				points[i] = toPixels(point)
+			end
+
+			for i = 1, #points - 1 do
+				local p1 = points[i]
+				local p2 = points[i + 1]
+
+				if selectedPreset == "Smooth" then
+					local p0 = points[math.max(1, i - 1)]
+					local p3 = points[math.min(#points, i + 2)]
+					local previous = p1
+
+					for step = 1, 20 do
+						local nextPoint = catmullRom(
+							p0, p1, p2, p3, step / 20
+						)
+
+						createSegment(previous, nextPoint)
+						previous = nextPoint
+					end
+				else
+					local previous = p1
+
+					for step = 1, 20 do
+						local t = step / 20
+
+						local nextPoint = Vector2.new(
+							p1.X + (p2.X - p1.X) * t,
+							interpolateY(p1.Y, p2.Y, t)
+						)
+
+						createSegment(previous, nextPoint)
+						previous = nextPoint
+					end
+				end
+			end
+		end
+
+		local function endDrag()
+			draggingPoint = nil
+
+			disconnectConnection(dragMoveConn)
+			disconnectConnection(dragEndConn)
+
+			dragMoveConn = nil
+			dragEndConn = nil
+
+			table.sort(graphsets, function(a, b)
+				return a.X < b.X
+			end)
+
+			if opened then
+				renderGraph()
+				notifyChanged()
+			end
+		end
+
+		local function startDrag(point)
+			disconnectConnection(dragMoveConn)
+			disconnectConnection(dragEndConn)
+
+			draggingPoint = point
+
+			dragMoveConn = UIS.InputChanged:Connect(function(input)
+				if not draggingPoint or not opened or destroyed then
+					return
+				end
+
+				if input.UserInputType ~= Enum.UserInputType.MouseMovement
+					and input.UserInputType ~= Enum.UserInputType.Touch then
+					return
+				end
+
+				local position = input.Position
+				local origin = GraphHolder.AbsolutePosition
+				local size = GraphHolder.AbsoluteSize
+
+				if size.X <= 0 or size.Y <= 0 then
+					return
+				end
+
+				draggingPoint.X = math.clamp(
+					(position.X - origin.X) / size.X, 0, 1
+				)
+
+				draggingPoint.Y = math.clamp(
+					1 - (position.Y - origin.Y) / size.Y, 0, 1
+				)
+
+				renderGraph()
+				notifyChanged()
+			end)
+
+			dragEndConn = UIS.InputEnded:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch then
+					endDrag()
+				end
+			end)
+
+			if trackConnection then
+				trackConnection(dragMoveConn)
+				trackConnection(dragEndConn)
+			end
+		end
+
+		renderGraph = function()
+			clearPointConnections()
+			clearList(pointFrames)
+
+			for _, point in ipairs(graphsets) do
+				local pixel = toPixels(point)
+
+				local dot = library:Create("TextButton", {
+					Name = "CurveDot";
+					AnchorPoint = Vector2.new(0.5, 0.5);
+					Position = UDim2.fromOffset(pixel.X, pixel.Y);
+					Size = UDim2.fromOffset(10, 10);
+					BackgroundColor3 = library.AccentColor;
+					BorderSizePixel = 0;
+					Text = "";
+					AutoButtonColor = false;
+					Active = true;
+					ZIndex = 5;
+					Parent = pointLayer;
+				}, {
+					instancep = "BackgroundColor3";
+					tinstance = library.AccentColor;
+				})
+
+				library:Create("UICorner", {
+					CornerRadius = UDim.new(1, 0);
+					Parent = dot;
+				})
+
+				library:Create("TextLabel", {
+					Name = "PointValue";
+					AnchorPoint = Vector2.new(0.5, 1);
+					Position = UDim2.new(0.5, 0, 0, -3);
+					Size = UDim2.fromOffset(90, 14);
+					BackgroundTransparency = 1;
+					Text = string.format("%.2f, %.2f", point.X, point.Y);
+					TextColor3 = library.FontColor;
+					Font = library.Font;
+					TextSize = 10;
+					ZIndex = 6;
+					Parent = dot;
+				}, {
+					instancep = "TextColor3";
+					tinstance = library.FontColor;
+				}, {
+					instancep = "Font";
+					tinstance = library.Font;
+				})
+
+				table.insert(pointFrames, dot)
+
+				local connection = dot.InputBegan:Connect(function(input)
+					if not opened or destroyed then
+						return
+					end
+
+					if input.UserInputType == Enum.UserInputType.MouseButton1
+						or input.UserInputType == Enum.UserInputType.Touch then
+						startDrag(point)
+					end
+				end)
+
+				table.insert(pointConnections, connection)
+
+				if trackConnection then
+					trackConnection(connection)
+				end
+			end
+
+			drawCurve()
+		end
+
+		addConnection(GraphHolder.InputBegan, function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+
+			if not opened or destroyed then
+				return
+			end
+
+			local position = input.Position
+			local origin = GraphHolder.AbsolutePosition
+			local size = GraphHolder.AbsoluteSize
+
+			if size.X <= 0 or size.Y <= 0 then
+				return
+			end
+
+			-- Use the same absolute-coordinate calculation as dragging.
+			local x = math.clamp(
+				(position.X - origin.X) / size.X, 0, 1
+			)
+
+			local y = math.clamp(
+				1 - (position.Y - origin.Y) / size.Y, 0, 1
+			)
+
+			table.insert(graphsets, {
+				X = x;
+				Y = y;
+			})
+
+			table.sort(graphsets, function(a, b)
+				return a.X < b.X
+			end)
+
+			renderGraph()
+			notifyChanged()
+		end)
+
+		if opts.Presets == true then
+			local presetButton = library:Create("TextButton", {
+				Name = "PresetButton";
+				Position = UDim2.fromOffset(6, 197);
+				Size = UDim2.new(1, -12, 0, 20);
+				BackgroundColor3 = library.MainColor;
+				Text = "Curve: " .. selectedPreset .. "  v";
+				TextColor3 = library.FontColor;
+				Font = library.Font;
+				TextSize = 12;
+				BorderSizePixel = 0;
+				ZIndex = 10;
+				Parent = framewindow;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.MainColor;
+			}, {
+				instancep = "TextColor3";
+				tinstance = library.FontColor;
+			}, {
+				instancep = "Font";
+				tinstance = library.Font;
+			})
+
+			local menu = library:Create("Frame", {
+				Name = "PresetMenu";
+				Position = UDim2.new(0, 6, 1, -48 - (#presets * 20));
+				Size = UDim2.new(1, -12, 0, #presets * 20);
+				BackgroundColor3 = library.MainColor;
+				BorderSizePixel = 0;
+				Visible = false;
+				ZIndex = 20;
+				Parent = framewindow;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.MainColor;
+			})
+
+			library:Create("UIListLayout", {
+				SortOrder = Enum.SortOrder.LayoutOrder;
+				Parent = menu;
+			})
+
+			for i, preset in ipairs(presets) do
+				local option = library:Create("TextButton", {
+					Name = preset;
+					Size = UDim2.new(1, 0, 0, 20);
+					BackgroundColor3 = library.MainColor;
+					BorderSizePixel = 0;
+					Text = preset;
+					TextColor3 = library.FontColor;
+					Font = library.Font;
+					TextSize = 12;
+					LayoutOrder = i;
+					ZIndex = 21;
+					Parent = menu;
+				}, {
+					instancep = "BackgroundColor3";
+					tinstance = library.MainColor;
+				}, {
+					instancep = "TextColor3";
+					tinstance = library.FontColor;
+				}, {
+					instancep = "Font";
+					tinstance = library.Font;
+				})
+
+				addConnection(option.Activated, function()
+					selectedPreset = preset
+					presetButton.Text = "Curve: " .. preset .. "  v"
+					menu.Visible = false
+
+					renderGraph()
+					notifyChanged()
+				end)
+			end
+
+			addConnection(presetButton.Activated, function()
+				menu.Visible = not menu.Visible
+			end)
+		end
+
+		local resetButton = library:Create("TextButton", {
+			Name = "ResetGraph";
+			Position = UDim2.new(0, 6, 1, -25);
+			Size = UDim2.new(1, -12, 0, 20);
+			BackgroundColor3 = library.MainColor;
+			Text = "Reset Graph";
+			TextColor3 = library.FontColor;
+			Font = library.Font;
+			TextSize = 12;
+			BorderSizePixel = 0;
+			ZIndex = 10;
+			Parent = framewindow;
+		}, {
+			instancep = "BackgroundColor3";
+			tinstance = library.MainColor;
+		}, {
+			instancep = "TextColor3";
+			tinstance = library.FontColor;
+		}, {
+			instancep = "Font";
+			tinstance = library.Font;
+		})
+
+		addConnection(resetButton.Activated, function()
+			table.clear(graphsets)
+			renderGraph()
+			notifyChanged()
+		end)
+
+		addConnection(
+			GraphHolder:GetPropertyChangedSignal("AbsoluteSize"),
+			function()
+				if opened then
+					renderGraph()
+				end
+			end
+		)
+
+		-- Close when clicking outside the actual popup window.
+		outsideConn = addConnection(UIS.InputBegan, function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+
+			if not instance or not instance.Parent or not opened then
+				return
+			end
+
+			local position = input.Position
+			local topLeft = framewindow.AbsolutePosition
+			local bottomRight = topLeft + framewindow.AbsoluteSize
+
+			local inWindow =
+				position.X >= topLeft.X
+				and position.X <= bottomRight.X
+				and position.Y >= topLeft.Y
+				and position.Y <= bottomRight.Y
+
+			local buttonPos = buttonopen.AbsolutePosition
+			local buttonSize = buttonopen.AbsoluteSize
+
+			local inButton =
+				position.X >= buttonPos.X
+				and position.X <= buttonPos.X + buttonSize.X
+				and position.Y >= buttonPos.Y
+				and position.Y <= buttonPos.Y + buttonSize.Y
+
+			if not inWindow and not inButton then
+				closeGraph()
+			end
+		end)
+
+		task.defer(function()
+			if opened and GraphHolder.Parent then
+				renderGraph()
+			end
+		end)
+	end
+
+	closeGraph = function()
+		if not opened then
+			return
+		end
+
+		opened = false
+		clearOpenConnections()
+
+		if instance then
+			instance:Destroy()
+			instance = nil
+		end
+	end
+
+	addConnection(buttonopen.Activated, function()
+		if destroyed then
+			return
+		end
+
+		if opened then
+			closeGraph()
+		else
+			openGraph()
+		end
+	end)
+
+	function linegraph:Get()
+		return getData()
+	end
+
+	function linegraph:Set(values)
+		if destroyed then
+			return
+		end
+
+		graphsets = copyPoints(values)
+		curvePoints = #graphsets
+
+		if opened then
+			closeGraph()
+			openGraph()
+		end
+
+		notifyChanged()
+	end
+
+	function linegraph:Reset()
+		if destroyed then
+			return
+		end
+
+		graphsets = {}
+		curvePoints = 0
+
+		if opened then
+			closeGraph()
+			openGraph()
+		end
+
+		notifyChanged()
+	end
+
+	function linegraph:SetPreset(preset)
+		if destroyed then
+			return false
+		end
+
+		for _, name in ipairs(presets) do
+			if name == preset then
+				selectedPreset = name
+
+				if opened then
+					closeGraph()
+					openGraph()
+				end
+
+				notifyChanged()
+				return true
+			end
+		end
+
+		return false
+	end
+
+	function linegraph:Destroy()
+		if destroyed then
+			return
+		end
+
+		destroyed = true
+		closeGraph()
+		clearOpenConnections()
+		clearPointConnections()
+
+		if holder then
+			holder:Destroy()
+		end
+	end
+
+	return linegraph
+end
 
 				return groupbox
 			end
@@ -20100,770 +20681,963 @@ function library:NewWindow(configuration)
 				end	
 
 				function groupbox:AddLineGraph(text, opts)
-					opts = opts or {}
-
-					local Players = game:GetService("Players")
-					local UserInputService = game:GetService("UserInputService")
-					local GuiService = game:GetService("GuiService")
-
-					local LocalPlayer = Players.LocalPlayer
-					local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
-					local graphAPI = {}
-					local connections = {}
-					local destroyed = false
-					local draggingPoint = nil
-					local dragInput = nil
-					local redrawPending = false
-
-					local graphTitle = tostring(text or "Line Graph")
-					local graphColor = opts.Color or Color3.fromRGB(120, 170, 255)
-					local backgroundColor = opts.BackgroundColor or Color3.fromRGB(20, 20, 24)
-					local panelColor = opts.PanelColor or Color3.fromRGB(29, 29, 35)
-					local textColor = opts.TextColor or Color3.fromRGB(240, 240, 245)
-
-					local function connect(signal, callback)
-						local connection = signal:Connect(callback)
-						table.insert(connections, connection)
-						return connection
-					end
-
-					local function create(className, properties, parent)
-						local object = Instance.new(className)
-
-						for property, value in pairs(properties or {}) do
-							object[property] = value
-						end
-
-						object.Parent = parent
-						return object
-					end
-
-					local function round(object, radius)
-						create("UICorner", {
-							CornerRadius = UDim.new(0, radius or 6)
-						}, object)
-					end
-
-					local function stroke(object, color, thickness, transparency)
-						create("UIStroke", {
-							Color = color or Color3.fromRGB(55, 55, 65),
-							Thickness = thickness or 1,
-							Transparency = transparency or 0
-						}, object)
-					end
-
-					local function makeButton(parent, label, size, position)
-						local button = create("TextButton", {
-							Name = "Button",
-							Size = size,
-							Position = position or UDim2.new(),
-							BackgroundColor3 = panelColor,
-							BorderSizePixel = 0,
-							Text = label,
-							TextColor3 = textColor,
-							TextSize = 13,
-							Font = Enum.Font.Gotham,
-							AutoButtonColor = true,
-							Active = true,
-							ZIndex = 20
-						}, parent)
-
-						round(button, 5)
-						return button
-					end
-
-					-- Data is normalized to X/Y values between 0 and 1.
-					-- Y=0 is the bottom; Y=1 is the top.
-					local function cleanPoints(source)
-						local result = {}
-
-						if type(source) ~= "table" then
-							return result
-						end
-
-						for _, point in ipairs(source) do
-							if type(point) == "table" then
-								local x = tonumber(point.X or point.x or point[1])
-								local y = tonumber(point.Y or point.y or point[2])
-
-								if x and y then
-									table.insert(result, {
-										X = math.clamp(x, 0, 1),
-										Y = math.clamp(y, 0, 1)
-									})
-								end
-							end
-						end
-
-						table.sort(result, function(a, b)
-							return a.X < b.X
-						end)
-
-						return result
-					end
-
-					local defaultPoints =
-						opts.DefaultPoints
-						or opts.default
-						or {
-							{ X = 0, Y = 0 },
-							{ X = 1, Y = 1 }
-						}
-
-					local points = cleanPoints(defaultPoints)
-
-					if #points == 0 then
-						points = {
-							{ X = 0, Y = 0 },
-							{ X = 1, Y = 1 }
-						}
-					elseif #points == 1 then
-						points = {
-							{ X = 0, Y = points[1].Y },
-							{ X = 1, Y = points[1].Y }
-						}
-					end
-
-					local curveMode = "Linear"
-					local pointObjects = {}
-					local drawObjects = {}
-					local dragChanged = false
-
-					--==========================================================
-					-- LIBRARY ROW / OPEN BUTTON
-					--==========================================================
-
-					local row = create("Frame", {
-						Name = "LineGraphRow",
-						Size = UDim2.new(0.95, 0, 0, 32),
-						BackgroundTransparency = 1,
-						BorderSizePixel = 0,
-						LayoutOrder = #elementsholder:GetChildren() + 1
-					}, elementsholder)
-
-					local openButton = makeButton(
-						row,
-						graphTitle .. "  [Open Graph]",
-						UDim2.new(1, 0, 1, 0),
-						UDim2.new()
-					)
-
-					--==========================================================
-					-- GRAPH WINDOW
-					--==========================================================
-
-					local screenGui = create("ScreenGui", {
-						Name = "LineGraph_" .. graphTitle:gsub("%W", ""),
-						ResetOnSpawn = false,
-						IgnoreGuiInset = true,
-						DisplayOrder = 10000,
-						ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-					}, PlayerGui)
-
-					local window = create("Frame", {
-						Name = "Window",
-						AnchorPoint = Vector2.new(0.5, 0.5),
-						Position = UDim2.fromScale(0.5, 0.5),
-						Size = UDim2.new(0, 430, 0, opts.Height or 350),
-						BackgroundColor3 = backgroundColor,
-						BorderSizePixel = 0,
-						Visible = false,
-						Active = true,
-						ZIndex = 10
-					}, screenGui)
-
-					round(window, 8)
-					stroke(window, Color3.fromRGB(60, 60, 72), 1)
-
-					local header = create("Frame", {
-						Name = "Header",
-						Size = UDim2.new(1, 0, 0, 38),
-						BackgroundColor3 = panelColor,
-						BorderSizePixel = 0,
-						ZIndex = 11
-					}, window)
-
-					round(header, 8)
-
-					local titleLabel = create("TextLabel", {
-						Name = "Title",
-						Position = UDim2.new(0, 12, 0, 0),
-						Size = UDim2.new(1, -65, 1, 0),
-						BackgroundTransparency = 1,
-						Text = graphTitle,
-						TextColor3 = textColor,
-						TextSize = 14,
-						Font = Enum.Font.GothamSemibold,
-						TextXAlignment = Enum.TextXAlignment.Left,
-						ZIndex = 12
-					}, header)
-
-					local closeButton = makeButton(
-						header,
-						"X",
-						UDim2.new(0, 28, 0, 26),
-						UDim2.new(1, -33, 0, 6)
-					)
-					closeButton.ZIndex = 13
-
-					local instructions = create("TextLabel", {
-						Name = "Instructions",
-						Position = UDim2.new(0, 10, 0, 42),
-						Size = UDim2.new(1, -20, 0, 20),
-						BackgroundTransparency = 1,
-						Text = "Click the graph to add a point  |  Drag a dot to move it",
-						TextColor3 = Color3.fromRGB(165, 165, 180),
-						TextSize = 11,
-						Font = Enum.Font.Gotham,
-						TextXAlignment = Enum.TextXAlignment.Left,
-						ZIndex = 12
-					}, window)
-
-					local plot = create("Frame", {
-						Name = "Plot",
-						Position = UDim2.new(0, 18, 0, 70),
-						Size = UDim2.new(1, -36, 1, -125),
-						BackgroundColor3 = Color3.fromRGB(15, 15, 19),
-						BorderSizePixel = 0,
-						ClipsDescendants = false,
-						Active = true,
-						ZIndex = 11
-					}, window)
-
-					stroke(plot, Color3.fromRGB(48, 48, 58), 1)
-
-					--==========================================================
-					-- GRID
-					--==========================================================
-
-					for i = 1, 3 do
-						local fraction = i / 4
-
-						create("Frame", {
-							Name = "GridVertical",
-							Position = UDim2.new(fraction, 0, 0, 0),
-							Size = UDim2.new(0, 1, 1, 0),
-							BackgroundColor3 = Color3.fromRGB(43, 43, 52),
-							BorderSizePixel = 0,
-							ZIndex = 11
-						}, plot)
-
-						create("Frame", {
-							Name = "GridHorizontal",
-							Position = UDim2.new(0, 0, fraction, 0),
-							Size = UDim2.new(1, 0, 0, 1),
-							BackgroundColor3 = Color3.fromRGB(43, 43, 52),
-							BorderSizePixel = 0,
-							ZIndex = 11
-						}, plot)
-					end
-
-					local footer = create("Frame", {
-						Name = "Footer",
-						Position = UDim2.new(0, 10, 1, -43),
-						Size = UDim2.new(1, -20, 0, 32),
-						BackgroundTransparency = 1,
-						ZIndex = 12
-					}, window)
-
-					local resetButton = makeButton(
-						footer,
-						"Reset",
-						UDim2.new(0, 74, 1, 0),
-						UDim2.new(0, 0, 0, 0)
-					)
-
-					local linearButton = makeButton(
-						footer,
-						"Linear",
-						UDim2.new(0, 74, 1, 0),
-						UDim2.new(0, 82, 0, 0)
-					)
-
-					local presets = {}
-
-					if opts.Presets == true then
-						local presetButton = makeButton(
-							footer,
-							"Ease In",
-							UDim2.new(0, 74, 1, 0),
-							UDim2.new(0, 164, 0, 0)
-						)
-
-						local presetButton2 = makeButton(
-							footer,
-							"Ease Out",
-							UDim2.new(0, 74, 1, 0),
-							UDim2.new(0, 246, 0, 0)
-						)
-
-						local presetButton3 = makeButton(
-							footer,
-							"S Curve",
-							UDim2.new(0, 74, 1, 0),
-							UDim2.new(0, 328, 0, 0)
-						)
-
-						presets = { presetButton, presetButton2, presetButton3 }
-					end
-
-					--==========================================================
-					-- GRAPH DRAWING
-					--==========================================================
-
-					local function clearDrawObjects()
-						for _, object in ipairs(drawObjects) do
-							if object and object.Parent then
-								object:Destroy()
-							end
-						end
-
-						table.clear(drawObjects)
-						table.clear(pointObjects)
-					end
-
-					local function addDrawObject(object)
-						table.insert(drawObjects, object)
-						return object
-					end
-
-					local function plotPosition(point)
-						local size = plot.AbsoluteSize
-						return Vector2.new(
-							point.X * size.X,
-							(1 - point.Y) * size.Y
-						)
-					end
-
-					local function addSegment(a, b)
-						local delta = b - a
-						local length = delta.Magnitude
-
-						if length < 0.5 then
-							return
-						end
-
-						local segment = addDrawObject(create("Frame", {
-							Name = "CurveSegment",
-							AnchorPoint = Vector2.new(0, 0.5),
-							Position = UDim2.fromOffset(a.X, a.Y),
-							Size = UDim2.new(0, length, 0, 2),
-							Rotation = math.deg(math.atan2(delta.Y, delta.X)),
-							BackgroundColor3 = graphColor,
-							BorderSizePixel = 0,
-							ZIndex = 13
-						}, plot))
-
-						segment.Active = false
-					end
-
-					local function getRenderedPoints()
-						local sorted = cleanPoints(points)
-
-						if curveMode == "Linear" or #sorted < 3 then
-							return sorted
-						end
-
-						local rendered = {}
-
-						for i = 1, #sorted - 1 do
-							local p1 = sorted[i]
-							local p2 = sorted[i + 1]
-
-							for step = 0, 12 do
-								local t = step / 12
-								local x = p1.X + (p2.X - p1.X) * t
-								local y
-
-								if curveMode == "Ease In" then
-									y = p1.Y + (p2.Y - p1.Y) * (t * t)
-								elseif curveMode == "Ease Out" then
-									y = p1.Y + (p2.Y - p1.Y) * (1 - (1 - t) * (1 - t))
-								elseif curveMode == "S Curve" then
-									local smoothT = t * t * (3 - 2 * t)
-									y = p1.Y + (p2.Y - p1.Y) * smoothT
-								else
-									y = p1.Y + (p2.Y - p1.Y) * t
-								end
-
-								table.insert(rendered, { X = x, Y = y })
-							end
-						end
-
-						if #sorted == 1 then
-							table.insert(rendered, sorted[1])
-						end
-
-						return rendered
-					end
-
-					local renderGraph
-
-					local function fireCallback()
-						if type(opts.Callback) == "function" then
-							local output = {}
-
-							for i, point in ipairs(points) do
-								output[i] = {
-									X = point.X,
-									Y = point.Y
-								}
-							end
-
-							task.spawn(function()
-								local ok, err = pcall(opts.Callback, output)
-								if not ok then
-									warn("[LineGraph] Callback error:", err)
-								end
-							end)
-						end
-					end
-
-					local function updatePointPosition(index, screenPosition)
-						if destroyed or not plot.Parent then
-							return
-						end
-
-						local plotPositionAbs = plot.AbsolutePosition
-						local plotSize = plot.AbsoluteSize
-
-						if plotSize.X <= 0 or plotSize.Y <= 0 then
-							return
-						end
-
-						-- IgnoreGuiInset=true means these screen coordinates line up
-						-- with AbsolutePosition; no extra mouse inset subtraction.
-						local localX = screenPosition.X - plotPositionAbs.X
-						local localY = screenPosition.Y - plotPositionAbs.Y
-
-						local x = math.clamp(localX / plotSize.X, 0, 1)
-						local y = math.clamp(1 - localY / plotSize.Y, 0, 1)
-
-						points[index].X = x
-						points[index].Y = y
-
-						table.sort(points, function(a, b)
-							return a.X < b.X
-						end)
-
-						dragChanged = true
-						renderGraph(false)
-					end
-
-					renderGraph = function(notify)
-						if destroyed or not plot.Parent then
-							return
-						end
-
-						clearDrawObjects()
-
-						local sortedPoints = cleanPoints(points)
-						points = sortedPoints
-
-						-- Draw curve behind the dots.
-						local renderedPoints = getRenderedPoints()
-
-						for i = 1, #renderedPoints - 1 do
-							addSegment(
-								plotPosition(renderedPoints[i]),
-								plotPosition(renderedPoints[i + 1])
-							)
-						end
-
-						-- Create dot buttons once per render. Their handlers are
-						-- connected once and removed when their instance is destroyed.
-						for index, point in ipairs(points) do
-							local pos = plotPosition(point)
-
-							local dot = create("TextButton", {
-								Name = "Point_" .. index,
-								AnchorPoint = Vector2.new(0.5, 0.5),
-								Position = UDim2.fromOffset(pos.X, pos.Y),
-								Size = UDim2.fromOffset(12, 12),
-								BackgroundColor3 = graphColor,
-								BorderSizePixel = 0,
-								Text = "",
-								AutoButtonColor = false,
-								Active = true,
-								ZIndex = 16
-							}, plot)
-
-							round(dot, 100)
-							stroke(dot, Color3.fromRGB(255, 255, 255), 1)
-
-							local pointLabel = create("TextLabel", {
-								Name = "Coordinates",
-								AnchorPoint = Vector2.new(0.5, 1),
-								Position = UDim2.new(0.5, 0, 0, -5),
-								Size = UDim2.fromOffset(70, 15),
-								BackgroundTransparency = 1,
-								Text = string.format("%.2f, %.2f", point.X, point.Y),
-								TextColor3 = textColor,
-								TextSize = 10,
-								Font = Enum.Font.Gotham,
-								ZIndex = 17
-							}, dot)
-
-							pointObjects[index] = dot
-
-							local thisIndex = index
-
-							connect(dot.InputBegan, function(input)
-								if destroyed then
-									return
-								end
-
-								if input.UserInputType == Enum.UserInputType.MouseButton1
-									or input.UserInputType == Enum.UserInputType.Touch then
-									draggingPoint = thisIndex
-									dragInput = input
-									dragChanged = false
-								end
-							end)
-						end
-
-						if notify then
-							fireCallback()
-						end
-					end
-
-					--==========================================================
-					-- ADD POINTS / DRAG HANDLING
-					--==========================================================
-
-					connect(plot.InputBegan, function(input)
-						if destroyed or draggingPoint then
-							return
-						end
-
-						if input.UserInputType ~= Enum.UserInputType.MouseButton1
-							and input.UserInputType ~= Enum.UserInputType.Touch then
-							return
-						end
-
-						local mousePosition
-
-						if input.UserInputType == Enum.UserInputType.Touch then
-							mousePosition = Vector2.new(input.Position.X, input.Position.Y)
-						else
-							mousePosition = UserInputService:GetMouseLocation()
-						end
-
-						local plotPositionAbs = plot.AbsolutePosition
-						local plotSize = plot.AbsoluteSize
-
-						if plotSize.X <= 0 or plotSize.Y <= 0 then
-							return
-						end
-
-						local localX = mousePosition.X - plotPositionAbs.X
-						local localY = mousePosition.Y - plotPositionAbs.Y
-
-						if localX < 0 or localY < 0
-							or localX > plotSize.X or localY > plotSize.Y then
-							return
-						end
-
-						table.insert(points, {
-							X = math.clamp(localX / plotSize.X, 0, 1),
-							Y = math.clamp(1 - localY / plotSize.Y, 0, 1)
-						})
-
-						table.sort(points, function(a, b)
-							return a.X < b.X
-						end)
-
-						renderGraph(true)
-					end)
-
-					connect(UserInputService.InputChanged, function(input)
-						if destroyed or not draggingPoint then
-							return
-						end
-
-						if input.UserInputType == Enum.UserInputType.MouseMovement then
-							local mousePosition = UserInputService:GetMouseLocation()
-							updatePointPosition(draggingPoint, mousePosition)
-						elseif input.UserInputType == Enum.UserInputType.Touch
-							and input == dragInput then
-							updatePointPosition(
-								draggingPoint,
-								Vector2.new(input.Position.X, input.Position.Y)
-							)
-						end
-					end)
-
-					connect(UserInputService.InputEnded, function(input)
-						if not draggingPoint then
-							return
-						end
-
-						if input.UserInputType == Enum.UserInputType.MouseButton1
-							or input.UserInputType == Enum.UserInputType.Touch then
-							draggingPoint = nil
-							dragInput = nil
-
-							if dragChanged then
-								dragChanged = false
-								fireCallback()
-							end
-						end
-					end)
-
-					--==========================================================
-					-- WINDOW CONTROLS
-					--==========================================================
-
-					connect(openButton.Activated, function()
-						if not destroyed then
-							window.Visible = true
-							renderGraph(false)
-						end
-					end)
-
-					connect(closeButton.Activated, function()
-						-- Hide only. Do not destroy the window or opener.
-						window.Visible = false
-						draggingPoint = nil
-						dragInput = nil
-					end)
-
-					connect(resetButton.Activated, function()
-						if destroyed then
-							return
-						end
-
-						points = cleanPoints(defaultPoints)
-						if #points < 2 then
-							points = {
-								{ X = 0, Y = 0 },
-								{ X = 1, Y = 1 }
-							}
-						end
-
-						curveMode = "Linear"
-						renderGraph(true)
-					end)
-
-					connect(linearButton.Activated, function()
-						curveMode = "Linear"
-						renderGraph(true)
-					end)
-
-					if opts.Presets == true then
-						connect(presets[1].Activated, function()
-							curveMode = "Ease In"
-							renderGraph(true)
-						end)
-
-						connect(presets[2].Activated, function()
-							curveMode = "Ease Out"
-							renderGraph(true)
-						end)
-
-						connect(presets[3].Activated, function()
-							curveMode = "S Curve"
-							renderGraph(true)
-						end)
-					end
-
-					--==========================================================
-					-- PUBLIC API
-					--==========================================================
-
-					function graphAPI:Open()
-						if destroyed then return end
-						window.Visible = true
-						renderGraph(false)
-					end
-
-					function graphAPI:Close()
-						if destroyed then return end
-						window.Visible = false
-						draggingPoint = nil
-						dragInput = nil
-					end
-
-					function graphAPI:Toggle()
-						if destroyed then return end
-						window.Visible = not window.Visible
-
-						if window.Visible then
-							renderGraph(false)
-						end
-					end
-
-					function graphAPI:GetPoints()
-						local result = {}
-
-						for i, point in ipairs(points) do
-							result[i] = {
-								X = point.X,
-								Y = point.Y
-							}
-						end
-
-						return result
-					end
-
-					function graphAPI:SetPoints(newPoints)
-						if destroyed then return end
-
-						local cleaned = cleanPoints(newPoints)
-						if #cleaned < 2 then
-							warn("[LineGraph] SetPoints requires at least two valid points.")
-							return
-						end
-
-						points = cleaned
-						renderGraph(true)
-					end
-
-					function graphAPI:Reset()
-						if destroyed then return end
-
-						points = cleanPoints(defaultPoints)
-						if #points < 2 then
-							points = {
-								{ X = 0, Y = 0 },
-								{ X = 1, Y = 1 }
-							}
-						end
-
-						curveMode = "Linear"
-						renderGraph(true)
-					end
-
-					function graphAPI:Destroy()
-						if destroyed then return end
-						destroyed = true
-
-						for _, connection in ipairs(connections) do
-							pcall(function()
-								connection:Disconnect()
-							end)
-						end
-
-						table.clear(connections)
-
-						if screenGui then
-							screenGui:Destroy()
-						end
-
-						if row then
-							row:Destroy()
-						end
-					end
-
-					-- Compatibility alias for cleanup code.
-					graphAPI.Unload = graphAPI.Destroy
-
-					-- Initial draw: linear by default.
-					renderGraph(false)
-
-					return graphAPI
+	opts = opts or {}
+
+	local linegraph = {}
+	local graphsets = {}
+	local curvePoints = 0
+	local opened = false
+	local destroyed = false
+
+	local instance
+	local followConn
+	local outsideConn
+	local openConnections = {}
+	local pointFrames = {}
+	local pointConnections = {}
+	local curveFrames = {}
+
+	local UIS = game:GetService("UserInputService")
+
+	-- Linear is the default. Presets are optional.
+	local selectedPreset = opts.Preset or "Linear"
+	local draggingPoint
+	local dragMoveConn
+	local dragEndConn
+
+	local presets = {
+		"Linear",
+		"Smooth",
+		"Exponential",
+		"Ease In",
+		"Ease Out",
+		"Ease In Out"
+	}
+
+	local function addConnection(signal, callback)
+		local connection = signal:Connect(callback)
+
+		if trackConnection then
+			trackConnection(connection)
+		end
+
+		table.insert(openConnections, connection)
+		return connection
+	end
+
+	local function disconnectConnection(connection)
+		if connection then
+			connection:Disconnect()
+		end
+	end
+
+	local function clearPointConnections()
+		for _, connection in ipairs(pointConnections) do
+			if connection and connection.Connected then
+				connection:Disconnect()
+			end
+		end
+
+		table.clear(pointConnections)
+	end
+
+	local function clearOpenConnections()
+		for _, connection in ipairs(openConnections) do
+			if connection and connection.Connected then
+				connection:Disconnect()
+			end
+		end
+
+		table.clear(openConnections)
+		clearPointConnections()
+
+		disconnectConnection(followConn)
+		disconnectConnection(outsideConn)
+		disconnectConnection(dragMoveConn)
+		disconnectConnection(dragEndConn)
+
+		followConn = nil
+		outsideConn = nil
+		dragMoveConn = nil
+		dragEndConn = nil
+		draggingPoint = nil
+	end
+
+	local function clearList(list)
+		for _, object in ipairs(list) do
+			if object and object.Parent then
+				object:Destroy()
+			end
+		end
+
+		table.clear(list)
+	end
+
+	local function copyPoints(values)
+		local result = {}
+
+		for _, point in ipairs(values or {}) do
+			local x = tonumber(point.X or point.x or point[1]) or 0
+			local y = tonumber(point.Y or point.y or point[2]) or 0
+
+			table.insert(result, {
+				X = math.clamp(x, 0, 1),
+				Y = math.clamp(y, 0, 1)
+			})
+		end
+
+		table.sort(result, function(a, b)
+			return a.X < b.X
+		end)
+
+		return result
+	end
+
+	graphsets = copyPoints(opts.default or opts.Default or {})
+	curvePoints = #graphsets
+
+	local function getData()
+		local result = {}
+
+		for i, point in ipairs(graphsets) do
+			result[i] = {
+				X = point.X,
+				Y = point.Y
+			}
+		end
+
+		return result
+	end
+
+	local function notifyChanged()
+		curvePoints = #graphsets
+
+		if type(opts.Callback) == "function" then
+			opts.Callback(getData())
+		end
+	end
+
+	local holder = library:Create("Frame", {
+		Name = "Holder";
+		Size = UDim2.new(0.95, 0, 0, 20);
+		BackgroundTransparency = 1;
+		LayoutOrder = #elementsholder:GetChildren();
+		Parent = elementsholder;
+	})
+
+	local uitext = library:Create("TextLabel", {
+		Name = "TextLabel";
+		Size = UDim2.new(0.937, 0, 1, 0);
+		BackgroundTransparency = 1;
+		Text = text;
+		TextSize = 13;
+		TextColor3 = library.FontColor;
+		Font = library.Font;
+		LayoutOrder = 1;
+		TextXAlignment = Enum.TextXAlignment.Left;
+		TextYAlignment = Enum.TextYAlignment.Center;
+		Parent = holder;
+	}, {
+		instancep = "TextColor3";
+		tinstance = library.FontColor;
+	}, {
+		instancep = "Font";
+		tinstance = library.Font;
+	})
+
+	library:Create("UITextSizeConstraint", {
+		Name = "UITextSizeConstraint";
+		MaxTextSize = 13;
+		Parent = uitext;
+	})
+
+	library:Create("UIStroke", {
+		Name = "UIStroke";
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+		Color = Color3.fromRGB(0, 0, 0);
+		Thickness = 1;
+		Parent = uitext;
+	}, {
+		instancep = "Color";
+		tinstance = library.UIstroke;
+	})
+
+	library:Create("UIListLayout", {
+		Name = "UIListLayout";
+		FillDirection = Enum.FillDirection.Horizontal;
+		HorizontalAlignment = Enum.HorizontalAlignment.Left;
+		SortOrder = Enum.SortOrder.LayoutOrder;
+		Parent = holder;
+	})
+
+	local buttonopen = library:Create("ImageButton", {
+		Name = "ButtonOpen";
+		Size = UDim2.new(0, 19, 0, 19);
+		LayoutOrder = 2;
+		BackgroundTransparency = 1;
+		Image = "rbxassetid://10734950309";
+		ImageColor3 = library.AccentColor;
+		Parent = holder;
+	}, {
+		instancep = "ImageColor3";
+		tinstance = library.AccentColor;
+	})
+
+	local function getPopupPosition()
+		local absolute = buttonopen.AbsolutePosition
+		local base = screengui.AbsolutePosition
+
+		return UDim2.fromOffset(
+			absolute.X - base.X,
+			absolute.Y - base.Y
+		)
+	end
+
+	local closeGraph
+
+	local function openGraph()
+		if opened or destroyed then
+			return
+		end
+
+		opened = true
+
+		-- Keep the popup inside the library's existing ScreenGui.
+		local lineG = library:Create("Frame", {
+			Name = "CursorBox";
+			Size = UDim2.fromOffset(15, 15);
+			Position = getPopupPosition();
+			BackgroundColor3 = Color3.new(1, 1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 2;
+			Parent = screengui;
+		})
+
+		instance = lineG
+
+		followConn = addConnection(
+			buttonopen:GetPropertyChangedSignal("AbsolutePosition"),
+			function()
+				if instance and instance.Parent then
+					instance.Position = getPopupPosition()
 				end
+			end
+		)
+
+		local framewindow = library:Create("Frame", {
+			Name = "Frame";
+			Size = UDim2.fromOffset(323, 246);
+			Position = UDim2.new(1, 0, 1.4, 0);
+			BackgroundColor3 = library.MainColor;
+			BorderSizePixel = 0;
+			ZIndex = 2;
+			Parent = lineG;
+		}, {
+			instancep = "BackgroundColor3";
+			tinstance = library.MainColor;
+		})
+
+		library:Create("UIStroke", {
+			Name = "UIStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			LineJoinMode = Enum.LineJoinMode.Miter;
+			Color = library.SecondaryColor;
+			Thickness = 1;
+			ZIndex = 2;
+			Parent = framewindow;
+		}, {
+			instancep = "Color";
+			tinstance = library.SecondaryColor;
+		})
+
+		library:Create("UIStroke", {
+			Name = "OuterStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			LineJoinMode = Enum.LineJoinMode.Miter;
+			Color = library.MainColor;
+			Thickness = 4;
+			ZIndex = 2;
+			Parent = framewindow;
+		}, {
+			instancep = "Color";
+			tinstance = library.MainColor;
+		})
+
+		local title = library:Create("TextLabel", {
+			Name = "TextLabel";
+			Size = UDim2.new(1, 0, 0, 18);
+			Position = UDim2.fromOffset(0, 0);
+			BackgroundTransparency = 1;
+			Text = text or "Line Graph";
+			TextColor3 = library.FontColor;
+			Font = library.Font;
+			TextSize = 13;
+			TextXAlignment = Enum.TextXAlignment.Left;
+			ZIndex = 3;
+			Parent = framewindow;
+		}, {
+			instancep = "TextColor3";
+			tinstance = library.FontColor;
+		}, {
+			instancep = "Font";
+			tinstance = library.Font;
+		})
+
+		library:Create("UIPadding", {
+			PaddingLeft = UDim.new(0, 6);
+			Parent = title;
+		})
+
+		library:Create("UIStroke", {
+			Name = "UIStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+			Color = library.UIstroke;
+			Thickness = 1;
+			Parent = title;
+		}, {
+			instancep = "Color";
+			tinstance = library.UIstroke;
+		})
+
+		local GraphHolder = library:Create("Frame", {
+			Name = "GraphHolder";
+			Position = UDim2.fromOffset(4, 24);
+			Size = UDim2.fromOffset(315, 168);
+			BackgroundTransparency = 1;
+			BorderSizePixel = 0;
+			ClipsDescendants = false;
+			Active = true;
+			ZIndex = 2;
+			Parent = framewindow;
+		})
+
+		library:Create("UIStroke", {
+			Color = library.SecondaryColor;
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			Parent = GraphHolder;
+		}, {
+			instancep = "Color";
+			tinstance = library.SecondaryColor;
+		})
+
+		local grid = library:Create("Frame", {
+			Name = "Grid";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 2;
+			Parent = GraphHolder;
+		})
+
+		local curveLayer = library:Create("Frame", {
+			Name = "CurveLines";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 3;
+			Parent = GraphHolder;
+		})
+
+		local pointLayer = library:Create("Frame", {
+			Name = "Points";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 5;
+			Parent = GraphHolder;
+		})
+
+		for i = 1, 4 do
+			library:Create("Frame", {
+				Name = "HorizontalLine";
+				Position = UDim2.fromScale(0, i / 5);
+				Size = UDim2.new(1, 0, 0, 1);
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.SecondaryColor;
+				ZIndex = 2;
+				Parent = grid;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.SecondaryColor;
+			})
+		end
+
+		for i = 1, 7 do
+			library:Create("Frame", {
+				Name = "VerticalLine";
+				Position = UDim2.fromScale(i / 8, 0);
+				Size = UDim2.new(0, 1, 1, 0);
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.SecondaryColor;
+				ZIndex = 2;
+				Parent = grid;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.SecondaryColor;
+			})
+		end
+
+		local function toPixels(point)
+			local size = GraphHolder.AbsoluteSize
+
+			return Vector2.new(
+				point.X * size.X,
+				(1 - point.Y) * size.Y
+			)
+		end
+
+		local function createSegment(a, b)
+			local delta = b - a
+			local length = delta.Magnitude
+
+			if length < 0.5 then
+				return
+			end
+
+			local segment = library:Create("Frame", {
+				Name = "CurveSegment";
+				AnchorPoint = Vector2.new(0, 0.5);
+				Position = UDim2.fromOffset(a.X, a.Y);
+				Size = UDim2.fromOffset(length, 2);
+				Rotation = math.deg(math.atan2(delta.Y, delta.X));
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.AccentColor;
+				ZIndex = 3;
+				Parent = curveLayer;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.AccentColor;
+			})
+
+			table.insert(curveFrames, segment)
+		end
+
+		local function catmullRom(p0, p1, p2, p3, t)
+			local t2 = t * t
+			local t3 = t2 * t
+
+			return Vector2.new(
+				0.5 * (
+					2 * p1.X
+					+ (-p0.X + p2.X) * t
+					+ (2 * p0.X - 5 * p1.X + 4 * p2.X - p3.X) * t2
+					+ (-p0.X + 3 * p1.X - 3 * p2.X + p3.X) * t3
+				),
+				0.5 * (
+					2 * p1.Y
+					+ (-p0.Y + p2.Y) * t
+					+ (2 * p0.Y - 5 * p1.Y + 4 * p2.Y - p3.Y) * t2
+					+ (-p0.Y + 3 * p1.Y - 3 * p2.Y + p3.Y) * t3
+				)
+			)
+		end
+
+		local function interpolateY(a, b, t)
+			if selectedPreset == "Exponential" or selectedPreset == "Ease In" then
+				t = t * t
+			elseif selectedPreset == "Ease Out" then
+				t = 1 - (1 - t) * (1 - t)
+			elseif selectedPreset == "Ease In Out" then
+				if t < 0.5 then
+					t = 2 * t * t
+				else
+					t = 1 - ((-2 * t + 2) ^ 2) / 2
+				end
+			end
+
+			return a + (b - a) * t
+		end
+
+		local renderGraph
+
+		local function drawCurve()
+			clearList(curveFrames)
+
+			if #graphsets < 2 then
+				return
+			end
+
+			local points = {}
+
+			for i, point in ipairs(graphsets) do
+				points[i] = toPixels(point)
+			end
+
+			for i = 1, #points - 1 do
+				local p1 = points[i]
+				local p2 = points[i + 1]
+
+				if selectedPreset == "Smooth" then
+					local p0 = points[math.max(1, i - 1)]
+					local p3 = points[math.min(#points, i + 2)]
+					local previous = p1
+
+					for step = 1, 20 do
+						local nextPoint = catmullRom(
+							p0, p1, p2, p3, step / 20
+						)
+
+						createSegment(previous, nextPoint)
+						previous = nextPoint
+					end
+				else
+					local previous = p1
+
+					for step = 1, 20 do
+						local t = step / 20
+
+						local nextPoint = Vector2.new(
+							p1.X + (p2.X - p1.X) * t,
+							interpolateY(p1.Y, p2.Y, t)
+						)
+
+						createSegment(previous, nextPoint)
+						previous = nextPoint
+					end
+				end
+			end
+		end
+
+		local function endDrag()
+			draggingPoint = nil
+
+			disconnectConnection(dragMoveConn)
+			disconnectConnection(dragEndConn)
+
+			dragMoveConn = nil
+			dragEndConn = nil
+
+			table.sort(graphsets, function(a, b)
+				return a.X < b.X
+			end)
+
+			if opened then
+				renderGraph()
+				notifyChanged()
+			end
+		end
+
+		local function startDrag(point)
+			disconnectConnection(dragMoveConn)
+			disconnectConnection(dragEndConn)
+
+			draggingPoint = point
+
+			dragMoveConn = UIS.InputChanged:Connect(function(input)
+				if not draggingPoint or not opened or destroyed then
+					return
+				end
+
+				if input.UserInputType ~= Enum.UserInputType.MouseMovement
+					and input.UserInputType ~= Enum.UserInputType.Touch then
+					return
+				end
+
+				local position = input.Position
+				local origin = GraphHolder.AbsolutePosition
+				local size = GraphHolder.AbsoluteSize
+
+				if size.X <= 0 or size.Y <= 0 then
+					return
+				end
+
+				draggingPoint.X = math.clamp(
+					(position.X - origin.X) / size.X, 0, 1
+				)
+
+				draggingPoint.Y = math.clamp(
+					1 - (position.Y - origin.Y) / size.Y, 0, 1
+				)
+
+				renderGraph()
+				notifyChanged()
+			end)
+
+			dragEndConn = UIS.InputEnded:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch then
+					endDrag()
+				end
+			end)
+
+			if trackConnection then
+				trackConnection(dragMoveConn)
+				trackConnection(dragEndConn)
+			end
+		end
+
+		renderGraph = function()
+			clearPointConnections()
+			clearList(pointFrames)
+
+			for _, point in ipairs(graphsets) do
+				local pixel = toPixels(point)
+
+				local dot = library:Create("TextButton", {
+					Name = "CurveDot";
+					AnchorPoint = Vector2.new(0.5, 0.5);
+					Position = UDim2.fromOffset(pixel.X, pixel.Y);
+					Size = UDim2.fromOffset(10, 10);
+					BackgroundColor3 = library.AccentColor;
+					BorderSizePixel = 0;
+					Text = "";
+					AutoButtonColor = false;
+					Active = true;
+					ZIndex = 5;
+					Parent = pointLayer;
+				}, {
+					instancep = "BackgroundColor3";
+					tinstance = library.AccentColor;
+				})
+
+				library:Create("UICorner", {
+					CornerRadius = UDim.new(1, 0);
+					Parent = dot;
+				})
+
+				library:Create("TextLabel", {
+					Name = "PointValue";
+					AnchorPoint = Vector2.new(0.5, 1);
+					Position = UDim2.new(0.5, 0, 0, -3);
+					Size = UDim2.fromOffset(90, 14);
+					BackgroundTransparency = 1;
+					Text = string.format("%.2f, %.2f", point.X, point.Y);
+					TextColor3 = library.FontColor;
+					Font = library.Font;
+					TextSize = 10;
+					ZIndex = 6;
+					Parent = dot;
+				}, {
+					instancep = "TextColor3";
+					tinstance = library.FontColor;
+				}, {
+					instancep = "Font";
+					tinstance = library.Font;
+				})
+
+				table.insert(pointFrames, dot)
+
+				local connection = dot.InputBegan:Connect(function(input)
+					if not opened or destroyed then
+						return
+					end
+
+					if input.UserInputType == Enum.UserInputType.MouseButton1
+						or input.UserInputType == Enum.UserInputType.Touch then
+						startDrag(point)
+					end
+				end)
+
+				table.insert(pointConnections, connection)
+
+				if trackConnection then
+					trackConnection(connection)
+				end
+			end
+
+			drawCurve()
+		end
+
+		addConnection(GraphHolder.InputBegan, function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+
+			if not opened or destroyed then
+				return
+			end
+
+			local position = input.Position
+			local origin = GraphHolder.AbsolutePosition
+			local size = GraphHolder.AbsoluteSize
+
+			if size.X <= 0 or size.Y <= 0 then
+				return
+			end
+
+			-- Use the same absolute-coordinate calculation as dragging.
+			local x = math.clamp(
+				(position.X - origin.X) / size.X, 0, 1
+			)
+
+			local y = math.clamp(
+				1 - (position.Y - origin.Y) / size.Y, 0, 1
+			)
+
+			table.insert(graphsets, {
+				X = x;
+				Y = y;
+			})
+
+			table.sort(graphsets, function(a, b)
+				return a.X < b.X
+			end)
+
+			renderGraph()
+			notifyChanged()
+		end)
+
+		if opts.Presets == true then
+			local presetButton = library:Create("TextButton", {
+				Name = "PresetButton";
+				Position = UDim2.fromOffset(6, 197);
+				Size = UDim2.new(1, -12, 0, 20);
+				BackgroundColor3 = library.MainColor;
+				Text = "Curve: " .. selectedPreset .. "  v";
+				TextColor3 = library.FontColor;
+				Font = library.Font;
+				TextSize = 12;
+				BorderSizePixel = 0;
+				ZIndex = 10;
+				Parent = framewindow;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.MainColor;
+			}, {
+				instancep = "TextColor3";
+				tinstance = library.FontColor;
+			}, {
+				instancep = "Font";
+				tinstance = library.Font;
+			})
+
+			local menu = library:Create("Frame", {
+				Name = "PresetMenu";
+				Position = UDim2.new(0, 6, 1, -48 - (#presets * 20));
+				Size = UDim2.new(1, -12, 0, #presets * 20);
+				BackgroundColor3 = library.MainColor;
+				BorderSizePixel = 0;
+				Visible = false;
+				ZIndex = 20;
+				Parent = framewindow;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.MainColor;
+			})
+
+			library:Create("UIListLayout", {
+				SortOrder = Enum.SortOrder.LayoutOrder;
+				Parent = menu;
+			})
+
+			for i, preset in ipairs(presets) do
+				local option = library:Create("TextButton", {
+					Name = preset;
+					Size = UDim2.new(1, 0, 0, 20);
+					BackgroundColor3 = library.MainColor;
+					BorderSizePixel = 0;
+					Text = preset;
+					TextColor3 = library.FontColor;
+					Font = library.Font;
+					TextSize = 12;
+					LayoutOrder = i;
+					ZIndex = 21;
+					Parent = menu;
+				}, {
+					instancep = "BackgroundColor3";
+					tinstance = library.MainColor;
+				}, {
+					instancep = "TextColor3";
+					tinstance = library.FontColor;
+				}, {
+					instancep = "Font";
+					tinstance = library.Font;
+				})
+
+				addConnection(option.Activated, function()
+					selectedPreset = preset
+					presetButton.Text = "Curve: " .. preset .. "  v"
+					menu.Visible = false
+
+					renderGraph()
+					notifyChanged()
+				end)
+			end
+
+			addConnection(presetButton.Activated, function()
+				menu.Visible = not menu.Visible
+			end)
+		end
+
+		local resetButton = library:Create("TextButton", {
+			Name = "ResetGraph";
+			Position = UDim2.new(0, 6, 1, -25);
+			Size = UDim2.new(1, -12, 0, 20);
+			BackgroundColor3 = library.MainColor;
+			Text = "Reset Graph";
+			TextColor3 = library.FontColor;
+			Font = library.Font;
+			TextSize = 12;
+			BorderSizePixel = 0;
+			ZIndex = 10;
+			Parent = framewindow;
+		}, {
+			instancep = "BackgroundColor3";
+			tinstance = library.MainColor;
+		}, {
+			instancep = "TextColor3";
+			tinstance = library.FontColor;
+		}, {
+			instancep = "Font";
+			tinstance = library.Font;
+		})
+
+		addConnection(resetButton.Activated, function()
+			table.clear(graphsets)
+			renderGraph()
+			notifyChanged()
+		end)
+
+		addConnection(
+			GraphHolder:GetPropertyChangedSignal("AbsoluteSize"),
+			function()
+				if opened then
+					renderGraph()
+				end
+			end
+		)
+
+		-- Close when clicking outside the actual popup window.
+		outsideConn = addConnection(UIS.InputBegan, function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+
+			if not instance or not instance.Parent or not opened then
+				return
+			end
+
+			local position = input.Position
+			local topLeft = framewindow.AbsolutePosition
+			local bottomRight = topLeft + framewindow.AbsoluteSize
+
+			local inWindow =
+				position.X >= topLeft.X
+				and position.X <= bottomRight.X
+				and position.Y >= topLeft.Y
+				and position.Y <= bottomRight.Y
+
+			local buttonPos = buttonopen.AbsolutePosition
+			local buttonSize = buttonopen.AbsoluteSize
+
+			local inButton =
+				position.X >= buttonPos.X
+				and position.X <= buttonPos.X + buttonSize.X
+				and position.Y >= buttonPos.Y
+				and position.Y <= buttonPos.Y + buttonSize.Y
+
+			if not inWindow and not inButton then
+				closeGraph()
+			end
+		end)
+
+		task.defer(function()
+			if opened and GraphHolder.Parent then
+				renderGraph()
+			end
+		end)
+	end
+
+	closeGraph = function()
+		if not opened then
+			return
+		end
+
+		opened = false
+		clearOpenConnections()
+
+		if instance then
+			instance:Destroy()
+			instance = nil
+		end
+	end
+
+	addConnection(buttonopen.Activated, function()
+		if destroyed then
+			return
+		end
+
+		if opened then
+			closeGraph()
+		else
+			openGraph()
+		end
+	end)
+
+	function linegraph:Get()
+		return getData()
+	end
+
+	function linegraph:Set(values)
+		if destroyed then
+			return
+		end
+
+		graphsets = copyPoints(values)
+		curvePoints = #graphsets
+
+		if opened then
+			closeGraph()
+			openGraph()
+		end
+
+		notifyChanged()
+	end
+
+	function linegraph:Reset()
+		if destroyed then
+			return
+		end
+
+		graphsets = {}
+		curvePoints = 0
+
+		if opened then
+			closeGraph()
+			openGraph()
+		end
+
+		notifyChanged()
+	end
+
+	function linegraph:SetPreset(preset)
+		if destroyed then
+			return false
+		end
+
+		for _, name in ipairs(presets) do
+			if name == preset then
+				selectedPreset = name
+
+				if opened then
+					closeGraph()
+					openGraph()
+				end
+
+				notifyChanged()
+				return true
+			end
+		end
+
+		return false
+	end
+
+	function linegraph:Destroy()
+		if destroyed then
+			return
+		end
+
+		destroyed = true
+		closeGraph()
+		clearOpenConnections()
+		clearPointConnections()
+
+		if holder then
+			holder:Destroy()
+		end
+	end
+
+	return linegraph
+end
 
 				return groupbox
 			end
