@@ -2494,7 +2494,6 @@ function library:NewWindow(configuration)
 								updatetexts()
 
 								waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-									if gameproccessed then return end
 									if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 									if ignoredset[input.KeyCode] then return end
 
@@ -2977,7 +2976,7 @@ function library:NewWindow(configuration)
 							end)
 
 							trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if gameproccessed or waiting_for_key then return end
+								if waiting_for_key then return end
 								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 								if not currentkey or input.KeyCode ~= currentkey then return end
 
@@ -3340,7 +3339,6 @@ function library:NewWindow(configuration)
 								updatetexts()
 
 								waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-									if gameproccessed then return end
 									if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 									if ignoredset[input.KeyCode] then return end
 
@@ -3823,7 +3821,7 @@ function library:NewWindow(configuration)
 							end)
 
 							trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if gameproccessed or waiting_for_key then return end
+								if waiting_for_key then return end
 								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 								if not currentkey or input.KeyCode ~= currentkey then return end
 
@@ -7567,7 +7565,6 @@ end
 								updatetexts()
 
 								waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-									if gameproccessed then return end
 									if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 									if ignoredset[input.KeyCode] then return end
 
@@ -8050,7 +8047,7 @@ end
 							end)
 
 							trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if gameproccessed or waiting_for_key then return end
+								if waiting_for_key then return end
 								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 								if not currentkey or input.KeyCode ~= currentkey then return end
 
@@ -8413,7 +8410,6 @@ end
 								updatetexts()
 
 								waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-									if gameproccessed then return end
 									if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 									if ignoredset[input.KeyCode] then return end
 
@@ -8896,7 +8892,6 @@ end
 							end)
 
 							trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if gameproccessed or waiting_for_key then return end
 								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 								if not currentkey or input.KeyCode ~= currentkey then return end
 
@@ -12662,7 +12657,6 @@ end
 							updatetexts()
 
 							waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if gameproccessed then return end
 								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 								if ignoredset[input.KeyCode] then return end
 
@@ -13145,7 +13139,7 @@ end
 						end)
 
 						trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-							if gameproccessed or waiting_for_key then return end
+							if waiting_for_key then return end
 							if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 							if not currentkey or input.KeyCode ~= currentkey then return end
 
@@ -13508,7 +13502,6 @@ end
 							updatetexts()
 
 							waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if gameproccessed then return end
 								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 								if ignoredset[input.KeyCode] then return end
 
@@ -13991,7 +13984,7 @@ end
 						end)
 
 						trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-							if gameproccessed or waiting_for_key then return end
+							if waiting_for_key then return end
 							if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 							if not currentkey or input.KeyCode ~= currentkey then return end
 
@@ -17733,7 +17726,6 @@ end
 							updatetexts()
 
 							waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if gameproccessed then return end
 								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 								if ignoredset[input.KeyCode] then return end
 
@@ -18216,7 +18208,7 @@ end
 						end)
 
 						trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-							if gameproccessed or waiting_for_key then return end
+							if waiting_for_key then return end
 							if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 							if not currentkey or input.KeyCode ~= currentkey then return end
 
@@ -18579,7 +18571,7 @@ end
 							updatetexts()
 
 							waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if gameproccessed then return end
+
 								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 								if ignoredset[input.KeyCode] then return end
 
@@ -19062,7 +19054,7 @@ end
 						end)
 
 						trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-							if gameproccessed or waiting_for_key then return end
+							if waiting_for_key then return end
 							if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 							if not currentkey or input.KeyCode ~= currentkey then return end
 
@@ -22461,9 +22453,7 @@ function library:Unload()
 	screengui = nil
 end
 
-trackConnection(InputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-
+trackConnection(InputService.InputBegan:Connect(function(input)
 	if input.KeyCode == library.Menukey then
 		library:Toggle()
 	end
