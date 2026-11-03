@@ -1,6 +1,5 @@
 -- services
 warn("init")
-warn("loading nctrna. Welcome to nctrna")
 
 local cloneref = (cloneref or clonereference or function(instance: any)
 	return instance
