@@ -634,6 +634,9 @@ function library:NewWindow(configuration)
 		Image = "rbxassetid://132964249585974";
 		ScaleType = Enum.ScaleType.Fit;
 		Parent = namef;
+	}, {
+		instancep = "ImageColor3";
+		tinstance = library.AccentColor;
 	})
 
 	local t = library:Create("TextLabel", {
@@ -3888,7 +3891,7 @@ function library:NewWindow(configuration)
 
 						local mainframe = library:Create("Frame", {
 							Name = "Slider",
-							Size = UDim2.new(0.95, 0, 0, 20),
+							Size = UDim2.new(0.95, 0, 0, 15),
 							BackgroundTransparency = 1,
 							LayoutOrder = #elementsholder:GetChildren(),
 							Parent = elementsholder,
@@ -8961,7 +8964,7 @@ end
 
 						local mainframe = library:Create("Frame", {
 							Name = "Slider",
-							Size = UDim2.new(0.95, 0, 0, 20),
+							Size = UDim2.new(0.95, 0, 0, 15),
 							BackgroundTransparency = 1,
 							LayoutOrder = #elementsholder:GetChildren(),
 							Parent = elementsholder,
@@ -14056,7 +14059,7 @@ end
 
 					local mainframe = library:Create("Frame", {
 						Name = "Slider",
-						Size = UDim2.new(0.95, 0, 0, 20),
+						Size = UDim2.new(0.95, 0, 0, 15),
 						BackgroundTransparency = 1,
 						LayoutOrder = #elementsholder:GetChildren(),
 						Parent = elementsholder,
@@ -19127,7 +19130,7 @@ end
 
 					local mainframe = library:Create("Frame", {
 						Name = "Slider",
-						Size = UDim2.new(0.95, 0, 0, 20),
+						Size = UDim2.new(0.95, 0, 0, 15),
 						BackgroundTransparency = 1,
 						LayoutOrder = #elementsholder:GetChildren(),
 						Parent = elementsholder,
