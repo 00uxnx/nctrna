@@ -631,7 +631,7 @@ function library:NewWindow(configuration)
 		Size = UDim2.new(0, 50, 0, 50);
 		Position = UDim2.new(0, 0, 0, 0);
 		BackgroundTransparency = 1;
-		Image = "rbxassetid://112723756161303";
+		Image = "rbxassetid://132964249585974";
 		ScaleType = Enum.ScaleType.Fit;
 		Parent = namef;
 	})
@@ -641,7 +641,7 @@ function library:NewWindow(configuration)
 		Size = UDim2.new(0.652, 0,0.588, 0);
 		Position = UDim2.new(0, 0, 0, 0);
 		BackgroundTransparency = 1;
-		Text = "Sigion.pex";
+		Text = "Nocturne.bz";
 		Font = library.Font;
 		TextColor3 = library.AccentColor;
 		TextSize = 20;
