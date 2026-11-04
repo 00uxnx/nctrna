@@ -15,6 +15,13 @@ local ConfigManager = {
     Prefix = "Nocturne.bz:",
 
     Ignored = {},
+
+    -- Excludes all theme-manager controls, including future
+    -- controls that use this same ID prefix.
+    IgnoredPrefixes = {
+        ["ThemeManager_"] = true,
+    },
+
     UI = nil,
 }
 
@@ -91,7 +98,9 @@ local function packValue(value)
     end
 
     if kind == "number" then
-        if value ~= value or value == math.huge or value == -math.huge then
+        if value ~= value
+            or value == math.huge
+            or value == -math.huge then
             return nil
         end
 
@@ -239,7 +248,6 @@ local function applyControl(control, packedValue)
         return pcall(control.__ConfigSetter, control, value)
     end
 
-    -- Prefer the live controller for records that expose one.
     local controller = controllerOf(control)
 
     if controller ~= control
@@ -285,10 +293,82 @@ function ConfigManager:SetDirectory(path)
     return self
 end
 
+--==============================================================
+-- BLACKLIST
+--==============================================================
+
 function ConfigManager:Ignore(name)
     self.Ignored[name] = true
     return self
 end
+
+function ConfigManager:IgnorePrefix(prefix)
+    assert(
+        type(prefix) == "string" and prefix ~= "",
+        "ConfigManager:IgnorePrefix expects a non-empty string"
+    )
+
+    self.IgnoredPrefixes = self.IgnoredPrefixes or {}
+    self.IgnoredPrefixes[prefix] = true
+
+    return self
+end
+
+function ConfigManager:IsIgnored(name)
+    if self.Ignored[name] then
+        return true
+    end
+
+    if type(name) ~= "string" then
+        return false
+    end
+
+    for prefix, enabled in pairs(self.IgnoredPrefixes or {}) do
+        if enabled and name:sub(1, #prefix) == prefix then
+            return true
+        end
+    end
+
+    return false
+end
+
+function ConfigManager:FilterConfig(config)
+    if type(config) ~= "table" then
+        return nil, "Config must be a table"
+    end
+
+    if config.Toggles ~= nil
+        and type(config.Toggles) ~= "table" then
+        return nil, "Invalid Toggles data"
+    end
+
+    if config.Options ~= nil
+        and type(config.Options) ~= "table" then
+        return nil, "Invalid Options data"
+    end
+
+    -- Do not mutate the caller's table or cached defaults.
+    local filtered = cloneTable(config)
+
+    filtered.Toggles = filtered.Toggles or {}
+    filtered.Options = filtered.Options or {}
+
+    for _, section in ipairs({ "Toggles", "Options" }) do
+        local entries = filtered[section]
+
+        for name in pairs(entries) do
+            if self:IsIgnored(name) then
+                entries[name] = nil
+            end
+        end
+    end
+
+    return filtered
+end
+
+--==============================================================
+-- NAMES / PATHS
+--==============================================================
 
 function ConfigManager:NormalizeName(name)
     name = trim(name)
@@ -348,6 +428,10 @@ function ConfigManager:EnsureFolder()
     return true
 end
 
+--==============================================================
+-- CONTROL REGISTRATION
+--==============================================================
+
 function ConfigManager:RegisterToggle(name, control, getter, setter)
     assert(self.Library, "Call SetLibrary first")
     assert(type(control) == "table", "Toggle must be a table")
@@ -386,7 +470,7 @@ function ConfigManager:GetConfig()
     }
 
     for name, toggle in pairs(collectToggles(self.Library)) do
-        if not self.Ignored[name] then
+        if not self:IsIgnored(name) then
             local packed = packValue(getControlValue(toggle))
 
             if packed ~= nil then
@@ -396,7 +480,7 @@ function ConfigManager:GetConfig()
     end
 
     for name, option in pairs(self.Library.Options) do
-        if not self.Ignored[name] then
+        if not self:IsIgnored(name) then
             local packed = packValue(getOptionValue(option))
 
             if packed ~= nil then
@@ -426,10 +510,14 @@ function ConfigManager:Apply(config)
         return false, "Config must be a table"
     end
 
-    if type(config.Toggles or {}) ~= "table"
-        or type(config.Options or {}) ~= "table" then
+    if config.Toggles ~= nil
+        and type(config.Toggles) ~= "table" then
+        return false, "Invalid Toggles data"
+    end
 
-        return false, "Invalid Toggles or Options data"
+    if config.Options ~= nil
+        and type(config.Options) ~= "table" then
+        return false, "Invalid Options data"
     end
 
     local errors = {}
@@ -437,13 +525,17 @@ function ConfigManager:Apply(config)
 
     local function applyEntries(entries, controls, kind)
         for name, value in pairs(entries or {}) do
-            if not self.Ignored[name] and controls[name] then
-                local ok, err = applyControl(controls[name], value)
+            if not self:IsIgnored(name) and controls[name] then
+                local ok, err = applyControl(
+                    controls[name],
+                    value
+                )
 
                 if not ok then
                     table.insert(
                         errors,
-                        kind .. " '" .. tostring(name) .. "': " .. tostring(err)
+                        kind .. " '" .. tostring(name)
+                            .. "': " .. tostring(err)
                     )
                 end
             end
@@ -460,7 +552,10 @@ function ConfigManager:Apply(config)
         )
 
         if not ok then
-            table.insert(errors, "Dependency update: " .. tostring(err))
+            table.insert(
+                errors,
+                "Dependency update: " .. tostring(err)
+            )
         end
     end
 
@@ -497,25 +592,22 @@ function ConfigManager:DecodeConfig(contents)
         return nil, "Config JSON must decode to a table"
     end
 
-    if config.Toggles ~= nil and type(config.Toggles) ~= "table" then
-        return nil, "Invalid Toggles data"
-    end
-
-    if config.Options ~= nil and type(config.Options) ~= "table" then
-        return nil, "Invalid Options data"
-    end
-
-    config.Toggles = config.Toggles or {}
-    config.Options = config.Options or {}
-
-    return config
+    -- Strip ignored controls from old/imported configs too.
+    return self:FilterConfig(config)
 end
 
 function ConfigManager:EncodeConfig(config)
+    -- Also filters named exports loaded from existing files.
+    local filtered, filterError = self:FilterConfig(config)
+
+    if not filtered then
+        return nil, filterError
+    end
+
     local ok, json = pcall(
         HttpService.JSONEncode,
         HttpService,
-        config
+        filtered
     )
 
     if not ok then
@@ -607,7 +699,9 @@ function ConfigManager:Save(name)
     end
 
     -- Always save current UI state, not a previously saved file.
-    local json, encodeError = self:EncodeConfig(self:GetConfig())
+    local json, encodeError = self:EncodeConfig(
+        self:GetConfig()
+    )
 
     if not json then
         return false, encodeError
@@ -636,7 +730,10 @@ function ConfigManager:Create(name)
     end
 
     if type(isfile) == "function" then
-        local ok, exists = pcall(isfile, self:GetPath(normalized))
+        local ok, exists = pcall(
+            isfile,
+            self:GetPath(normalized)
+        )
 
         if ok and exists then
             return false, "Config already exists; use Save config"
@@ -671,7 +768,7 @@ function ConfigManager:Load(name)
 end
 
 function ConfigManager:Delete(name)
-    local normalized, nameError = self:NormalizeName(name)
+    local normalized, nameError = self:ResolveName(name)
 
     if not normalized then
         return false, nameError
@@ -737,7 +834,8 @@ function ConfigManager:Refresh()
     for _, file in ipairs(files) do
         local path = tostring(file):gsub("\\", "/")
         local filename = path:match("([^/]+)$")
-        local name = filename and filename:match("^(.-)%.[jJ][sS][oO][nN]$")
+        local name = filename
+            and filename:match("^(.-)%.[jJ][sS][oO][nN]$")
 
         if name and name ~= "" and not seen[name] then
             seen[name] = true
@@ -753,6 +851,8 @@ function ConfigManager:Refresh()
 end
 
 function ConfigManager:Reset()
+    -- Apply still checks the blacklist, even if defaults were
+    -- captured before an additional ignore rule was added.
     return self:Apply(cloneTable(self.Defaults))
 end
 
@@ -762,6 +862,7 @@ end
 
 function ConfigManager:init(tab, settings)
     assert(self.Library, "Call SetLibrary before init")
+
     assert(
         tab and type(tab.AddLeftGroupbox) == "function"
             and type(tab.AddRightGroupbox) == "function",
@@ -789,7 +890,7 @@ function ConfigManager:init(tab, settings)
         Paste = "__Nocturne_ConfigPaste",
     }
 
-    -- Exclude both new IDs and IDs used by the old loader.
+    -- Exclude both current IDs and IDs used by the old loader.
     for _, id in pairs(ids) do
         self:Ignore(id)
     end
@@ -813,7 +914,11 @@ function ConfigManager:init(tab, settings)
         ))
 
         if type(settings.Notify) == "function" then
-            local ok = pcall(settings.Notify, success, message)
+            local ok = pcall(
+                settings.Notify,
+                success,
+                message
+            )
 
             if ok then
                 return
@@ -854,7 +959,8 @@ function ConfigManager:init(tab, settings)
     end
 
     local function selectedName()
-        if ui.Selected and table.find(ui.Names, ui.Selected) then
+        if ui.Selected
+            and table.find(ui.Names, ui.Selected) then
             return ui.Selected
         end
 
@@ -867,12 +973,13 @@ function ConfigManager:init(tab, settings)
 
     local function dropdownController()
         local record = manager.Library.Options[ids.List]
+
         local candidates = {
             record,
             ui.Dropdown,
         }
 
-        -- Avoid ipairs stopping at a nil first entry.
+        -- Do not use ipairs: the first entry may be nil.
         for index = 1, 2 do
             local candidate = candidates[index]
             local controller = controllerOf(candidate)
@@ -885,7 +992,8 @@ function ConfigManager:init(tab, settings)
             end
         end
 
-        return controllerOf(record) or controllerOf(ui.Dropdown)
+        return controllerOf(record)
+            or controllerOf(ui.Dropdown)
     end
 
     function ui.Refresh(preferred)
@@ -904,11 +1012,15 @@ function ConfigManager:init(tab, settings)
         local controller = dropdownController()
 
         if not controller then
-            notify(false, "Config dropdown controller was not exposed")
+            notify(
+                false,
+                "Config dropdown controller was not exposed"
+            )
             return false
         end
 
-        local update = controller.SetValues or controller.Refresh
+        local update = controller.SetValues
+            or controller.Refresh
 
         if type(update) ~= "function" then
             notify(
@@ -919,13 +1031,21 @@ function ConfigManager:init(tab, settings)
             return false
         end
 
-        local values = #names > 0 and names or { EMPTY }
+        local values = #names > 0
+            and names
+            or { EMPTY }
 
         ui.Updating = true
 
-        local ok, err = pcall(update, controller, values)
+        local ok, err = pcall(
+            update,
+            controller,
+            values
+        )
 
-        if ok and type(controller.SetValue) == "function" then
+        if ok
+            and type(controller.SetValue) == "function" then
+
             ok, err = pcall(
                 controller.SetValue,
                 controller,
@@ -936,7 +1056,10 @@ function ConfigManager:init(tab, settings)
         ui.Updating = false
 
         if not ok then
-            notify(false, "Dropdown refresh failed: " .. tostring(err))
+            notify(
+                false,
+                "Dropdown refresh failed: " .. tostring(err)
+            )
             return false
         end
 
@@ -970,7 +1093,9 @@ function ConfigManager:init(tab, settings)
         end,
     })
 
-    local values = #ui.Names > 0 and ui.Names or { EMPTY }
+    local values = #ui.Names > 0
+        and ui.Names
+        or { EMPTY }
 
     ui.Dropdown = ui.Configs:AddDropdown(ids.List, {
         Text = "Config list",
@@ -1057,7 +1182,7 @@ function ConfigManager:init(tab, settings)
         local success, message = invoke("Load", name)
         notify(success, message)
 
-        -- Apply can partially succeed, so sync UI even on reported errors.
+        -- Apply can partially succeed, so sync UI even on errors.
         afterApply()
     end)
 
@@ -1079,7 +1204,10 @@ function ConfigManager:init(tab, settings)
     end, true)
 
     button(ui.Configs, "Export config", function()
-        local encoded, err = invoke("Export", selectedName())
+        local encoded, err = invoke(
+            "Export",
+            selectedName()
+        )
 
         if type(encoded) ~= "string" then
             notify(false, err or "Export failed")
@@ -1115,7 +1243,10 @@ function ConfigManager:init(tab, settings)
             return
         end
 
-        local success, message = invoke("Import", ui.Pasted)
+        local success, message = invoke(
+            "Import",
+            ui.Pasted
+        )
 
         notify(success, message or (
             success and "Imported config" or "Import failed"
@@ -1132,7 +1263,8 @@ function ConfigManager:init(tab, settings)
         local success, message = invoke("Reset")
 
         notify(success, message or (
-            success and "Reset settings to defaults" or "Reset failed"
+            success and "Reset settings to defaults"
+                or "Reset failed"
         ))
 
         afterApply()
