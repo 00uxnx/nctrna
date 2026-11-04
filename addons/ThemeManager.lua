@@ -62,14 +62,197 @@ ThemeManager.BuiltInThemes = {
 		Font = Enum.Font.Code,
 	},
 
-	LightMode = {},
-	
-	Limerence = {},
-	
-	Christmas = {},
+	LightMode = {
+		AccentColor = Color3.fromRGB(55, 85, 200),
+		MainColor = Color3.fromRGB(245, 246, 250),
+		SecondaryColor = Color3.fromRGB(195, 201, 214),
+		FontColor = Color3.fromRGB(30, 34, 45),
+		UIstroke = Color3.fromRGB(245, 246, 250),
+		Font = Enum.Font.Code,
+	},
+
+	Limerence = {
+		AccentColor = Color3.fromRGB(78, 255, 122),
+		MainColor = Color3.fromRGB(15, 15, 15),
+		SecondaryColor = Color3.fromRGB(30, 30, 30),
+		FontColor = Color3.fromRGB(255, 255, 255),
+		UIstroke = Color3.fromRGB(0, 0, 0),
+		Font = Enum.Font.Code,
+	},
+
+	Christmas = {
+		AccentColor = Color3.fromRGB(235, 65, 75),
+		MainColor = Color3.fromRGB(13, 27, 22),
+		SecondaryColor = Color3.fromRGB(43, 76, 59),
+		FontColor = Color3.fromRGB(255, 245, 225),
+		UIstroke = Color3.fromRGB(5, 13, 9),
+		Font = Enum.Font.Code,
+	},
+
+	ChristmasLight = {
+		AccentColor = Color3.fromRGB(185, 35, 55),
+		MainColor = Color3.fromRGB(250, 247, 237),
+		SecondaryColor = Color3.fromRGB(155, 184, 160),
+		FontColor = Color3.fromRGB(30, 65, 44),
+		UIstroke = Color3.fromRGB(250, 247, 237),
+		Font = Enum.Font.Code,
+	},
+
+	Midnight = {
+		AccentColor = Color3.fromRGB(115, 135, 255),
+		MainColor = Color3.fromRGB(14, 17, 29),
+		SecondaryColor = Color3.fromRGB(36, 43, 65),
+		FontColor = Color3.fromRGB(225, 231, 250),
+		UIstroke = Color3.fromRGB(5, 7, 15),
+		Font = Enum.Font.Code,
+	},
+
+	Dracula = {
+		AccentColor = Color3.fromRGB(189, 147, 249),
+		MainColor = Color3.fromRGB(40, 42, 54),
+		SecondaryColor = Color3.fromRGB(68, 71, 90),
+		FontColor = Color3.fromRGB(248, 248, 242),
+		UIstroke = Color3.fromRGB(20, 21, 29),
+		Font = Enum.Font.Code,
+	},
+
+	Rose = {
+		AccentColor = Color3.fromRGB(245, 125, 165),
+		MainColor = Color3.fromRGB(26, 18, 24),
+		SecondaryColor = Color3.fromRGB(62, 39, 53),
+		FontColor = Color3.fromRGB(250, 230, 240),
+		UIstroke = Color3.fromRGB(12, 6, 10),
+		Font = Enum.Font.Code,
+	},
+
+	Sakura = {
+		AccentColor = Color3.fromRGB(175, 55, 105),
+		MainColor = Color3.fromRGB(255, 243, 248),
+		SecondaryColor = Color3.fromRGB(222, 183, 202),
+		FontColor = Color3.fromRGB(75, 40, 58),
+		UIstroke = Color3.fromRGB(255, 243, 248),
+		Font = Enum.Font.Code,
+	},
+
+	Ocean = {
+		AccentColor = Color3.fromRGB(65, 195, 240),
+		MainColor = Color3.fromRGB(12, 23, 33),
+		SecondaryColor = Color3.fromRGB(33, 65, 83),
+		FontColor = Color3.fromRGB(223, 243, 252),
+		UIstroke = Color3.fromRGB(3, 11, 18),
+		Font = Enum.Font.Code,
+	},
+
+	Arctic = {
+		AccentColor = Color3.fromRGB(20, 110, 155),
+		MainColor = Color3.fromRGB(239, 248, 252),
+		SecondaryColor = Color3.fromRGB(168, 199, 215),
+		FontColor = Color3.fromRGB(28, 57, 75),
+		UIstroke = Color3.fromRGB(239, 248, 252),
+		Font = Enum.Font.Code,
+	},
+
+	Forest = {
+		AccentColor = Color3.fromRGB(115, 195, 125),
+		MainColor = Color3.fromRGB(17, 25, 20),
+		SecondaryColor = Color3.fromRGB(43, 64, 48),
+		FontColor = Color3.fromRGB(230, 242, 225),
+		UIstroke = Color3.fromRGB(6, 12, 8),
+		Font = Enum.Font.Code,
+	},
+
+	Mint = {
+		AccentColor = Color3.fromRGB(20, 120, 90),
+		MainColor = Color3.fromRGB(238, 250, 244),
+		SecondaryColor = Color3.fromRGB(165, 201, 183),
+		FontColor = Color3.fromRGB(30, 65, 50),
+		UIstroke = Color3.fromRGB(238, 250, 244),
+		Font = Enum.Font.Code,
+	},
+
+	Lavender = {
+		AccentColor = Color3.fromRGB(115, 75, 185),
+		MainColor = Color3.fromRGB(247, 243, 255),
+		SecondaryColor = Color3.fromRGB(197, 183, 222),
+		FontColor = Color3.fromRGB(55, 42, 78),
+		UIstroke = Color3.fromRGB(247, 243, 255),
+		Font = Enum.Font.Code,
+	},
+
+	Sunset = {
+		AccentColor = Color3.fromRGB(255, 145, 90),
+		MainColor = Color3.fromRGB(28, 19, 27),
+		SecondaryColor = Color3.fromRGB(69, 43, 57),
+		FontColor = Color3.fromRGB(255, 235, 220),
+		UIstroke = Color3.fromRGB(13, 7, 12),
+		Font = Enum.Font.Code,
+	},
+
+	Amber = {
+		AccentColor = Color3.fromRGB(245, 185, 65),
+		MainColor = Color3.fromRGB(25, 22, 16),
+		SecondaryColor = Color3.fromRGB(65, 54, 33),
+		FontColor = Color3.fromRGB(250, 240, 215),
+		UIstroke = Color3.fromRGB(10, 8, 4),
+		Font = Enum.Font.Code,
+	},
+
+	Coffee = {
+		AccentColor = Color3.fromRGB(205, 160, 115),
+		MainColor = Color3.fromRGB(27, 22, 20),
+		SecondaryColor = Color3.fromRGB(66, 52, 44),
+		FontColor = Color3.fromRGB(243, 230, 212),
+		UIstroke = Color3.fromRGB(12, 8, 6),
+		Font = Enum.Font.Code,
+	},
+
+	Cream = {
+		AccentColor = Color3.fromRGB(140, 85, 40),
+		MainColor = Color3.fromRGB(250, 246, 235),
+		SecondaryColor = Color3.fromRGB(205, 187, 158),
+		FontColor = Color3.fromRGB(65, 50, 35),
+		UIstroke = Color3.fromRGB(250, 246, 235),
+		Font = Enum.Font.Code,
+	},
+
+	BloodMoon = {
+		AccentColor = Color3.fromRGB(235, 65, 85),
+		MainColor = Color3.fromRGB(24, 13, 18),
+		SecondaryColor = Color3.fromRGB(65, 30, 41),
+		FontColor = Color3.fromRGB(250, 225, 230),
+		UIstroke = Color3.fromRGB(10, 3, 6),
+		Font = Enum.Font.Code,
+	},
+
+	Halloween = {
+		AccentColor = Color3.fromRGB(255, 145, 35),
+		MainColor = Color3.fromRGB(23, 16, 30),
+		SecondaryColor = Color3.fromRGB(65, 42, 80),
+		FontColor = Color3.fromRGB(250, 235, 215),
+		UIstroke = Color3.fromRGB(9, 4, 14),
+		Font = Enum.Font.Code,
+	},
+
+	Cyberpunk = {
+		AccentColor = Color3.fromRGB(245, 230, 65),
+		MainColor = Color3.fromRGB(17, 16, 30),
+		SecondaryColor = Color3.fromRGB(65, 40, 85),
+		FontColor = Color3.fromRGB(230, 245, 255),
+		UIstroke = Color3.fromRGB(4, 3, 12),
+		Font = Enum.Font.Code,
+	},
+
+	Monochrome = {
+		AccentColor = Color3.fromRGB(215, 215, 225),
+		MainColor = Color3.fromRGB(18, 18, 21),
+		SecondaryColor = Color3.fromRGB(48, 48, 55),
+		FontColor = Color3.fromRGB(240, 240, 245),
+		UIstroke = Color3.fromRGB(0, 0, 0),
+		Font = Enum.Font.Code,
+	},
 }
 
-    --==============================================================
+--==============================================================
 -- GENERAL HELPERS
 --==============================================================
 
