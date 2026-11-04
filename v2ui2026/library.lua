@@ -56,7 +56,7 @@ screengui.DisplayOrder = 10
 screengui.ClipToDeviceSafeArea = false
 screengui.SafeAreaCompatibility = Enum.SafeAreaCompatibility.None;
 screengui.ScreenInsets = Enum.ScreenInsets.None;
-screengui.Parent = LocalPlayer.PlayerGui
+parentgui(screengui)
 
 local modal = Instance.new("TextButton")
 modal.BackgroundTransparency = 1
