@@ -932,6 +932,5168 @@ function library:NewWindow(configuration)
 
 		-- tab creation
 		function section:NewTab(name)
+
+    local function MakeAPI(holderForAPI)
+        local groupbox = { elements = {} }
+        local elementsholder = holderForAPI
+function groupbox:AddLabel(text, opts)
+				--[[
+				    MAX 3 COLOR PICKERS (cant use key picker if u do this)
+				    MAX 1 KEY PICKER (cant use color pickers if u do this)
+				]]
+
+						local label = {}
+						local colorpickers = {}
+						local keypicker = nil
+
+						local RestrictedKeypicker = false
+						local RestrictedColorpicker = false
+
+						local holder = library:Create("Frame", {
+							Name = "Holder";
+							Size = UDim2.new(0.95, 0,0, 20);
+							BackgroundTransparency = 1;
+							LayoutOrder = #elementsholder:GetChildren();
+							Parent = elementsholder;
+						})
+
+						local uitext = library:Create("TextLabel", {
+							Name = "TextLabel";
+							Size = UDim2.new(.795, 0,1, 0);
+							BackgroundTransparency = 1;
+							Text = text;
+							TextSize = 13;
+							TextColor3 = library.FontColor;
+							Font = library.Font;
+							LayoutOrder = 1;
+							TextXAlignment = Enum.TextXAlignment.Left;
+							TextYAlignment = Enum.TextYAlignment.Center;
+							Parent = holder;
+						}, {
+							instancep = "TextColor3";
+							tinstance = library.FontColor;
+						})
+
+						local uitextsui = library:Create("UITextSizeConstraint", {
+							Name = "UITextSizeConstraint";
+							MaxTextSize = 13;
+							Parent = uitext;
+						})
+
+						local uistroke = library:Create("UIStroke", {
+							Name = "UIStroke";
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+							Color = Color3.fromRGB(0, 0, 0);
+							Thickness = 1;
+							Parent = uitext;
+						}, {
+							instancep = "Color";
+							tinstance = library.UIstroke;
+						})
+
+						local uill = library:Create("UIListLayout", {
+							Name = "UIListLayout";
+							FillDirection = Enum.FillDirection.Horizontal;
+							HorizontalAlignment = Enum.HorizontalAlignment.Left;
+							SortOrder = Enum.SortOrder.LayoutOrder;
+							Parent = holder;
+						})
+
+						local holder2 = library:Create("Frame", {
+							Name = "Holder";
+							Size = UDim2.new(0.043, 50,1, 0);
+							BackgroundTransparency = 1;
+							LayoutOrder = 2;
+							Parent = holder;
+						})
+
+						local uillh = library:Create("UIListLayout", {
+							Name = "UIListLayout";
+							FillDirection = Enum.FillDirection.Horizontal;
+							HorizontalAlignment = Enum.HorizontalAlignment.Right;
+							VerticalAlignment = Enum.VerticalAlignment.Center;
+							SortOrder = Enum.SortOrder.LayoutOrder;
+							Padding = UDim.new(0, 6);
+							Parent = holder2;
+						})
+
+						function label:AddColorPicker(name, opts)
+							if RestrictedColorpicker then
+								error("Restricted your using a keypicker!")
+								return
+							end
+
+							if #colorpickers >= 3 then
+								error("Max number of colorpickers reached")
+								return
+							end
+
+							local colorpicker = {}
+							table.insert(colorpickers, colorpicker)
+							RestrictedKeypicker = true
+							local color = opts.Startcolor or Color3.new(1, 1, 1)
+							local transparency = opts.Transparency or 0
+							local pointPosition
+
+							colorpicker.Color = color
+							colorpicker.Transparency = transparency
+							colorpicker.OnChanged = newSignal()
+							Options[name] = colorpicker
+library.Options = library.Options or Options
+library.Options[name] = colorpicker
+							local opened = false
+							local instance 
+							local followConn
+							local outsideConn
+
+							local colorbox = library:Create("Frame", {
+								Name = "ColorBox";
+								Size = UDim2.new(0, 15,0, 15);
+								BackgroundColor3 = color;
+								LayoutOrder = #holder2:GetChildren();
+								Parent = holder2;
+							})
+
+							local uistroke = library:Create("UIStroke", {
+								Name = "UIStroke";
+								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+								LineJoinMode = Enum.LineJoinMode.Miter;
+								Color = library.SecondaryColor;
+								Thickness = 1;
+								Parent = colorbox;
+							}, {
+								instancep = "Color";
+								tinstance = library.SecondaryColor;
+							})
+
+							local hitbox = library:Create("TextButton", {
+								Name = "Hitbox";
+								Size = UDim2.new(1,0,1,0);
+								BackgroundTransparency = 1;
+								Active = true;
+								ZIndex = 10;
+								Selectable = true;
+								Text = "";
+								Parent = colorbox;
+							})
+
+							local function OnChange(newcolor, newtransparency)
+								colorpicker.Color = newcolor
+								colorpicker.Transparency = newtransparency
+
+								if opts.Callback then
+									opts.Callback(newcolor, newtransparency)
+								end
+
+								colorpicker.OnChanged:Fire(newcolor, newtransparency)
+							end
+
+							local function Createcolorpickerbox()
+								opened = true
+
+								local function getPos()
+									local abs = colorbox.AbsolutePosition
+									local base = screengui.AbsolutePosition
+									return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
+								end
+
+								local cursorbox = library:Create("Frame", {
+									Name = "CursorBox";
+									Size = UDim2.new(0, 15,0, 15);
+									Position = getPos();
+									BackgroundColor3 = Color3.new(1,1,1);
+									BackgroundTransparency = 1;
+									ZIndex = 2;
+									Parent = screengui;
+								})
+
+								instance = cursorbox
+
+								followConn = colorbox:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
+									if instance then
+										instance.Position = getPos()
+									end
+								end)
+
+								local framewindow = library:Create("Frame", {
+									Name = "Frame";
+									Size = UDim2.new(0, 323,0, 198);
+									Position = UDim2.new(1, 0,1.4, 0);
+									BackgroundColor3 = library.MainColor;
+									ZIndex = 2;
+									Parent = cursorbox;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								})
+
+								local uistroke = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+									LineJoinMode = Enum.LineJoinMode.Miter;
+									Color = library.SecondaryColor;
+									Thickness = 1;
+									ZIndex = 2;
+									Parent = framewindow;
+								}, {
+									instancep = "Color";
+									tinstance = library.SecondaryColor;
+								})
+
+								local uistroke2 = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+									LineJoinMode = Enum.LineJoinMode.Miter;
+									Color = library.MainColor;
+									Thickness = 4;
+									Parent = framewindow;
+								}, {
+									instancep = "Color";
+									tinstance = library.MainColor;
+								})
+
+								local text = library:Create("TextLabel", {
+									Name = "TextLabel";
+									Size = UDim2.new(1, 0,0, 16);
+									Position = UDim2.new(0, 0,0, 0);
+									Text = name;
+									TextColor3 = library.FontColor;
+									Font = library.Font;
+									TextSize = 13;
+									BackgroundTransparency = 1;
+									ZIndex = 2;
+									Parent = framewindow;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								local textuistroke = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+									Color = library.UIstroke;
+									Thickness = 1;
+									Parent = text;
+								}, {
+									instancep = "Color";
+									tinstance = library.UIstroke;
+								})
+
+								local textuisize = library:Create("UITextSizeConstraint", {
+									Name = "UISizeConstraint";
+									MaxTextSize = 13;
+									Parent = text;
+								})
+
+								local colors = library:Create("Frame", {
+									Name = "Colors";
+									Size = UDim2.new(1, 0,0, 23);
+									Position = UDim2.new(0, 0,0.879, 0);
+									BackgroundTransparency = 1;
+									ZIndex = 2;
+									Parent = framewindow;
+								})
+
+								local colorsUIl = library:Create("UIListLayout", {
+									Name = "UIListLayout";
+									FillDirection = Enum.FillDirection.Horizontal;
+									HorizontalAlignment = Enum.HorizontalAlignment.Center;
+									Padding = UDim.new(0, 8);
+									SortOrder = Enum.SortOrder.LayoutOrder;
+									VerticalAlignment = Enum.VerticalAlignment.Center;
+									Parent = colors;
+								})
+
+								local colorsboxcolor = library:Create("Frame", {
+									Name = "Color";
+									Size = UDim2.new(0, 20,0, 20);
+									BackgroundColor3 = color;
+									ZIndex = 2;
+									LayoutOrder = 1;
+									Parent = colors;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = color;
+								})
+
+								local colorsboxcoloruistroke = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+									Color = library.SecondaryColor;
+									Thickness = 1;
+									Parent = colorsboxcolor;
+								}, {
+									instancep = "Color";
+									tinstance = library.SecondaryColor;
+								})
+
+								local function rgbText(c)
+									return math.floor(c.R * 255 + 0.5) .. "," .. math.floor(c.G * 255 + 0.5) .. "," .. math.floor(c.B * 255 + 0.5)
+								end
+
+								local huecoloreditbox = library:Create("TextBox", {
+									Name = "Hue";
+									Size = UDim2.new(0, 71,0, 20);
+									BackgroundColor3 = library.MainColor;
+									TextColor3 = library.FontColor;
+									Text = rgbText(color);
+									TextSize = 13;
+									Font = Enum.Font.SourceSans;
+									MultiLine = false;
+									ZIndex = 2;
+									LayoutOrder = 2;
+									Parent = colors;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								})
+
+								local huecolorboxuis1 = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+									Color = library.SecondaryColor;
+									Thickness = 1;
+									Parent = huecoloreditbox;
+								}, {
+									instancep = "Color";
+									tinstance = library.SecondaryColor;
+								})
+
+								local huecolorboxuis2 = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+									Color = library.UIstroke;
+									Thickness = 1;
+									Parent = huecoloreditbox;
+								}, {
+									instancep = "Color";
+									tinstance = library.UIstroke;
+								})
+
+								local transditbox = library:Create("TextBox", {
+									Name = "trans";
+									Size = UDim2.new(0, 71,0, 20);
+									BackgroundColor3 = library.MainColor;
+									TextColor3 = library.FontColor;
+									Text = transparency;
+									TextSize = 13;
+									Font = Enum.Font.SourceSans;
+									MultiLine = false;
+									ZIndex = 2;
+									LayoutOrder = 2;
+									Parent = colors;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								})
+
+								local transboxuis1 = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+									Color = library.SecondaryColor;
+									Thickness = 1;
+									Parent = transditbox;
+								}, {
+									instancep = "Color";
+									tinstance = library.SecondaryColor;
+								})
+
+								local transboxuis2 = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+									Color = library.UIstroke;
+									Thickness = 1;
+									Parent = transditbox;
+								}, {
+									instancep = "Color";
+									tinstance = library.UIstroke;
+								})
+
+								local hexditbox = library:Create("TextBox", {
+									Name = "trans";
+									Size = UDim2.new(0, 71,0, 20);
+									BackgroundColor3 = library.MainColor;
+									TextColor3 = library.FontColor;
+									Text = color:ToHex();
+									TextSize = 13;
+									Font = Enum.Font.SourceSans;
+									MultiLine = false;
+									ZIndex = 2; 
+									LayoutOrder = 2;
+									Parent = colors;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								})
+
+								local hexboxuis1 = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+									Color = library.SecondaryColor;
+									Thickness = 1;
+									Parent = hexditbox;
+								}, {
+									instancep = "Color";
+									tinstance = library.SecondaryColor;
+								})
+
+								local hexboxuis2 = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+									Color = library.UIstroke;
+									Thickness = 1;
+									Parent = hexditbox;
+								}, {
+									instancep = "Color";
+									tinstance = library.UIstroke;
+								})
+
+								local main = library:Create("Frame", {
+									Name = "Main";
+									Size = UDim2.new(1, 0,0, 158);
+									Position = UDim2.new(0, 0,0.081, 0);
+									BackgroundTransparency = 1;
+									ZIndex = 2;
+									Parent = framewindow;
+								})
+
+								local uillmain = library:Create("UIListLayout", {
+									Name = "UIListLayout";
+									FillDirection = Enum.FillDirection.Horizontal;
+									SortOrder = Enum.SortOrder.LayoutOrder;
+									HorizontalAlignment = Enum.HorizontalAlignment.Center;
+									VerticalAlignment = Enum.VerticalAlignment.Center;
+									Padding = UDim.new(0, 5);
+									Parent = main;
+								})
+
+								local h, s, v = color:ToHSV()
+								local UIS = game:GetService("UserInputService")
+
+								local huebox = library:Create("Frame", {
+									Name = "HueBox";
+									Size = UDim2.new(0.576, 50,0.94, 0);
+									BackgroundColor3 = Color3.fromHSV(h, 1, 1);
+									ZIndex = 2;
+									Parent = main;
+								})
+
+								local helight = library:Create("Frame", {
+									Name = "HueBox2";
+									Size = UDim2.new(1,0,1,0);
+									BackgroundColor3 = Color3.new(1, 1, 1);
+									ZIndex = 3;
+									Parent = huebox;
+								})
+
+								local huelightgrad = library:Create("UIGradient", {
+									Name = "grad";
+									Parent = helight;
+
+									Transparency = NumberSequence.new({
+										NumberSequenceKeypoint.new(0, 0),
+										NumberSequenceKeypoint.new(1, 1),
+									})
+								})
+
+								local huedark = library:Create("Frame", {
+									Name = "HueBox3";
+									Size = UDim2.new(1,0,1,0);
+									BackgroundColor3 = Color3.new(0, 0, 0);
+									ZIndex = 3;
+									Parent = huebox;
+								})
+
+								local huedarkgrad = library:Create("UIGradient", {
+									Name = "grad";
+									Parent = huedark;
+
+									Rotation = 90,
+									Transparency = NumberSequence.new({
+										NumberSequenceKeypoint.new(0, 1),
+										NumberSequenceKeypoint.new(1, 0),
+									}),
+								})
+
+								local shiftbox = library:Create("Frame", {
+									Name = "shiftbox";
+									Size = UDim2.new(-0.057, 50,0.94, 0);
+									BackgroundColor3 = Color3.new(1,1,1);
+									ZIndex = 2;
+									LayoutOrder = 2;
+									Parent = main;
+								})
+
+								local rainbow = {}
+								for i = 0, 6 do
+									table.insert(rainbow, ColorSequenceKeypoint.new(i / 6, Color3.fromHSV(i / 6, 1, 1)))
+								end
+
+								local shiftgrad = library:Create("UIGradient", {
+									Name = "grad";
+									Rotation = 90;
+									Color = ColorSequence.new(rainbow);
+									Parent = shiftbox;
+								})
+
+								local transparencybox = library:Create("Frame", {
+									Name = "TransparencyBox";
+									Size = UDim2.new(-0.057, 50,0.94, 0);
+									BackgroundColor3 = Color3.new(1,1,1);
+									ZIndex = 2;
+									LayoutOrder = 3;
+									Parent = main;
+								})
+
+								local imagetrans = library:Create("ImageLabel", {
+									Name = "ImageLabel";
+									Size = UDim2.new(1,0,1,0);
+									BackgroundColor3 = Color3.new(1,1,1);
+									Parent = transparencybox;
+									Image = "rbxassetid://155451930";
+									ScaleType = Enum.ScaleType.Tile;
+									TileSize = UDim2.new(1, 0,0.3, 0);
+								})
+
+								local transfade = library:Create("Frame", {
+									Name = "Fade";
+									Size = UDim2.new(1,0,1,0);
+									BackgroundColor3 = color;
+									ZIndex = 3;
+									Parent = transparencybox;
+								})
+
+								local transfadegrad = library:Create("UIGradient", {
+									Name = "grad";
+									Rotation = 90;
+									Transparency = NumberSequence.new({
+										NumberSequenceKeypoint.new(0, 0),
+										NumberSequenceKeypoint.new(1, 1),
+									});
+									Parent = transfade;
+								})
+
+								local function refresh()
+									color = Color3.fromHSV(h, s, v)
+									colorbox.BackgroundColor3 = color
+									colorsboxcolor.BackgroundColor3 = color
+									huebox.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+									transfade.BackgroundColor3 = color
+									huecoloreditbox.Text = rgbText(color)
+									hexditbox.Text = color:ToHex()
+									transditbox.Text = tostring(math.floor(transparency * 100 + 0.5) / 100)
+									OnChange(color, transparency, pointPosition)
+								end
+
+								local function makeSlider(box, start, onChange)
+									box.Active = true
+
+									local bar = library:Create("Frame", {
+										Name = "Bar";
+										Size = UDim2.new(1, 4,0, 3);
+										AnchorPoint = Vector2.new(0.5, 0.5);
+										Position = UDim2.new(0.5, 0,start, 0);
+										BackgroundColor3 = Color3.new(1, 1, 1);
+										ZIndex = 5;
+										Parent = box;
+									})
+
+									local barstroke = library:Create("UIStroke", {
+										Name = "UIStroke";
+										ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+										Color = Color3.new(0, 0, 0);
+										Thickness = 1;
+										Parent = bar;
+									})
+
+									local moveConn, endConn
+
+									local function stop()
+										if moveConn then moveConn:Disconnect() moveConn = nil end
+										if endConn then endConn:Disconnect() endConn = nil end
+									end
+
+									local function update(input)
+										local a = math.clamp((input.Position.Y - box.AbsolutePosition.Y) / box.AbsoluteSize.Y, 0, 1)
+										bar.Position = UDim2.new(0.5, 0,a, 0)
+										onChange(a)
+									end
+
+									trackConnection(box.InputBegan:Connect(function(input)
+										if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+											stop()
+											update(input)
+
+											moveConn = UIS.InputChanged:Connect(function(i)
+												if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+													update(i)
+												end
+											end)
+
+											endConn = UIS.InputEnded:Connect(function(i)
+												if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+													stop()
+												end
+											end)
+										end
+									end))
+
+									return function(a)
+										bar.Position = UDim2.new(0.5, 0,a, 0)
+									end
+								end
+
+								local setHueBar = makeSlider(shiftbox, h, function(a)
+									h = a
+									refresh()
+								end)
+
+								local setTransBar = makeSlider(transparencybox, transparency, function(a)
+									transparency = a
+									refresh()
+								end)
+
+								local cursor = library:Create("Frame", {
+									Name = "Cursor";
+									Size = UDim2.new(0, 8,0, 8);
+									AnchorPoint = Vector2.new(0.5, 0.5);
+									Position = UDim2.new(s, 0,1 - v, 0);
+									BackgroundColor3 = Color3.new(1, 1, 1);
+									ZIndex = 6;
+									Parent = huebox;
+								})
+
+								local cursorcorner = library:Create("UICorner", {
+									CornerRadius = UDim.new(1, 0);
+									Parent = cursor;
+								})
+
+								local cursorstroke = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+									Color = Color3.new(0, 0, 0);
+									Thickness = 1;
+									Parent = cursor;
+								})
+
+								local function setCursor(ns, nv)
+									cursor.Position = UDim2.new(ns, 0,1 - nv, 0)
+								end
+
+								do
+									huedark.Active = true
+									local moveConn, endConn
+
+									local function stop()
+										if moveConn then moveConn:Disconnect() moveConn = nil end
+										if endConn then endConn:Disconnect() endConn = nil end
+									end
+
+									local function update(input)
+										local pos, size = huebox.AbsolutePosition, huebox.AbsoluteSize
+										s = math.clamp((input.Position.X - pos.X) / size.X, 0, 1)
+										v = 1 - math.clamp((input.Position.Y - pos.Y) / size.Y, 0, 1)
+										setCursor(s, v)
+										refresh()
+									end
+
+									trackConnection(huedark.InputBegan:Connect(function(input)
+										if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+											stop()
+											update(input)
+
+											moveConn = UIS.InputChanged:Connect(function(i)
+												if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+													update(i)
+												end
+											end)
+
+											endConn = UIS.InputEnded:Connect(function(i)
+												if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+													stop()
+												end
+											end)
+										end
+									end))
+								end
+
+								huecoloreditbox.FocusLost:Connect(function()
+									local r, g, b = huecoloreditbox.Text:match("^%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*$")
+									r, g, b = tonumber(r), tonumber(g), tonumber(b)
+
+									if r and g and b then
+										local c = Color3.fromRGB(math.clamp(r, 0, 255), math.clamp(g, 0, 255), math.clamp(b, 0, 255))
+										h, s, v = c:ToHSV()
+										setHueBar(h)
+										setCursor(s, v)
+										refresh()
+									else
+										huecoloreditbox.Text = rgbText(color)
+									end
+								end)
+
+								outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
+									if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+										return
+									end
+
+									local function isInside(gui)
+										local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
+										local m = input.Position
+										return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
+									end
+
+									if isInside(framewindow) or isInside(colorbox) then
+										return
+									end
+
+									colorpicker:Close()
+								end))
+
+							end
+
+							function colorpicker:Close()
+								if not opened then return end
+								opened = false
+
+								if followConn then
+									followConn:Disconnect()
+									followConn = nil
+								end
+
+								if outsideConn then
+									outsideConn:Disconnect()
+									outsideConn = nil
+								end
+
+								if instance then
+									instance:Destroy()
+									instance = nil
+								end
+							end
+
+							hitbox.Activated:Connect(function()
+								if opened then
+									colorpicker:Close()
+								else
+									Createcolorpickerbox()
+								end
+							end)
+
+							function colorpicker:AddColorPicker(name, opts)
+								return label:AddColorPicker(name, opts)
+							end
+
+function colorpicker:GetValue()
+    return {Color = color, Transparency = transparency}
+end
+function colorpicker:SetValue(value, newTransparency)
+    local newColor = value
+    if type(value) == "table" then
+        newColor = value.Color or value[1]
+        if value.Transparency ~= nil then newTransparency = value.Transparency
+        elseif value[2] ~= nil then newTransparency = value[2] end
+    end
+    if type(newColor) == "string" then
+        newColor = Color3.fromHex(newColor:gsub("^#", ""))
+    elseif type(newColor) == "table" then
+        newColor = Color3.new(newColor.R or newColor.r or newColor[1], newColor.G or newColor.g or newColor[2], newColor.B or newColor.b or newColor[3])
+    end
+    assert(typeof(newColor) == "Color3", "Invalid color")
+    local nextTransparency = transparency
+    if newTransparency ~= nil then
+        assert(tonumber(newTransparency), "Invalid transparency")
+        nextTransparency = math.clamp(tonumber(newTransparency), 0, 1)
+    end
+    local changed = newColor ~= color or nextTransparency ~= transparency
+    local reopen = opened
+    if reopen then self:Close() end
+    color, transparency = newColor, nextTransparency
+    colorbox.BackgroundColor3 = color
+    self.Color, self.Transparency = color, transparency
+    if reopen then Createcolorpickerbox() end
+    if changed then OnChange(color, transparency) end
+    return self
+end
+							library.windowinstances.Colorbox = colorpicker
+
+							return colorpicker
+						end
+
+						function label:AddKeyPicker(name, opts)
+							if type(name) == "table" then
+								opts = name
+								name = uitext.Text
+							end
+
+							opts = opts or {}
+
+							local picker = {}
+							local InputService = InputService or game:GetService("UserInputService")
+
+							local function resolvekey(k)
+								if typeof(k) == "EnumItem" then
+									return k
+								end
+
+								if type(k) == "string" then
+									local ok, res = pcall(function()
+										return Enum.KeyCode[k]
+									end)
+									if ok then
+										return res
+									end
+								end
+
+								return nil
+							end
+
+							local currentkey = resolvekey(opts.Default)
+							local Mode = opts.Mode or "Hold"
+							local modes = {"Hold", "Toggle", "Always"}
+
+							local opened = false
+							local instance
+							local followConn
+							local outsideConn
+							local waitkeyconn
+
+							local waiting_for_key = false
+
+							local winkeytext
+							local winmodetext
+
+							local ignoredkeys = {
+								library.Menukey;
+								Enum.KeyCode.Return,
+								Enum.KeyCode.End,
+								Enum.KeyCode.Home,
+								Enum.KeyCode.PageUp,
+								Enum.KeyCode.PageDown,
+							}
+
+							local ignoredset = {}
+							for _, k in next, ignoredkeys do
+								if k then
+									ignoredset[k] = true
+								end
+							end
+
+							if RestrictedKeypicker then
+								error("Restricted your using a colorpicker!")
+								return
+							end
+
+							if keypicker then
+								warn("KeyPicker already exists for this label")
+								return
+							end
+
+							keypicker = picker
+							RestrictedColorpicker = true
+
+							picker.Key = currentkey
+							picker.Mode = Mode
+							picker.OnChanged = newSignal()
+							Options[name] = picker
+library.Options = library.Options or Options
+library.Options[name] = picker
+
+							local keyframe = library:Create("Frame", {
+								Name = "KeyPicker",
+								Size = UDim2.new(0, 50, 0, 15),
+								LayoutOrder = #holder2:GetChildren();
+								BackgroundColor3 = library.MainColor,
+								Parent = holder2;
+							},{
+								instancep = "BackgroundColor3";
+								tinstance = library.MainColor;
+							})
+
+							local uistrokekey = library:Create("UIStroke", {
+								Name = "UIStroke",
+								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+								Color = library.SecondaryColor,
+								Thickness = 1,
+								Parent = keyframe,
+							},{
+								instancep = "Color";
+								tinstance = library.SecondaryColor;
+							})
+
+							local keybox = library:Create("TextButton", {
+								Name = "KeyBox",
+								Size = UDim2.new(1, 0, 1, 0),
+								BackgroundTransparency = 1,
+								Text = "",
+								ZIndex = 4,
+								Parent = keyframe,
+							})
+
+							local keytext = library:Create("TextLabel", {
+								Name = "KeyText",
+								Size = UDim2.new(1, 0, 1, 0),
+								BackgroundTransparency = 1,
+								Text = "None",
+								TextColor3 = library.FontColor,
+								TextSize = 13,
+								Font = library.Font,
+								TextXAlignment = Enum.TextXAlignment.Center,
+								Parent = keyframe,
+							},{
+								instancep = "TextColor3";
+								tinstance = library.FontColor;
+							}, {
+								instancep = "Font";
+								tinstance = library.Font;
+							})
+
+							local active = false
+							picker.Value = false
+
+							local function setState(state)
+								if active == state then return end
+								active = state
+								picker.Value = state
+
+								if opts.Callback then
+									opts.Callback(state)
+								end
+							end
+
+							local function updatetexts()
+								local t
+								if waiting_for_key then
+									t = "..."
+								elseif currentkey then
+									t = keyshorts[currentkey] or currentkey.Name
+								else
+									t = "None"
+								end
+
+								keytext.Text = t
+								if winkeytext then
+									winkeytext.Text = t
+								end
+								if winmodetext then
+									winmodetext.Text = Mode
+								end
+							end
+
+							local function setKey(k)
+								currentkey = k
+								picker.Key = k
+								updatetexts()
+
+								if opts.CallbackKey then
+									opts.CallbackKey(k)
+								end
+
+								picker.OnChanged:Fire(currentkey, Mode)
+							end
+
+							local function setMode(m)
+								Mode = m
+								picker.Mode = m
+								updatetexts()
+
+								setState(m == "Always")
+
+								if opts.CallbackMode then
+									opts.CallbackMode(m)
+								end
+
+								picker.OnChanged:Fire(currentkey, Mode)
+							end
+
+function picker:GetValue()
+    return {Key = currentkey and currentkey.Name or "None", Mode = Mode}
+end
+function picker:SetValue(value, mode)
+    local key = value
+    if type(value) == "table" then
+        key = value.Key or value[1]
+        mode = value.Mode or value[2] or mode
+    end
+    if mode ~= nil then assert(table.find(modes, mode), "Invalid key picker mode") end
+    local resolved = resolvekey(key)
+    assert(resolved or key == nil or key == "None" or key == "", "Invalid key")
+    setKey(resolved)
+    if mode ~= nil then setMode(mode) end
+    return self
+end
+							local function startbind()
+								if waiting_for_key then
+									return
+								end
+
+								waiting_for_key = true
+								updatetexts()
+
+								waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
+									if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+									if ignoredset[input.KeyCode] then return end
+
+									if waitkeyconn then
+										waitkeyconn:Disconnect()
+										waitkeyconn = nil
+									end
+
+									task.defer(function()
+										waiting_for_key = false
+										updatetexts()
+									end)
+
+									if input.KeyCode == Enum.KeyCode.Backspace then
+										setKey(nil)
+									else
+										setKey(input.KeyCode)
+									end
+								end))
+							end
+
+							local function openminiwindow()
+								opened = true
+
+								local function getPos()
+									local abs = keyframe.AbsolutePosition
+									local base = screengui.AbsolutePosition
+									return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
+								end
+
+								local cursorbox = library:Create("Frame", {
+									Name = "CursorBox";
+									Size = UDim2.new(0, 15,0, 15);
+									Position = getPos();
+									BackgroundColor3 = Color3.new(1,1,1);
+									BackgroundTransparency = 1;
+									ZIndex = 2;
+									Parent = screengui;
+								})
+
+								instance = cursorbox
+
+								followConn = keyframe:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
+									if instance then
+										instance.Position = getPos()
+									end
+								end)
+
+								local framewindow = library:Create("Frame", {
+									Name = "Frame";
+									Size = UDim2.new(0, 323,0, 93);
+									Position = UDim2.new(1, 0,1.4, 0);
+									BackgroundColor3 = library.MainColor;
+									ZIndex = 2;
+									Parent = cursorbox;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								})
+
+								local uistroke = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+									LineJoinMode = Enum.LineJoinMode.Miter;
+									Color = library.SecondaryColor;
+									Thickness = 1;
+									Parent = framewindow;
+								}, {
+									instancep = "Color";
+									tinstance = library.SecondaryColor;
+								})
+
+								local uistroke2 = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+									LineJoinMode = Enum.LineJoinMode.Miter;
+									Color = library.MainColor;
+									Thickness = 4;
+									Parent = framewindow;
+								}, {
+									instancep = "Color";
+									tinstance = library.MainColor;
+								})
+
+								local text = library:Create("TextLabel", {
+									Name = "TextLabel";
+									Size = UDim2.new(1, 0,0, 16);
+									Position = UDim2.new(0, 0,0, 0);
+									Text = name;
+									TextColor3 = library.FontColor;
+									Font = library.Font;
+									TextSize = 13;
+									BackgroundTransparency = 1;
+									ZIndex = 2;
+									Parent = framewindow;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								local textuistroke = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+									Color = library.UIstroke;
+									Thickness = 1;
+									Parent = text;
+								}, {
+									instancep = "Color";
+									tinstance = library.UIstroke;
+								})
+
+								local textuisize = library:Create("UITextSizeConstraint", {
+									Name = "UISizeConstraint";
+									MaxTextSize = 13;
+									Parent = text;
+								})
+
+								local holder = library:Create("Frame", {
+									Name = "Holder";
+									Size = UDim2.new(1, 0,-0.228, 96);
+									Position = UDim2.new(0, 0,0.195, 0);
+									BackgroundTransparency = 1;
+									ZIndex = 2;
+									Parent = framewindow;
+								})
+
+								local uill = library:Create("UIListLayout", {
+									Name = "UIListLayout";
+									Padding = UDim.new(0, 5);
+									SortOrder = Enum.SortOrder.LayoutOrder;
+									FillDirection = Enum.FillDirection.Vertical;
+									HorizontalAlignment = Enum.HorizontalAlignment.Center;
+									VerticalAlignment = Enum.VerticalAlignment.Top;
+									Parent = holder;
+								})
+
+								local uipadd = library:Create("UIPadding", {
+									Name = "UIPadding";
+									PaddingLeft = UDim.new(0, 0);
+									PaddingRight = UDim.new(0, 0);
+									PaddingTop = UDim.new(0, 3);
+									PaddingBottom = UDim.new(0, 0);
+									Parent = holder;
+								})
+
+								local keysetbind = library:Create("Frame", {
+									Name = "KeysetBind";
+									Size = UDim2.new(.95, 0,0, 20);
+									BackgroundTransparency = 1;
+									LayoutOrder = 1;
+									Parent = holder;
+									ZIndex = 2;
+								})
+
+								local keybindsetuil = library:Create("UIListLayout", {
+									Name = "UIListLayout";
+									Padding = UDim.new(0, 0);
+									SortOrder = Enum.SortOrder.LayoutOrder;
+									FillDirection = Enum.FillDirection.Horizontal;
+									HorizontalAlignment = Enum.HorizontalAlignment.Left;
+									VerticalAlignment = Enum.VerticalAlignment.Center;
+									Parent = keysetbind;
+								})
+
+								local keylabelset = library:Create("TextLabel", {
+									Name = "KeyLabel";
+									Size = UDim2.new(1, -55,1, 0);
+									BackgroundTransparency = 1;
+									Text = "Keybind";
+									TextColor3 = library.FontColor;
+									TextSize = 13;
+									TextXAlignment = Enum.TextXAlignment.Left;
+									TextYAlignment = Enum.TextYAlignment.Center;
+									Font = library.Font;
+									LayoutOrder = 1;
+									ZIndex = 2;
+									Parent = keysetbind;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								local labeluistroke = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+									Color = library.UIstroke;
+									Thickness = 1;
+									Parent = keylabelset;
+								}, {
+									instancep = "Color";
+									tinstance = library.UIstroke;
+								})
+
+								local labeltsize = library:Create("UITextSizeConstraint", {
+									Name = "UITextSizeConstraint";
+									MaxTextSize = 13;
+									Parent = keylabelset;
+								})
+
+								local winkeyframe = library:Create("Frame", {
+									Name = "KeyPicker",
+									Size = UDim2.new(0, 50, 0, 15),
+									LayoutOrder = 2;
+									BackgroundColor3 = library.MainColor,
+									ZIndex = 2;
+									Parent = keysetbind,
+								},{
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								})
+
+								local winuistrokekey = library:Create("UIStroke", {
+									Name = "UIStroke",
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+									Color = library.SecondaryColor,
+									Thickness = 1,
+									Parent = winkeyframe,
+								},{
+									instancep = "Color";
+									tinstance = library.SecondaryColor;
+								})
+
+								local winkeybox = library:Create("TextButton", {
+									Name = "KeyBox",
+									Size = UDim2.new(1, 0, 1, 0),
+									BackgroundTransparency = 1,
+									Text = "",
+									ZIndex = 3,
+									Parent = winkeyframe,
+								})
+
+								winkeytext = library:Create("TextLabel", {
+									Name = "KeyText",
+									Size = UDim2.new(1, 0, 1, 0),
+									BackgroundTransparency = 1,
+									Text = "None",
+									TextColor3 = library.FontColor,
+									TextSize = 13,
+									Font = library.Font,
+									TextXAlignment = Enum.TextXAlignment.Center,
+									ZIndex = 2,
+									Parent = winkeyframe,
+								},{
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+
+								local modesetbind = library:Create("Frame", {
+									Name = "ModesetBind";
+									Size = UDim2.new(.95, 0,0, 20);
+									BackgroundTransparency = 1;
+									LayoutOrder = 2;
+									Parent = holder;
+									ZIndex = 2;
+								})
+
+								local modesetuil = library:Create("UIListLayout", {
+									Name = "UIListLayout";
+									Padding = UDim.new(0, 0);
+									SortOrder = Enum.SortOrder.LayoutOrder;
+									FillDirection = Enum.FillDirection.Horizontal;
+									HorizontalAlignment = Enum.HorizontalAlignment.Left;
+									VerticalAlignment = Enum.VerticalAlignment.Center;
+									Parent = modesetbind;
+								})
+
+								local modelabelset = library:Create("TextLabel", {
+									Name = "ModeLabel";
+									Size = UDim2.new(1, -55,1, 0);
+									BackgroundTransparency = 1;
+									Text = "Mode";
+									TextColor3 = library.FontColor;
+									TextSize = 13;
+									TextXAlignment = Enum.TextXAlignment.Left;
+									TextYAlignment = Enum.TextYAlignment.Center;
+									Font = library.Font;
+									LayoutOrder = 1;
+									ZIndex = 2;
+									Parent = modesetbind;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								local labelmuistroke = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+									Color = library.UIstroke;
+									Thickness = 1;
+									Parent = modelabelset;
+								}, {
+									instancep = "Color";
+									tinstance = library.UIstroke;
+								})
+
+								local labelmtsize = library:Create("UITextSizeConstraint", {
+									Name = "UITextSizeConstraint";
+									MaxTextSize = 13;
+									Parent = modelabelset;
+								})
+
+								local modeframe = library:Create("Frame", {
+									Name = "ModePicker",
+									Size = UDim2.new(0, 50, 0, 15),
+									LayoutOrder = 2;
+									BackgroundColor3 = library.MainColor,
+									ZIndex = 2;
+									Parent = modesetbind,
+								},{
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								})
+
+								local uistrokemode = library:Create("UIStroke", {
+									Name = "UIStroke",
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+									Color = library.SecondaryColor,
+									Thickness = 1,
+									Parent = modeframe,
+								},{
+									instancep = "Color";
+									tinstance = library.SecondaryColor;
+								})
+
+								local Modebox = library:Create("TextButton", {
+									Name = "ModeBox",
+									Size = UDim2.new(1, 0, 1, 0),
+									BackgroundTransparency = 1,
+									Text = "",
+									ZIndex = 3,
+									Parent = modeframe,
+								})
+
+								winmodetext = library:Create("TextLabel", {
+									Name = "ModeText",
+									Size = UDim2.new(1, 0, 1, 0),
+									BackgroundTransparency = 1,
+									Text = Mode,
+									TextColor3 = library.FontColor,
+									TextSize = 13,
+									Font = library.Font,
+									TextXAlignment = Enum.TextXAlignment.Center,
+									ZIndex = 2,
+									Parent = modeframe,
+								},{
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								local unbindbox = library:Create("Frame", {
+									Name = "UnbindBox",
+									Size = UDim2.new(0.95, 0,0, 15),
+									LayoutOrder = 3,
+									BackgroundColor3 = library.MainColor,
+									ZIndex = 2,
+									Parent = holder,
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								})
+
+								local unbindstroke = library:Create("UIStroke", {
+									Name = "UIStroke",
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+									Color = library.SecondaryColor,
+									Thickness = 1,
+									Parent = unbindbox,
+								},{
+									instancep = "Color";
+									tinstance = library.SecondaryColor;
+								})
+
+								local unbindtext = library:Create("TextLabel", {
+									Name = "UnbindText",
+									Size = UDim2.new(1, 0, 1, 0),
+									BackgroundTransparency = 1,
+									Text = "Unbind",
+									TextColor3 = library.FontColor,
+									TextSize = 13,
+									Font = library.Font,
+									TextXAlignment = Enum.TextXAlignment.Center,
+									ZIndex = 2,
+									Parent = unbindbox,
+								},{
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								local unbindboxt = library:Create("TextButton", {
+									Name = "UnbindBoxText",
+									Size = UDim2.new(1, 0, 1, 0),
+									BackgroundTransparency = 1,
+									Text = "",
+									ZIndex = 3,
+									Parent = unbindbox,
+								})
+
+								winkeybox.MouseButton1Click:Connect(startbind)
+
+								Modebox.MouseButton1Click:Connect(function()
+									local index = table.find(modes, Mode) or 1
+									setMode(modes[index % #modes + 1])
+								end)
+
+								unbindboxt.MouseButton1Click:Connect(function()
+									setKey(nil)
+								end)
+
+								updatetexts()
+
+								outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
+									if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+										return
+									end
+
+									local function isInside(gui)
+										local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
+										local m = input.Position
+										return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
+									end
+
+									if isInside(framewindow) or isInside(keyframe) then
+										return
+									end
+
+									picker:Close()
+								end))
+							end
+
+							function picker:Close()
+								if not opened then return end
+								opened = false
+
+								winkeytext = nil
+								winmodetext = nil
+
+								if followConn then
+									followConn:Disconnect()
+									followConn = nil
+								end
+
+								if outsideConn then
+									outsideConn:Disconnect()
+									outsideConn = nil
+								end
+
+								if instance then
+									instance:Destroy()
+									instance = nil
+								end
+							end
+
+							keybox.MouseButton1Click:Connect(startbind)
+
+							keybox.MouseButton2Click:Connect(function()
+								if opened then
+									picker:Close()
+								else
+									openminiwindow()
+								end
+							end)
+
+							trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
+								if waiting_for_key then return end
+								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+								if not currentkey or input.KeyCode ~= currentkey then return end
+
+								if Mode == "Toggle" then
+									setState(not active)
+								elseif Mode == "Hold" then
+									setState(true)
+								end
+							end))
+
+							trackConnection(InputService.InputEnded:Connect(function(input)
+								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+								if not currentkey or input.KeyCode ~= currentkey then return end
+
+								if Mode == "Hold" then
+									setState(false)
+								end
+							end))
+
+							updatetexts()
+
+							if Mode == "Always" then
+								setState(true)
+							end
+
+							library.windowinstances.Keybindbox = picker
+
+							return picker
+						end
+
+						return label
+					end
+
+					function groupbox:AddToggle(name, opts)
+ opts = opts or {}
+						local toggle = {}
+						local togglename = name
+						local toggled = opts.Default
+
+						if opts.Default == nil then
+							toggled = false
+						end
+
+						toggle.Value = toggled
+
+						local holder = library:Create("Frame", {
+							Name = "Holder";
+							Size = UDim2.new(0.95, 0,0, 20);
+							BackgroundTransparency = 1;
+							LayoutOrder = #elementsholder:GetChildren();
+							Parent = elementsholder;
+						})
+
+						local hb = library:Create("TextButton", {
+							Name = "Hitbox";
+							Size = UDim2.new(1, 0, 1, 0);
+							BackgroundTransparency = 1;
+							ZIndex = 2;
+							Text = "";
+							Parent = holder;
+						})
+
+						local elements = library:Create("Frame", {
+							Name = "Holder2";
+							Size = UDim2.new(1,0,1,0);
+							BackgroundTransparency = 1;
+							Parent = holder;
+						})
+
+						local uilistlayout = library:Create("UIListLayout", {
+							Name = "UIListLayout";
+							FillDirection = Enum.FillDirection.Horizontal;
+							HorizontalAlignment = Enum.HorizontalAlignment.Left;
+							SortOrder = Enum.SortOrder.LayoutOrder;
+							VerticalAlignment = Enum.VerticalAlignment.Center;
+							Padding = UDim.new(0, 0);
+							Parent = elements;
+						})
+
+						local boxelem = library:Create("Frame", {
+							Name = "Box";
+							Size = UDim2.new(0, 15, 0, 15);
+							BackgroundColor3 = library.AccentColor;
+							BackgroundTransparency = 1;
+							LayoutOrder = 1;
+							Parent = elements;
+						}, {
+							instancep = "BackgroundColor3";
+							tinstance = library.AccentColor;
+						})
+
+						local uis1 = library:Create("UIStroke", {
+							Name = "UIStroke";
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+							LineJoinMode = Enum.LineJoinMode.Miter;
+							Color = library.SecondaryColor;
+							Thickness = 1;
+
+							Parent = boxelem;
+						}, {
+							instancep = "Color";
+							tinstance = library.SecondaryColor;
+						})
+
+						local label = library:Create("TextLabel", {
+							Name = "Label";
+							Size = UDim2.new(0.772, 0, 1, 0);
+							BackgroundTransparency = 1;
+							Text = name;
+							TextColor3 = library.FontColor;
+							Font = library.Font;
+							TextSize = 13;
+							TextXAlignment = Enum.TextXAlignment.Left;
+							LayoutOrder = 2;
+							TextYAlignment = Enum.TextYAlignment.Center;
+							Parent = elements;
+						}, {
+							instancep = "TextColor3";
+							tinstance = library.FontColor;
+						}, {
+							instancep = "Font";
+							tinstance = library.Font;
+						})
+
+						local luip = library:Create("UIPadding", {
+							Name = "UIPadding";
+							PaddingLeft = UDim.new(0, 7);
+							PaddingRight = UDim.new(0, 0);
+							PaddingTop = UDim.new(0, 0);
+							PaddingBottom = UDim.new(0, 0);
+							Parent = label;
+						})
+
+						local luis = library:Create("UIStroke", {
+							Name = "UIStroke";
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+							Color = library.UIstroke;
+							Thickness = 1;
+
+							Parent = label;
+						}, {
+							instancep = "Color";
+							tinstance = library.UIstroke;
+						})
+
+						local luitextsize = library:Create("UITextSizeConstraint", {
+							Name = "UITextSizeConstraint";
+							MaxTextSize = 13;
+							Parent = label;
+						})
+
+						if toggled then
+							boxelem.BackgroundTransparency = 0
+						end
+
+toggle.OnChanged = newSignal()
+function toggle:GetValue() return toggled end
+function toggle:SetValue(value, silent)
+    assert(type(value) == "boolean", "Toggle:SetValue expects a boolean")
+    local changed = toggled ~= value
+    toggled = value
+    toggle.Value = value
+    boxelem.BackgroundTransparency = value and 0 or 1
+    if Toggles[togglename] then
+        Toggles[togglename].value = value
+        Toggles[togglename].Value = value
+    end
+    if changed and not silent then
+        if opts.Callback then opts.Callback(value) end
+        toggle.OnChanged:Fire(value)
+    end
+    if library.UpdateDependencyBoxes then library:UpdateDependencyBoxes() end
+    return self
+end
+local function togglef() toggle:SetValue(not toggled) end
+
+						hb.MouseButton1Click:Connect(togglef)
+
+						Toggles[togglename] = {
+							value = toggled;
+							keypicker = nil;
+						}
+
+Toggles[togglename].SetValue = function(_, ...) return toggle:SetValue(...) end
+Toggles[togglename].GetValue = function() return toggle:GetValue() end
+Toggles[togglename].OnChanged = toggle.OnChanged
+Toggles[togglename].Value = toggled
+library.Toggles = library.Toggles or Toggles
+						function toggle:AddKeyPicker(name, opts)
+							if type(name) == "table" then
+								opts = name
+								name = togglename
+							end
+
+							opts = opts or {}
+
+							local keypicker = {}
+							local InputService = InputService or game:GetService("UserInputService")
+
+							local function resolvekey(k)
+								if typeof(k) == "EnumItem" then
+									return k
+								end
+
+								if type(k) == "string" then
+									local ok, res = pcall(function()
+										return Enum.KeyCode[k]
+									end)
+									if ok then
+										return res
+									end
+								end
+
+								return nil
+							end
+
+							local currentkey = resolvekey(opts.Default)
+							local Mode = opts.Mode or "Hold"
+							local modes = {"Hold", "Toggle", "Always"}
+
+							local opened = false
+							local instance
+							local followConn
+							local outsideConn
+							local waitkeyconn
+
+							local waiting_for_key = false
+
+							local winkeytext
+							local winmodetext
+
+							local ignoredkeys = {
+								library.Menukey;
+								Enum.KeyCode.Return,
+								Enum.KeyCode.End,
+								Enum.KeyCode.Home,
+								Enum.KeyCode.PageUp,
+								Enum.KeyCode.PageDown,
+							}
+
+							local ignoredset = {}
+							for _, k in next, ignoredkeys do
+								if k then
+									ignoredset[k] = true
+								end
+							end
+
+							if not Toggles[togglename].keypicker then
+								Toggles[togglename].keypicker = keypicker
+							else
+								warn("KeyPicker already exists for toggle: "..togglename)
+								return 
+							end
+
+							keypicker.Key = currentkey
+							keypicker.Mode = Mode
+							keypicker.OnChanged = newSignal()
+							Options[name] = keypicker
+library.Options = library.Options or Options
+library.Options[name] = keypicker
+
+							local keyframe = library:Create("Frame", {
+								Name = "KeyPicker",
+								Size = UDim2.new(0, 50, 0, 15),
+								LayoutOrder = 999;
+								BackgroundColor3 = library.MainColor,
+								Parent = elements;
+							},{
+								instancep = "BackgroundColor3";
+								tinstance = library.MainColor;
+							})
+
+							local uistrokekey = library:Create("UIStroke", {
+								Name = "UIStroke",
+								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+								Color = library.SecondaryColor,
+								Thickness = 1,
+								Parent = keyframe,
+							},{
+								instancep = "Color";
+								tinstance = library.SecondaryColor;
+							})
+
+							local keybox = library:Create("TextButton", {
+								Name = "KeyBox",
+								Size = UDim2.new(1, 0, 1, 0),
+								BackgroundTransparency = 1,
+								Text = "",
+								ZIndex = 4,
+								Parent = keyframe,
+							})
+
+							local keytext = library:Create("TextLabel", {
+								Name = "KeyText",
+								Size = UDim2.new(1, 0, 1, 0),
+								BackgroundTransparency = 1,
+								Text = "None",
+								TextColor3 = library.FontColor,
+								TextSize = 13,
+								Font = library.Font,
+								TextXAlignment = Enum.TextXAlignment.Center,
+								Parent = keyframe,
+							},{
+								instancep = "TextColor3";
+								tinstance = library.FontColor;
+							}, {
+								instancep = "Font";
+								tinstance = library.Font;
+							})
+
+							local function setState(state)
+								if toggled == state then return end
+								togglef()
+								Toggles[togglename].value = toggled
+							end
+
+							local function updatetexts()
+								local t
+								if waiting_for_key then
+									t = "..."
+								elseif currentkey then
+									t = keyshorts[currentkey] or currentkey.Name
+								else
+									t = "None"
+								end
+
+								keytext.Text = t
+								if winkeytext then
+									winkeytext.Text = t
+								end
+								if winmodetext then
+									winmodetext.Text = Mode
+								end
+							end
+
+							local function setKey(k)
+								currentkey = k
+								keypicker.Key = k
+								updatetexts()
+
+								if opts.CallbackKey then
+									opts.CallbackKey(k)
+								end
+
+								keypicker.OnChanged:Fire(currentkey, Mode)
+							end
+
+							local function setMode(m)
+								Mode = m
+								keypicker.Mode = m
+								updatetexts()
+
+								setState(m == "Always")
+
+								if opts.CallbackMode then
+									opts.CallbackMode(m)
+								end
+
+								keypicker.OnChanged:Fire(currentkey, Mode)
+							end
+
+function keypicker:GetValue()
+    return {Key = currentkey and currentkey.Name or "None", Mode = Mode}
+end
+function keypicker:SetValue(value, mode)
+    local key = value
+    if type(value) == "table" then
+        key = value.Key or value[1]
+        mode = value.Mode or value[2] or mode
+    end
+    if mode ~= nil then assert(table.find(modes, mode), "Invalid key picker mode") end
+    local resolved = resolvekey(key)
+    assert(resolved or key == nil or key == "None" or key == "", "Invalid key")
+    setKey(resolved)
+    if mode ~= nil then setMode(mode) end
+    return self
+end
+							local function startbind()
+								if waiting_for_key then
+									return
+								end
+
+								waiting_for_key = true
+								updatetexts()
+
+								waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
+									if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+									if ignoredset[input.KeyCode] then return end
+
+									if waitkeyconn then
+										waitkeyconn:Disconnect()
+										waitkeyconn = nil
+									end
+
+									task.defer(function()
+										waiting_for_key = false
+										updatetexts()
+									end)
+
+									if input.KeyCode == Enum.KeyCode.Backspace then
+										setKey(nil)
+									else
+										setKey(input.KeyCode)
+									end
+								end))
+							end
+
+							local function openminiwindow()
+								opened = true
+
+								local function getPos()
+									local abs = keyframe.AbsolutePosition
+									local base = screengui.AbsolutePosition
+									return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
+								end
+
+								local cursorbox = library:Create("Frame", {
+									Name = "CursorBox";
+									Size = UDim2.new(0, 15,0, 15);
+									Position = getPos();
+									BackgroundColor3 = Color3.new(1,1,1);
+									BackgroundTransparency = 1;
+									ZIndex = 2;
+									Parent = screengui;
+								})
+
+								instance = cursorbox
+
+								followConn = keyframe:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
+									if instance then
+										instance.Position = getPos()
+									end
+								end)
+
+								local framewindow = library:Create("Frame", {
+									Name = "Frame";
+									Size = UDim2.new(0, 323,0, 93);
+									Position = UDim2.new(1, 0,1.4, 0);
+									BackgroundColor3 = library.MainColor;
+									ZIndex = 2;
+									Parent = cursorbox;
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								})
+
+								local uistroke = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+									LineJoinMode = Enum.LineJoinMode.Miter;
+									Color = library.SecondaryColor;
+									Thickness = 1;
+									Parent = framewindow;
+								}, {
+									instancep = "Color";
+									tinstance = library.SecondaryColor;
+								})
+
+								local uistroke2 = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+									LineJoinMode = Enum.LineJoinMode.Miter;
+									Color = library.MainColor;
+									Thickness = 4;
+									Parent = framewindow;
+								}, {
+									instancep = "Color";
+									tinstance = library.MainColor;
+								})
+
+								local text = library:Create("TextLabel", {
+									Name = "TextLabel";
+									Size = UDim2.new(1, 0,0, 16);
+									Position = UDim2.new(0, 0,0, 0);
+									Text = name;
+									TextColor3 = library.FontColor;
+									Font = library.Font;
+									TextSize = 13;
+									BackgroundTransparency = 1;
+									ZIndex = 2;
+									Parent = framewindow;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								local textuistroke = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+									Color = library.UIstroke;
+									Thickness = 1;
+									Parent = text;
+								}, {
+									instancep = "Color";
+									tinstance = library.UIstroke;
+								})
+
+								local textuisize = library:Create("UITextSizeConstraint", {
+									Name = "UISizeConstraint";
+									MaxTextSize = 13;
+									Parent = text;
+								})
+
+								local holder = library:Create("Frame", {
+									Name = "Holder";
+									Size = UDim2.new(1, 0,-0.228, 96);
+									Position = UDim2.new(0, 0,0.195, 0);
+									BackgroundTransparency = 1;
+									ZIndex = 2;
+									Parent = framewindow;
+								})
+
+								local uill = library:Create("UIListLayout", {
+									Name = "UIListLayout";
+									Padding = UDim.new(0, 5);
+									SortOrder = Enum.SortOrder.LayoutOrder;
+									FillDirection = Enum.FillDirection.Vertical;
+									HorizontalAlignment = Enum.HorizontalAlignment.Center;
+									VerticalAlignment = Enum.VerticalAlignment.Top;
+									Parent = holder;
+								})
+
+								local uipadd = library:Create("UIPadding", {
+									Name = "UIPadding";
+									PaddingLeft = UDim.new(0, 0);
+									PaddingRight = UDim.new(0, 0);
+									PaddingTop = UDim.new(0, 3);
+									PaddingBottom = UDim.new(0, 0);
+									Parent = holder;
+								})
+
+								local keysetbind = library:Create("Frame", {
+									Name = "KeysetBind";
+									Size = UDim2.new(.95, 0,0, 20);
+									BackgroundTransparency = 1;
+									LayoutOrder = 1;
+									Parent = holder;
+									ZIndex = 2;
+								})
+
+								local keybindsetuil = library:Create("UIListLayout", {
+									Name = "UIListLayout";
+									Padding = UDim.new(0, 0);
+									SortOrder = Enum.SortOrder.LayoutOrder;
+									FillDirection = Enum.FillDirection.Horizontal;
+									HorizontalAlignment = Enum.HorizontalAlignment.Left;
+									VerticalAlignment = Enum.VerticalAlignment.Center;
+									Parent = keysetbind;
+								})
+
+								local keylabelset = library:Create("TextLabel", {
+									Name = "KeyLabel";
+									Size = UDim2.new(1, -55,1, 0);
+									BackgroundTransparency = 1;
+									Text = "Keybind";
+									TextColor3 = library.FontColor;
+									TextSize = 13;
+									TextXAlignment = Enum.TextXAlignment.Left;
+									TextYAlignment = Enum.TextYAlignment.Center;
+									Font = library.Font;
+									LayoutOrder = 1;
+									ZIndex = 2;
+									Parent = keysetbind;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								local labeluistroke = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+									Color = library.UIstroke;
+									Thickness = 1;
+									Parent = keylabelset;
+								}, {
+									instancep = "Color";
+									tinstance = library.UIstroke;
+								})
+
+								local labeltsize = library:Create("UITextSizeConstraint", {
+									Name = "UITextSizeConstraint";
+									MaxTextSize = 13;
+									Parent = keylabelset;
+								})
+
+								local winkeyframe = library:Create("Frame", {
+									Name = "KeyPicker",
+									Size = UDim2.new(0, 50, 0, 15),
+									LayoutOrder = 2;
+									BackgroundColor3 = library.MainColor,
+									ZIndex = 2;
+									Parent = keysetbind,
+								},{
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								})
+
+								local winuistrokekey = library:Create("UIStroke", {
+									Name = "UIStroke",
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+									Color = library.SecondaryColor,
+									Thickness = 1,
+									Parent = winkeyframe,
+								},{
+									instancep = "Color";
+									tinstance = library.SecondaryColor;
+								})
+
+								local winkeybox = library:Create("TextButton", {
+									Name = "KeyBox",
+									Size = UDim2.new(1, 0, 1, 0),
+									BackgroundTransparency = 1,
+									Text = "",
+									ZIndex = 3,
+									Parent = winkeyframe,
+								})
+
+								winkeytext = library:Create("TextLabel", {
+									Name = "KeyText",
+									Size = UDim2.new(1, 0, 1, 0),
+									BackgroundTransparency = 1,
+									Text = "None",
+									TextColor3 = library.FontColor,
+									TextSize = 13,
+									Font = library.Font,
+									TextXAlignment = Enum.TextXAlignment.Center,
+									ZIndex = 2,
+									Parent = winkeyframe,
+								},{
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+
+								local modesetbind = library:Create("Frame", {
+									Name = "ModesetBind";
+									Size = UDim2.new(.95, 0,0, 20);
+									BackgroundTransparency = 1;
+									LayoutOrder = 2;
+									Parent = holder;
+									ZIndex = 2;
+								})
+
+								local modesetuil = library:Create("UIListLayout", {
+									Name = "UIListLayout";
+									Padding = UDim.new(0, 0);
+									SortOrder = Enum.SortOrder.LayoutOrder;
+									FillDirection = Enum.FillDirection.Horizontal;
+									HorizontalAlignment = Enum.HorizontalAlignment.Left;
+									VerticalAlignment = Enum.VerticalAlignment.Center;
+									Parent = modesetbind;
+								})
+
+								local modelabelset = library:Create("TextLabel", {
+									Name = "ModeLabel";
+									Size = UDim2.new(1, -55,1, 0);
+									BackgroundTransparency = 1;
+									Text = "Mode";
+									TextColor3 = library.FontColor;
+									TextSize = 13;
+									TextXAlignment = Enum.TextXAlignment.Left;
+									TextYAlignment = Enum.TextYAlignment.Center;
+									Font = library.Font;
+									LayoutOrder = 1;
+									ZIndex = 2;
+									Parent = modesetbind;
+								}, {
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								local labelmuistroke = library:Create("UIStroke", {
+									Name = "UIStroke";
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+									Color = library.UIstroke;
+									Thickness = 1;
+									Parent = modelabelset;
+								}, {
+									instancep = "Color";
+									tinstance = library.UIstroke;
+								})
+
+								local labelmtsize = library:Create("UITextSizeConstraint", {
+									Name = "UITextSizeConstraint";
+									MaxTextSize = 13;
+									Parent = modelabelset;
+								})
+
+								local modeframe = library:Create("Frame", {
+									Name = "ModePicker",
+									Size = UDim2.new(0, 50, 0, 15),
+									LayoutOrder = 2;
+									BackgroundColor3 = library.MainColor,
+									ZIndex = 2;
+									Parent = modesetbind,
+								},{
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								})
+
+								local uistrokemode = library:Create("UIStroke", {
+									Name = "UIStroke",
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+									Color = library.SecondaryColor,
+									Thickness = 1,
+									Parent = modeframe,
+								},{
+									instancep = "Color";
+									tinstance = library.SecondaryColor;
+								})
+
+								local Modebox = library:Create("TextButton", {
+									Name = "ModeBox",
+									Size = UDim2.new(1, 0, 1, 0),
+									BackgroundTransparency = 1,
+									Text = "",
+									ZIndex = 3,
+									Parent = modeframe,
+								})
+
+								winmodetext = library:Create("TextLabel", {
+									Name = "ModeText",
+									Size = UDim2.new(1, 0, 1, 0),
+									BackgroundTransparency = 1,
+									Text = Mode,
+									TextColor3 = library.FontColor,
+									TextSize = 13,
+									Font = library.Font,
+									TextXAlignment = Enum.TextXAlignment.Center,
+									ZIndex = 2,
+									Parent = modeframe,
+								},{
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								local unbindbox = library:Create("Frame", {
+									Name = "UnbindBox",
+									Size = UDim2.new(0.95, 0,0, 15),
+									LayoutOrder = 3,
+									BackgroundColor3 = library.MainColor,
+									ZIndex = 2,
+									Parent = holder,
+								}, {
+									instancep = "BackgroundColor3";
+									tinstance = library.MainColor;
+								})
+
+								local unbindstroke = library:Create("UIStroke", {
+									Name = "UIStroke",
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+									Color = library.SecondaryColor,
+									Thickness = 1,
+									Parent = unbindbox,
+								},{
+									instancep = "Color";
+									tinstance = library.SecondaryColor;
+								})
+
+								local unbindtext = library:Create("TextLabel", {
+									Name = "UnbindText",
+									Size = UDim2.new(1, 0, 1, 0),
+									BackgroundTransparency = 1,
+									Text = "Unbind",
+									TextColor3 = library.FontColor,
+									TextSize = 13,
+									Font = library.Font,
+									TextXAlignment = Enum.TextXAlignment.Center,
+									ZIndex = 2,
+									Parent = unbindbox,
+								},{
+									instancep = "TextColor3";
+									tinstance = library.FontColor;
+								}, {
+									instancep = "Font";
+									tinstance = library.Font;
+								})
+
+								local unbindboxt = library:Create("TextButton", {
+									Name = "UnbindBoxText",
+									Size = UDim2.new(1, 0, 1, 0),
+									BackgroundTransparency = 1,
+									Text = "",
+									ZIndex = 3,
+									Parent = unbindbox,
+								})
+
+								winkeybox.MouseButton1Click:Connect(startbind)
+
+								Modebox.MouseButton1Click:Connect(function()
+									local index = table.find(modes, Mode) or 1
+									setMode(modes[index % #modes + 1])
+								end)
+
+								unbindboxt.MouseButton1Click:Connect(function()
+									setKey(nil)
+								end)
+
+								updatetexts()
+
+								outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
+									if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+										return
+									end
+
+									local function isInside(gui)
+										local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
+										local m = input.Position
+										return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
+									end
+
+									if isInside(framewindow) or isInside(keyframe) then
+										return
+									end
+
+									keypicker:Close()
+								end))
+							end
+
+							function keypicker:Close()
+								if not opened then return end
+								opened = false
+
+								winkeytext = nil
+								winmodetext = nil
+
+								if followConn then
+									followConn:Disconnect()
+									followConn = nil
+								end
+
+								if outsideConn then
+									outsideConn:Disconnect()
+									outsideConn = nil
+								end
+
+								if instance then
+									instance:Destroy()
+									instance = nil
+								end
+							end
+
+							keybox.MouseButton1Click:Connect(startbind)
+
+							keybox.MouseButton2Click:Connect(function()
+								if opened then
+									keypicker:Close()
+								else
+									openminiwindow()
+								end
+							end)
+
+							trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
+								if waiting_for_key then return end
+								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+								if not currentkey or input.KeyCode ~= currentkey then return end
+
+								if Mode == "Toggle" then
+									setState(not toggled)
+								elseif Mode == "Hold" then
+									setState(true)
+								end
+							end))
+
+							trackConnection(InputService.InputEnded:Connect(function(input)
+								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+								if not currentkey or input.KeyCode ~= currentkey then return end
+
+								if Mode == "Hold" then
+									setState(false)
+								end
+							end))
+
+							updatetexts()
+
+							if Mode == "Always" then
+								setState(true)
+							end
+
+							library.windowinstances.Keybindbox = keypicker
+
+							return keypicker
+						end
+
+						return toggle
+					end
+
+					function groupbox:AddSlider(name, opts)
+						opts = opts or {}
+
+						local slider = {}
+						local UIS = InputService
+
+						local config = {
+							Minimum = opts.Minimum;
+							Maximum = opts.Maximum;
+							DefaultValue = opts.Default;
+							Step = opts.Step;
+							Format = opts.Format;
+						}
+
+						local range = config.Maximum - config.Minimum
+						if range <= 0 then
+							range = 1
+						end
+
+						local stepsize = config.Step > 0 and config.Step
+
+						local function decimalsof(n)
+							local d = tostring(n):match("%.(%d+)")
+							return d and #d or 0
+						end
+
+						local decimals = opts.Rounding or math.max(decimalsof(stepsize), decimalsof(config.Minimum))
+
+						local currentvalue = config.Minimum
+						local dragging = false
+
+						local mainframe = library:Create("Frame", {
+							Name = "Slider",
+							Size = UDim2.new(0.95, 0, 0, 15),
+							BackgroundTransparency = 1,
+							LayoutOrder = #elementsholder:GetChildren(),
+							Parent = elementsholder,
+						})
+
+						if opts.Smaller then
+							mainframe.Size = UDim2.new(0.465, 0, 0, 15)
+						end
+
+						local uistroke = library:Create("UIStroke", {
+							Name = "UIStroke",
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+							Color = library.SecondaryColor,
+							Thickness = 1,
+							LineJoinMode = Enum.LineJoinMode.Miter,
+							Parent = mainframe,
+						}, {
+							instancep = "Color";
+							tinstance = library.SecondaryColor;
+						})
+
+						local frame = library:Create("Frame", {
+							Name = "Frame",
+							Size = UDim2.new(0, 0, 1, 0),
+							BackgroundColor3 = library.AccentColor,
+							Parent = mainframe,
+						}, {
+							instancep = "BackgroundColor3";
+							tinstance = library.AccentColor;
+						})
+
+						local hitbox = library:Create("TextButton", {
+							Name = "Hitbox",
+							Size = UDim2.new(1, 0, 1, 0),
+							BackgroundTransparency = 1,
+							Text = "",
+							ZIndex = 3,
+							Parent = mainframe,
+						})
+
+						local text = library:Create("TextLabel", {
+							Name = "Text",
+							Size = UDim2.new(1, 0, 1, 0),
+							BackgroundTransparency = 1,
+							Text = name,
+							TextColor3 = library.FontColor,
+							Font = library.Font,
+							TextSize = 13,
+							TextXAlignment = Enum.TextXAlignment.Center,
+							TextYAlignment = Enum.TextYAlignment.Center,
+							ZIndex = 2,
+							Parent = mainframe,
+						}, {
+							instancep = "TextColor3";
+							tinstance = library.FontColor;
+						}, {
+							instancep = "Font";
+							tinstance = library.Font;
+						})
+
+						local uistoke2 = library:Create("UIStroke", {
+							Name = "UIStroke",
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+							Color = library.UIstroke,
+							Thickness = 1,
+							LineJoinMode = Enum.LineJoinMode.Round,
+							Parent = text,
+						}, {
+							instancep = "Color";
+							tinstance = library.UIstroke;
+						})
+
+						local textuisize = library:Create("UITextSizeConstraint", {
+							Name = "UITextSizeConstraint",
+							MaxTextSize = 13,
+							Parent = text,
+						})
+
+						local function fmt(n)
+							return tostring(n)
+						end
+
+						local function refreshui()
+							local alpha = (currentvalue - config.Minimum) / range
+							frame.Size = UDim2.new(math.clamp(alpha, 0, 1), 0, 1, 0)
+
+							local suffix = ""
+							if config.Format ~= "" then
+								suffix = " " .. config.Format
+							end
+
+							text.Text = name .. ": " .. fmt(currentvalue) .. "/" .. fmt(config.Maximum) .. suffix
+						end
+
+						local function setvalue(v, silent)
+							v = math.clamp(v, config.Minimum, config.Maximum)
+							v = config.Minimum + math.floor((v - config.Minimum) / stepsize + 0.5) * stepsize
+							v = math.clamp(v, config.Minimum, config.Maximum)
+							v = tonumber(string.format("%." .. decimals .. "f", v))
+
+							local changed = v ~= currentvalue
+							currentvalue = v
+							slider.Value = v
+							refreshui()
+
+							if changed and not silent then
+								if opts.Callback then
+									opts.Callback(v)
+								end
+
+								slider.OnChanged:Fire(v)
+							end
+						end
+
+						slider.Value = currentvalue
+						slider.OnChanged = newSignal()
+						Options[name] = slider
+library.Options = library.Options or Options
+library.Options[name] = slider
+
+						function slider:SetValue(v, silent)
+ setvalue(v, silent)
+						end
+
+						function slider:GetValue()
+							return currentvalue
+						end
+
+						setvalue(config.DefaultValue, true)
+
+						local moveConn
+						local endConn
+
+						local function stop()
+							dragging = false
+
+							if moveConn then
+								moveConn:Disconnect()
+								moveConn = nil
+							end
+
+							if endConn then
+								endConn:Disconnect()
+								endConn = nil
+							end
+						end
+
+						local function drag(input)
+							local pos, size = mainframe.AbsolutePosition, mainframe.AbsoluteSize
+							local alpha = math.clamp((input.Position.X - pos.X) / size.X, 0, 1)
+							setvalue(config.Minimum + alpha * range)
+						end
+
+						trackConnection(hitbox.InputBegan:Connect(function(input)
+							if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+								stop()
+								dragging = true
+								drag(input)
+
+								moveConn = trackConnection(UIS.InputChanged:Connect(function(i)
+									if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+										drag(i)
+									end
+								end))
+
+								endConn = trackConnection(UIS.InputEnded:Connect(function(i)
+									if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+										stop()
+									end
+								end))
+							end
+						end))
+
+						return slider
+					end
+
+					function groupbox:AddButton(name , opts)
+						opts = opts or {}
+
+						local button = {}
+
+						local warnclick = opts.WarnClick or opts.Warn or false
+						local smaller = opts.Smaller or false
+						local armed = false
+						local armtoken = 0
+
+						local Holder = library:Create("Frame", {
+							Name = "Button",
+							Size = smaller and UDim2.new(0.465, 0, 0, 15) or UDim2.new(0.95, 0,0, 15),
+							LayoutOrder = #elementsholder:GetChildren(),
+							BackgroundColor3 = library.MainColor,
+							Parent = elementsholder,
+						}, {
+							instancep = "BackgroundColor3";
+							tinstance = library.MainColor;
+						})
+
+						local stroketext = library:Create("UIStroke", {
+							Name = "UIStroke",
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+							Color = library.SecondaryColor,
+							Thickness = 1,
+							Parent = Holder,
+						},{
+							instancep = "Color";
+							tinstance = library.SecondaryColor;
+						})
+
+						local text = library:Create("TextLabel", {
+							Name = "text",
+							Size = UDim2.new(1, 0, 1, 0),
+							BackgroundTransparency = 1,
+							Text = name,
+							TextColor3 = library.FontColor,
+							TextSize = 13,
+							Font = library.Font,
+							TextXAlignment = Enum.TextXAlignment.Center,
+							ZIndex = 2,
+							Parent = Holder,
+						},{
+							instancep = "TextColor3";
+							tinstance = library.FontColor;
+						}, {
+							instancep = "Font";
+							tinstance = library.Font;
+						})
+
+						local uistroke = library:Create("UIStroke", {
+							Name = "UIStroke",
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+							Color = library.UIstroke,
+							Thickness = 1,
+							Parent = text,
+						},{
+							instancep = "Color";
+							tinstance = library.UIstroke;
+						})
+
+						local textsizecon = library:Create("UITextSizeConstraint", {
+							Name = "UITextSizeConstraint",
+							MaxTextSize = 13,
+							Parent = text,
+						})
+
+						local Textbutton = library:Create("TextButton", {
+							Name = "Boxhit",
+							Size = UDim2.new(1, 0, 1, 0),
+							BackgroundTransparency = 1,
+							Text = "",
+							ZIndex = 3,
+							Parent = Holder,
+						})
+
+						local function disarm()
+							armed = false
+							armtoken += 1
+							text.Text = name
+							text.TextColor3 = library.FontColor
+						end
+
+						Textbutton.MouseButton1Click:Connect(function()
+							if warnclick and not armed then
+								armed = true
+								text.Text = "Are you sure?"
+								text.TextColor3 = Color3.fromRGB(255, 0, 0)
+
+								armtoken += 1
+								local mytoken = armtoken
+
+								task.delay(2, function()
+									if armed and armtoken == mytoken then
+										disarm()
+									end
+								end)
+
+								return
+							end
+
+							if armed then
+								disarm()
+							end
+
+							if opts.Callback then
+								opts.Callback()
+							end
+						end)
+
+						return button
+					end
+
+					function groupbox:AddDependencyBox()
+						local dependencybox = {}
+						dependencybox.Dependencies = {}
+
+						local groupbox = self
+						local Container = elementsholder
+
+						local Holder = library:Create("Frame", {
+							Name = "DependencyBox";
+							BackgroundTransparency = 1;
+							Size = UDim2.new(1, 0, 0, 0);
+							AutomaticSize = Enum.AutomaticSize.Y;
+							LayoutOrder = #Container:GetChildren();
+							Visible = false;
+							Parent = Container;
+						})
+
+						local Frame = library:Create("Frame", {
+							Name = "Elements";
+							BackgroundTransparency = 1;
+							Size = UDim2.new(1, 0, 0, 0);
+							AutomaticSize = Enum.AutomaticSize.Y;
+							Parent = Holder;
+						})
+
+						local Layout = library:Create("UIListLayout", {
+							Name = "UIListLayout";
+							FillDirection = Enum.FillDirection.Horizontal;
+							Wraps = true;
+							HorizontalAlignment = Enum.HorizontalAlignment.Center;
+							VerticalAlignment = Enum.VerticalAlignment.Top;
+							SortOrder = Enum.SortOrder.LayoutOrder;
+							Padding = UDim.new(0, 5);
+							Parent = Frame;
+						})
+
+						local order = 0
+
+						local function wrap(fname)
+							if typeof(groupbox[fname]) ~= "function" then
+								return
+							end
+
+							dependencybox[fname] = function(_, ...)
+								local before = {}
+
+								for _, child in ipairs(Container:GetChildren()) do
+									before[child] = true
+								end
+
+								local result = groupbox[fname](groupbox, ...)
+
+								for _, child in ipairs(Container:GetChildren()) do
+									if not before[child] then
+										order += 1
+										child.LayoutOrder = order
+										child.Parent = Frame
+									end
+								end
+
+								return result
+							end
+						end
+
+						for _, fname in ipairs({"AddLabel", "AddToggle", "AddSlider", "AddButton", "AddTextbox", "AddDropdown", "AddDependencyBox", "Divider"}) do
+							wrap(fname)
+						end
+
+						function dependencybox:Update()
+							for _, Dependency in next, dependencybox.Dependencies do
+								local Element = Dependency[1]
+								local Value = Dependency[2]
+
+								local current = Element.Value
+								if current == nil then
+									current = Element.value
+								end
+
+								if current ~= Value then
+									Holder.Visible = false
+									return
+								end
+							end
+
+							Holder.Visible = true
+						end
+
+						function dependencybox:SetupDependencies(Dependencies)
+							for _, Dependency in next, Dependencies do
+								assert(typeof(Dependency) == "table", "SetupDependencies: Dependency is not of type `table`.")
+								assert(Dependency[1], "SetupDependencies: Dependency is missing element argument.")
+								assert(Dependency[2] ~= nil, "SetupDependencies: Dependency is missing value argument.")
+							end
+
+							dependencybox.Dependencies = Dependencies
+							dependencybox:Update()
+						end
+
+						table.insert(groupbox.elements, dependencybox)
+						table.insert(library.DependencyBoxes, dependencybox)
+
+						return dependencybox
+					end
+
+					function groupbox:Divider()
+						local divider = {}
+
+						local frame = library:Create("Frame", {
+							Name = "Divider",
+							Size = UDim2.new(0.95, 0, 0, 3),
+							BackgroundColor3 = library.MainColor,
+							LayoutOrder = #elementsholder:GetChildren(),
+							Parent = elementsholder,
+						}, {
+							instancep = "BackgroundColor3";
+							tinstance = library.MainColor;
+						})
+
+						local uistroke1 = library:Create("UIStroke", {
+							Name = "UIStroke",
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+							Color = library.SecondaryColor,
+							Thickness = 1,
+							ZIndex = 2,
+							Parent = frame,
+						}, {
+							instancep = "Color";
+							tinstance = library.SecondaryColor;
+						})
+
+						return divider
+					end
+
+					function groupbox:AddDropdown(name, opts)
+						opts = opts or {}
+
+						library.Options = library.Options or {}
+
+						--==========================================================
+						-- REUSE AN EXISTING DROPDOWN
+						--==========================================================
+
+						local existing = library.Options[name]
+
+						if existing then
+							if existing.Type == "Dropdown"
+								and existing.Controller
+								and type(existing.Controller.Refresh) == "function" then
+
+								local controller = existing.Controller
+
+								if opts.Text ~= nil then
+									controller:SetText(opts.Text)
+								end
+
+								if opts.Callback ~= nil then
+									controller:SetCallback(opts.Callback)
+								end
+
+								if opts.Values ~= nil then
+									controller:Refresh(opts.Values, opts.Default)
+								elseif opts.Default ~= nil then
+									controller:SetValue(opts.Default, true)
+								end
+
+								return controller
+							end
+
+							warn("An option named '" .. tostring(name) .. "' already exists.")
+							return nil
+						end
+
+						--==========================================================
+						-- STATE
+						--==========================================================
+
+						local Dropdown = {}
+
+						local values = {}
+						local elements = {}
+						local selectedIndices = {}
+						local connections = {}
+
+						local picked = nil
+						local isOpen = false
+						local destroyed = false
+
+						local multi = opts.Multipick == true
+						local callback = opts.Callback
+
+						local rowHeight = 20
+						local rowGap = 3
+						local padding = 4
+
+						local requestedVisible = tonumber(opts.MaxVisibleItems) or 10
+
+						if requestedVisible ~= requestedVisible then
+							requestedVisible = 10
+						end
+
+						local maxVisibleItems = math.clamp(
+							math.floor(requestedVisible),
+							1,
+							30
+						)
+
+						local changedEvent = Instance.new("BindableEvent")
+
+						local option = {
+							Type = "Dropdown",
+							Name = name,
+							Value = multi and {} or nil,
+							Values = values,
+							OnChanged = changedEvent.Event,
+							Controller = Dropdown,
+						}
+
+						library.Options[name] = option
+
+						local function connect(signal, fn)
+							local connection = signal:Connect(fn)
+							table.insert(connections, connection)
+							return connection
+						end
+
+						local function copyUnique(source)
+							local result = {}
+							local seen = {}
+
+							if type(source) ~= "table" then
+								return result
+							end
+
+							for _, value in ipairs(source) do
+								local supported = type(value) == "string"
+									or (
+										type(value) == "number"
+										and value == value
+										and value > -math.huge
+										and value < math.huge
+									)
+
+								if supported and not seen[value] then
+									seen[value] = true
+									table.insert(result, value)
+								end
+							end
+
+							return result
+						end
+
+						local function findIndex(value)
+							if type(value) == "number" then
+								if value % 1 == 0 and value >= 1 and value <= #values then
+									return value
+								end
+
+								return nil
+							end
+
+							return table.find(values, value)
+						end
+
+						local function getValue()
+							if not multi then
+								return picked
+							end
+
+							local selected = {}
+
+							for index, value in ipairs(values) do
+								if selectedIndices[index] then
+									table.insert(selected, value)
+								end
+							end
+
+							return selected
+						end
+
+						local function equalValues(a, b)
+							if type(a) ~= type(b) then
+								return false
+							end
+
+							if type(a) ~= "table" then
+								return a == b
+							end
+
+							if #a ~= #b then
+								return false
+							end
+
+							for index, value in ipairs(a) do
+								if b[index] ~= value then
+									return false
+								end
+							end
+
+							return true
+						end
+
+						--==========================================================
+						-- MAIN UI
+						--==========================================================
+
+						local main = library:Create("Frame", {
+							Name = "Dropdown",
+							ZIndex = 10,
+							Size = UDim2.new(0.95, 0, 0, 0),
+							AutomaticSize = Enum.AutomaticSize.Y,
+							LayoutOrder = #elementsholder:GetChildren(),
+							BackgroundTransparency = 1,
+							Parent = elementsholder,
+						})
+
+						library:Create("UIListLayout", {
+							FillDirection = Enum.FillDirection.Vertical,
+							HorizontalAlignment = Enum.HorizontalAlignment.Center,
+							VerticalAlignment = Enum.VerticalAlignment.Top,
+							Padding = UDim.new(0, 5),
+							SortOrder = Enum.SortOrder.LayoutOrder,
+							Parent = main,
+						})
+
+						local header = library:Create("TextLabel", {
+							Name = "Header",
+							ZIndex = 11,
+							Size = UDim2.new(1, 0, 0, 15),
+							LayoutOrder = 1,
+							BackgroundTransparency = 1,
+							Text = tostring(opts.Text or name),
+							Font = library.Font,
+							TextColor3 = library.FontColor,
+							TextSize = 13,
+							TextXAlignment = Enum.TextXAlignment.Left,
+							Parent = main,
+						}, {
+							instancep = "TextColor3",
+							tinstance = library.FontColor,
+						}, {
+							instancep = "Font",
+							tinstance = library.Font,
+						})
+
+						library:Create("UIStroke", {
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+							Color = library.UIstroke,
+							Thickness = 1,
+							Parent = header,
+						}, {
+							instancep = "Color",
+							tinstance = library.UIstroke,
+						})
+
+						local dropdownFrame = library:Create("Frame", {
+							Name = "DropdownFrame",
+							ZIndex = 10,
+							Size = UDim2.new(1, 0, 0, 0),
+							AutomaticSize = Enum.AutomaticSize.Y,
+							LayoutOrder = 2,
+							BackgroundTransparency = 1,
+							ClipsDescendants = false,
+							Parent = main,
+						})
+
+						library:Create("UIListLayout", {
+							FillDirection = Enum.FillDirection.Vertical,
+							HorizontalAlignment = Enum.HorizontalAlignment.Center,
+							VerticalAlignment = Enum.VerticalAlignment.Top,
+							SortOrder = Enum.SortOrder.LayoutOrder,
+							Padding = UDim.new(0, 3),
+							Parent = dropdownFrame,
+						})
+
+						local selectionRow = library:Create("Frame", {
+							Name = "SelectionRow",
+							ZIndex = 11,
+							Size = UDim2.new(1, 0, 0, 22),
+							LayoutOrder = 1,
+							BackgroundTransparency = 1,
+							Parent = dropdownFrame,
+						})
+
+						library:Create("UIStroke", {
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+							Color = library.SecondaryColor,
+							Thickness = 1,
+							Parent = selectionRow,
+						}, {
+							instancep = "Color",
+							tinstance = library.SecondaryColor,
+						})
+
+						local selectedLabel = library:Create("TextLabel", {
+							Name = "Selected",
+							ZIndex = 12,
+							Size = UDim2.new(1, -25, 1, 0),
+							BackgroundTransparency = 1,
+							Text = "-",
+							Font = library.Font,
+							TextColor3 = library.FontColor,
+							TextSize = 12,
+							TextXAlignment = Enum.TextXAlignment.Left,
+							TextTruncate = Enum.TextTruncate.AtEnd,
+							Parent = selectionRow,
+						}, {
+							instancep = "Font",
+							tinstance = library.Font,
+						}, {
+							instancep = "TextColor3",
+							tinstance = library.FontColor,
+						})
+
+						library:Create("UIPadding", {
+							PaddingLeft = UDim.new(0, 6),
+							PaddingRight = UDim.new(0, 3),
+							Parent = selectedLabel,
+						})
+
+						library:Create("UIStroke", {
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+							Color = library.UIstroke,
+							Thickness = 1,
+							Parent = selectedLabel,
+						}, {
+							instancep = "Color",
+							tinstance = library.UIstroke,
+						})
+
+						local arrow = library:Create("ImageLabel", {
+							Name = "DropdownImage",
+							ZIndex = 13,
+							Size = UDim2.fromOffset(15, 15),
+							Position = UDim2.new(1, -19, 0.5, -7),
+							BackgroundTransparency = 1,
+							Image = "rbxassetid://10709767827",
+							ScaleType = Enum.ScaleType.Crop,
+							Parent = selectionRow,
+						})
+
+						local button = library:Create("TextButton", {
+							Name = "DropdownButton",
+							ZIndex = 14,
+							Size = UDim2.fromScale(1, 1),
+							BackgroundTransparency = 1,
+							Text = "",
+							AutoButtonColor = false,
+							Parent = selectionRow,
+						})
+
+						-- Fixed viewport height; canvas grows to fit every item.
+						local holder = library:Create("ScrollingFrame", {
+							Name = "Holder",
+							ZIndex = 20,
+							Size = UDim2.new(1, 0, 0, 0),
+							AutomaticSize = Enum.AutomaticSize.None,
+							AutomaticCanvasSize = Enum.AutomaticSize.None,
+							CanvasSize = UDim2.fromOffset(0, 0),
+							CanvasPosition = Vector2.zero,
+							LayoutOrder = 2,
+							BackgroundColor3 = library.MainColor,
+							BorderSizePixel = 0,
+							ScrollBarThickness = 3,
+							ScrollBarImageColor3 = library.AccentColor,
+							ScrollingDirection = Enum.ScrollingDirection.Y,
+							Visible = false,
+							ClipsDescendants = true,
+							Parent = dropdownFrame,
+						}, {
+							instancep = "BackgroundColor3",
+							tinstance = library.MainColor,
+						}, {
+							instancep = "ScrollBarImageColor3",
+							tinstance = library.AccentColor,
+						})
+
+						library:Create("UIStroke", {
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+							Color = library.SecondaryColor,
+							Thickness = 1,
+							Parent = holder,
+						}, {
+							instancep = "Color",
+							tinstance = library.SecondaryColor,
+						})
+
+						library:Create("UIListLayout", {
+							FillDirection = Enum.FillDirection.Vertical,
+							HorizontalAlignment = Enum.HorizontalAlignment.Center,
+							VerticalAlignment = Enum.VerticalAlignment.Top,
+							Padding = UDim.new(0, rowGap),
+							SortOrder = Enum.SortOrder.LayoutOrder,
+							Parent = holder,
+						})
+
+						library:Create("UIPadding", {
+							PaddingLeft = UDim.new(0, padding),
+							PaddingRight = UDim.new(0, padding),
+							PaddingTop = UDim.new(0, padding),
+							PaddingBottom = UDim.new(0, padding),
+							Parent = holder,
+						})
+
+						--==========================================================
+						-- TOP-LEVEL DROPDOWN OVERLAY
+						--==========================================================
+
+						local overlayRoot
+
+						local sourceScreenGui = main:FindFirstAncestorOfClass("ScreenGui")
+						local player = LocalPlayer
+						local playerGui = (sourceScreenGui and sourceScreenGui.Parent)
+							or (player and player:FindFirstChildOfClass("PlayerGui"))
+
+						if playerGui then
+							local highestDisplayOrder = 0
+
+							for _, child in ipairs(playerGui:GetChildren()) do
+								if child:IsA("ScreenGui") then
+									highestDisplayOrder = math.max(highestDisplayOrder, child.DisplayOrder)
+								end
+							end
+
+							overlayRoot = Instance.new("Frame")
+							overlayRoot.Name = "OverlayRoot"
+							overlayRoot.BackgroundTransparency = 1
+							overlayRoot.BorderSizePixel = 0
+							overlayRoot.Size = UDim2.fromScale(1, 1)
+							overlayRoot.Position = UDim2.fromScale(0, 0)
+							overlayRoot.Parent = Overlaygui
+
+							holder.Parent = overlayRoot
+						end
+
+						local function positionHolder()
+							if not overlayRoot or not holder or not holder.Parent then
+								return
+							end
+
+							local rootPosition = overlayRoot.AbsolutePosition
+							local rootSize = overlayRoot.AbsoluteSize
+							local rowPosition = selectionRow.AbsolutePosition
+							local rowSize = selectionRow.AbsoluteSize
+							local width = math.max(0, rowSize.X)
+							local height = holder.Size.Y.Offset
+							local x = rowPosition.X - rootPosition.X
+							local y = rowPosition.Y - rootPosition.Y + rowSize.Y + 3
+
+							if y + height > rootSize.Y then
+								y = rowPosition.Y - rootPosition.Y - height - 3
+							end
+
+							x = math.clamp(x, 0, math.max(0, rootSize.X - width))
+							y = math.clamp(y, 0, math.max(0, rootSize.Y - height))
+
+							holder.Position = UDim2.fromOffset(x, y)
+							holder.Size = UDim2.fromOffset(width, height)
+						end
+
+						--==========================================================
+						-- UI UPDATES
+						--==========================================================
+
+						local function updateHolderSize()
+							local count = #values
+							local visibleRows = math.min(count, maxVisibleItems)
+
+							local function heightFor(rows)
+								if rows == 0 then
+									return 0
+								end
+
+								return padding * 2
+									+ rows * rowHeight
+									+ math.max(0, rows - 1) * rowGap
+							end
+
+							local holderHeight = heightFor(visibleRows)
+
+							if overlayRoot then
+								holder.Size = UDim2.fromOffset(selectionRow.AbsoluteSize.X, holderHeight)
+							else
+								holder.Size = UDim2.new(1, 0, 0, holderHeight)
+							end
+
+							holder.CanvasSize = UDim2.fromOffset(0, heightFor(count))
+							holder.ScrollingEnabled = count > maxVisibleItems
+
+							if count == 0 then
+								isOpen = false
+							end
+
+							holder.Visible = isOpen and count > 0
+							arrow.Rotation = holder.Visible and 180 or 0
+							positionHolder()
+						end
+
+						local function updateSelectedText()
+							local current = getValue()
+							local hasSelection
+
+							if multi then
+								local display = {}
+
+								for _, value in ipairs(current) do
+									table.insert(display, tostring(value))
+								end
+
+								hasSelection = #display > 0
+								selectedLabel.Text = hasSelection
+									and table.concat(display, ", ")
+									or "-"
+							else
+								hasSelection = current ~= nil
+								selectedLabel.Text = hasSelection and tostring(current) or "-"
+							end
+
+							selectedLabel.TextColor3 = hasSelection
+								and library.AccentColor
+								or library.FontColor
+
+							option.Value = current
+						end
+
+						local function updateItems()
+							for index, item in ipairs(elements) do
+								local selected = multi
+									and selectedIndices[index] == true
+									or (not multi and picked == item.name)
+
+								item.button.Text = selected
+									and ("✓  " .. tostring(item.name))
+									or tostring(item.name)
+
+								item.button.TextColor3 = selected
+									and library.AccentColor
+									or library.FontColor
+							end
+						end
+
+						local function updateUI()
+							updateSelectedText()
+							updateItems()
+							updateHolderSize()
+						end
+
+						-- Reapply current theme values to already-created instances.
+						local function refreshTheme()
+							if destroyed then
+								return
+							end
+
+							local strokeColor = library.UIstroke or library.UIStroke or library.SecondaryColor
+
+							header.TextColor3 = library.FontColor
+							header.Font = library.Font
+							selectedLabel.Font = library.Font
+							holder.BackgroundColor3 = library.MainColor
+							holder.ScrollBarImageColor3 = library.AccentColor
+
+							if typeof(library.FontFace) == "Font" then
+								header.FontFace = library.FontFace
+								selectedLabel.FontFace = library.FontFace
+							end
+
+							for _, root in ipairs({ main, holder }) do
+								for _, descendant in ipairs(root:GetDescendants()) do
+									if descendant:IsA("UIStroke") then
+										if descendant.Parent == selectionRow or descendant.Parent == holder then
+											descendant.Color = library.SecondaryColor
+										else
+											descendant.Color = strokeColor
+										end
+									elseif descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
+										descendant.Font = library.Font
+
+										if typeof(library.FontFace) == "Font" then
+											descendant.FontFace = library.FontFace
+										end
+									end
+								end
+							end
+
+							updateSelectedText()
+							updateItems()
+						end
+
+						local function readThemeSnapshot()
+							return {
+								MainColor = library.MainColor,
+								SecondaryColor = library.SecondaryColor,
+								AccentColor = library.AccentColor,
+								FontColor = library.FontColor,
+								UIstroke = library.UIstroke,
+								UIStroke = library.UIStroke,
+								Font = library.Font,
+								FontFace = library.FontFace,
+							}
+						end
+
+						local function themeSnapshotChanged(previous, current)
+							for key, value in pairs(previous) do
+								if current[key] ~= value then
+									return true
+								end
+							end
+
+							return false
+						end
+
+						local function notifyChanged()
+							local value = getValue()
+
+							option.Value = value
+
+							changedEvent:Fire(
+								type(value) == "table" and table.clone(value) or value
+							)
+
+							if type(callback) == "function" then
+								local ok, err = pcall(
+									callback,
+									type(value) == "table" and table.clone(value) or value
+								)
+
+								if not ok then
+									warn(
+										"[Dropdown:" .. tostring(name) .. "] Callback failed:",
+										err
+									)
+								end
+							end
+						end
+
+						local function setValue(value, silent)
+							if destroyed then
+								return false
+							end
+
+							local previous = getValue()
+
+							if multi then
+								table.clear(selectedIndices)
+
+								local selections
+
+								if type(value) == "table" then
+									selections = value
+								elseif value ~= nil then
+									selections = { value }
+								else
+									selections = {}
+								end
+
+								for _, selection in ipairs(selections) do
+									local index = findIndex(selection)
+
+									if index then
+										selectedIndices[index] = true
+									end
+								end
+							else
+								local index = findIndex(value)
+								picked = index and values[index] or nil
+							end
+
+							updateUI()
+
+							local changed = not equalValues(previous, getValue())
+
+							if changed and not silent then
+								notifyChanged()
+							end
+
+							return changed
+						end
+
+						--==========================================================
+						-- ITEM CREATION / DELETION
+						--==========================================================
+
+						local function destroyItems()
+							for _, item in ipairs(elements) do
+								if item.connection then
+									item.connection:Disconnect()
+								end
+
+								item.button:Destroy()
+							end
+
+							table.clear(elements)
+						end
+
+						local function buildItems()
+							for index, itemName in ipairs(values) do
+								local item = {
+									name = itemName,
+									index = index,
+								}
+
+								local itemButton = library:Create("TextButton", {
+									Name = "Item_" .. tostring(index),
+									ZIndex = 21,
+									Size = UDim2.new(1, -4, 0, rowHeight),
+									BackgroundTransparency = 1,
+									Text = tostring(itemName),
+									TextSize = 13,
+									TextColor3 = library.FontColor,
+									Font = library.Font,
+									TextXAlignment = Enum.TextXAlignment.Left,
+									TextTruncate = Enum.TextTruncate.AtEnd,
+									LayoutOrder = index,
+									AutoButtonColor = false,
+									Parent = holder,
+								}, {
+									instancep = "Font",
+									tinstance = library.Font,
+								}, {
+									instancep = "TextColor3",
+									tinstance = library.FontColor,
+								})
+
+								library:Create("UIStroke", {
+									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+									Color = library.UIstroke or library.UIStroke or library.SecondaryColor,
+									Thickness = 1,
+									Parent = itemButton,
+								}, {
+									instancep = "Color",
+									tinstance = library.UIstroke or library.UIStroke or library.SecondaryColor,
+								})
+
+								if typeof(library.FontFace) == "Font" then
+									itemButton.FontFace = library.FontFace
+								end
+
+								item.button = itemButton
+								elements[index] = item
+
+								item.connection = itemButton.MouseButton1Click:Connect(function()
+									if destroyed then
+										return
+									end
+
+									local previous = getValue()
+
+									if multi then
+										if selectedIndices[index] then
+											selectedIndices[index] = nil
+										else
+											selectedIndices[index] = true
+										end
+									else
+										picked = itemName
+										isOpen = false
+									end
+
+									updateUI()
+
+									if not equalValues(previous, getValue()) then
+										notifyChanged()
+									end
+								end)
+							end
+						end
+
+						--==========================================================
+						-- PUBLIC VALUE METHODS
+						--==========================================================
+
+						function Dropdown:GetValue()
+							return getValue()
+						end
+
+						function Dropdown:GetIndex()
+							if multi then
+								local indices = {}
+
+								for index in ipairs(values) do
+									if selectedIndices[index] then
+										table.insert(indices, index)
+									end
+								end
+
+								return indices
+							end
+
+							return picked ~= nil and table.find(values, picked) or nil
+						end
+
+						function Dropdown:GetValues()
+							return table.clone(values)
+						end
+
+						function Dropdown:SetValue(value, silent)
+							return setValue(value, silent == true)
+						end
+
+						function Dropdown:GetInstance()
+							return selectedLabel
+						end
+
+						function Dropdown:SetText(text)
+							if not destroyed then
+								header.Text = tostring(text or name)
+							end
+
+							return self
+						end
+
+						function Dropdown:SetCallback(fn)
+							assert(
+								fn == nil or type(fn) == "function",
+								"Dropdown:SetCallback expects a function or nil"
+							)
+
+							callback = fn
+							return self
+						end
+
+						--==========================================================
+						-- REFRESH / CLEAR / REMOVE
+						--==========================================================
+
+						function Dropdown:Refresh(newValues, defaultValue, silent)
+							if destroyed then
+								return self
+							end
+
+							local refreshed = copyUnique(newValues)
+							local previous = getValue()
+
+							destroyItems()
+							table.clear(values)
+							table.clear(selectedIndices)
+							picked = nil
+
+							for _, value in ipairs(refreshed) do
+								table.insert(values, value)
+							end
+
+							buildItems()
+
+							if defaultValue ~= nil then
+								setValue(defaultValue, true)
+							else
+								if multi then
+									for _, oldValue in ipairs(previous) do
+										local index = table.find(values, oldValue)
+
+										if index then
+											selectedIndices[index] = true
+										end
+									end
+								elseif previous ~= nil and table.find(values, previous) then
+									picked = previous
+								end
+
+								updateUI()
+							end
+
+							holder.CanvasPosition = Vector2.zero
+
+							if silent == false and not equalValues(previous, getValue()) then
+								notifyChanged()
+							end
+
+							refreshTheme()
+
+							return self
+						end
+
+						function Dropdown:SetValues(newValues, defaultValue, silent)
+							return self:Refresh(newValues, defaultValue, silent)
+						end
+
+						function Dropdown:Clear(silent)
+							return self:Refresh({}, nil, silent)
+						end
+
+						function Dropdown:AddItem(itemName)
+							if destroyed then
+								return nil
+							end
+
+							local existingIndex = table.find(values, itemName)
+
+							if existingIndex then
+								return elements[existingIndex]
+							end
+
+							local updated = table.clone(values)
+							table.insert(updated, itemName)
+
+							self:Refresh(updated)
+
+							local index = table.find(values, itemName)
+							return index and elements[index] or nil
+						end
+
+						function Dropdown:RemoveItem(itemName, silent)
+							if destroyed then
+								return false
+							end
+
+							local index = table.find(values, itemName)
+
+							if not index then
+								return false
+							end
+
+							local updated = table.clone(values)
+							table.remove(updated, index)
+
+							self:Refresh(updated, nil, silent)
+
+							return true
+						end
+
+						function Dropdown:Open()
+							if not destroyed and #values > 0 then
+								isOpen = true
+								updateHolderSize()
+							end
+
+							return self
+						end
+
+						function Dropdown:Close()
+							if not destroyed then
+								isOpen = false
+								updateHolderSize()
+							end
+
+							return self
+						end
+
+						--==========================================================
+						-- OVERLAY TRACKING + LIVE THEME WATCHER
+						--==========================================================
+
+						if overlayRoot then
+							connect(selectionRow:GetPropertyChangedSignal("AbsolutePosition"), positionHolder)
+							connect(selectionRow:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
+							connect(overlayRoot:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
+						end
+
+						local themeSnapshot = readThemeSnapshot()
+
+						connect(game:GetService("RunService").Heartbeat, function()
+							if destroyed then
+								return
+							end
+
+							local currentSnapshot = readThemeSnapshot()
+
+							if themeSnapshotChanged(themeSnapshot, currentSnapshot) then
+								themeSnapshot = currentSnapshot
+								refreshTheme()
+							end
+						end)
+
+						--==========================================================
+						-- CLEANUP
+						--==========================================================
+
+						local function cleanup()
+							if destroyed then
+								return
+							end
+
+							destroyed = true
+
+							destroyItems()
+
+							for _, connection in ipairs(connections) do
+								connection:Disconnect()
+							end
+
+							table.clear(connections)
+
+							if overlayGui then
+								overlayGui:Destroy()
+								overlayGui = nil
+								overlayRoot = nil
+							end
+
+							if library.Options[name] == option then
+								library.Options[name] = nil
+							end
+
+							option.Controller = nil
+							changedEvent:Destroy()
+						end
+
+						function Dropdown:Destroy()
+							if destroyed then
+								return
+							end
+
+							cleanup()
+							main:Destroy()
+						end
+
+						connect(main.Destroying, cleanup)
+
+						connect(button.MouseButton1Click, function()
+							if destroyed then
+								return
+							end
+
+							isOpen = not isOpen
+							updateHolderSize()
+						end)
+
+						--==========================================================
+						-- OPTION API
+						--==========================================================
+
+						local forwardedMethods = {
+							"GetValue",
+							"GetIndex",
+							"GetValues",
+							"SetValue",
+							"SetValues",
+							"Refresh",
+							"Clear",
+							"AddItem",
+							"RemoveItem",
+							"GetInstance",
+							"SetText",
+							"SetCallback",
+							"Open",
+							"Close",
+							"Destroy",
+						}
+
+						for _, methodName in ipairs(forwardedMethods) do
+							local method = Dropdown[methodName]
+
+							option[methodName] = function(_, ...)
+								return method(Dropdown, ...)
+							end
+						end
+
+						--==========================================================
+						-- INITIALIZATION
+						--==========================================================
+
+						Dropdown.Instance = selectedLabel
+						Dropdown.Main = main
+						Dropdown.Header = header
+						Dropdown.Holder = holder
+						Dropdown.Option = option
+						Dropdown.OnChanged = changedEvent.Event
+
+						if typeof(library.FontFace) == "Font" then
+							header.FontFace = library.FontFace
+							selectedLabel.FontFace = library.FontFace
+						end
+
+						Dropdown:Refresh(opts.Values or {}, opts.Default, true)
+						refreshTheme()
+						positionHolder()
+
+						return Dropdown
+					end
+
+					function groupbox:AddInput(name, opts)
+						opts = opts or {}
+
+						local input = {}
+
+						local initialValue = tostring(opts.Default or "")
+						local changedEvent = Instance.new("BindableEvent")
+
+						local option = {
+							Type = "Input",
+							Name = name,
+							Value = initialValue,
+							OnChanged = changedEvent.Event,
+						}
+
+						library.Options = library.Options or {}
+						library.Options[name] = option
+
+						local Holder = library:Create("Frame", {
+							Name = "Input",
+							Size = UDim2.new(0.95, 0, 0, 20),
+							LayoutOrder = #elementsholder:GetChildren(),
+							BackgroundColor3 = library.MainColor,
+							Parent = elementsholder,
+						}, {
+							instancep = "BackgroundColor3",
+							tinstance = library.MainColor,
+						})
+
+						library:Create("UIStroke", {
+							Name = "UIStroke",
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+							Color = library.SecondaryColor,
+							Thickness = 1,
+							Parent = Holder,
+						}, {
+							instancep = "Color",
+							tinstance = library.SecondaryColor,
+						})
+
+						local text = library:Create("TextBox", {
+							Name = "Text",
+							Size = UDim2.new(1, 0, 1, 0),
+							BackgroundTransparency = 1,
+							ClearTextOnFocus = false,
+							MultiLine = false,
+							PlaceholderText = name .. "..",
+							Text = initialValue,
+							TextColor3 = library.FontColor,
+							TextSize = 13,
+							Font = library.Font,
+							TextXAlignment = Enum.TextXAlignment.Center,
+							ZIndex = 2,
+							Parent = Holder,
+						}, {
+							instancep = "TextColor3",
+							tinstance = library.FontColor,
+						}, {
+							instancep = "Font",
+							tinstance = library.Font,
+						})
+
+						library:Create("UIStroke", {
+							Name = "TextStroke",
+							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+							Color = library.UIstroke,
+							Thickness = 1,
+							Parent = text,
+						}, {
+							instancep = "Color",
+							tinstance = library.UIstroke,
+						})
+
+						library:Create("UITextSizeConstraint", {
+							Name = "UITextSizeConstraint",
+							MaxTextSize = 13,
+							Parent = text,
+						})
+
+						local updating = false
+
+						local function setValue(value, silent)
+							value = tostring(value or "")
+
+							option.Value = value
+
+							if text.Text ~= value then
+								updating = true
+								text.Text = value
+								updating = false
+							end
+
+							if not silent then
+								changedEvent:Fire(value)
+
+								if opts.Callback then
+									opts.Callback(value)
+								end
+							end
+						end
+
+						function option:GetValue()
+							return option.Value
+						end
+
+						function option:SetValue(value, silent)
+ setValue(value, silent == true)
+						end
+
+						function input:GetValue()
+							return option.Value
+						end
+
+						function input:SetValue(value, silent)
+ option:SetValue(value, silent)
+						end
+
+						function input:GetInstance()
+							return text
+						end
+
+						text:GetPropertyChangedSignal("Text"):Connect(function()
+							if updating then
+								return
+							end
+
+							local value = text.Text
+
+							if option.Value == value then
+								return
+							end
+
+							option.Value = value
+							changedEvent:Fire(value)
+
+							if opts.Callback then
+								opts.Callback(value)
+							end
+						end)
+
+						input.Instance = text
+						input.Holder = Holder
+						input.Option = option
+
+						return input
+					end	
+					
+					
+
+function groupbox:AddLineGraph(text, opts)
+	opts = opts or {}
+
+	local linegraph = {}
+	local graphsets = {}
+	local curvePoints = 0
+	local opened = false
+	local destroyed = false
+
+	local instance
+	local followConn
+	local outsideConn
+	local buttonConnection
+	local openConnections = {}
+	local pointFrames = {}
+	local pointConnections = {}
+	local curveFrames = {}
+
+	local UIS = game:GetService("UserInputService")
+
+	local selectedPreset = opts.Preset or "Linear"
+	local draggingPoint
+	local dragMoveConn
+	local dragEndConn
+
+	local presets = {
+		"Linear",
+		"Smooth",
+		"Exponential",
+		"Ease In",
+		"Ease Out",
+		"Ease In Out"
+	}
+
+	local function addConnection(signal, callback)
+		local connection = signal:Connect(callback)
+
+		if trackConnection then
+			trackConnection(connection)
+		end
+
+		table.insert(openConnections, connection)
+		return connection
+	end
+
+	local function disconnectConnection(connection)
+		if connection then
+			connection:Disconnect()
+		end
+	end
+
+	local function clearPointConnections()
+		for _, connection in ipairs(pointConnections) do
+			disconnectConnection(connection)
+		end
+
+		table.clear(pointConnections)
+	end
+
+	local function clearOpenConnections()
+		for _, connection in ipairs(openConnections) do
+			disconnectConnection(connection)
+		end
+
+		table.clear(openConnections)
+		clearPointConnections()
+
+		disconnectConnection(followConn)
+		disconnectConnection(outsideConn)
+		disconnectConnection(dragMoveConn)
+		disconnectConnection(dragEndConn)
+
+		followConn = nil
+		outsideConn = nil
+		dragMoveConn = nil
+		dragEndConn = nil
+		draggingPoint = nil
+	end
+
+	local function clearList(list)
+		for _, object in ipairs(list) do
+			if object then
+				object:Destroy()
+			end
+		end
+
+		table.clear(list)
+	end
+
+	local function copyPoints(values)
+		local result = {}
+
+		for _, point in ipairs(values or {}) do
+			local x = tonumber(point.X or point.x or point[1]) or 0
+			local y = tonumber(point.Y or point.y or point[2]) or 0
+
+			table.insert(result, {
+				X = math.clamp(x, 0, 1),
+				Y = math.clamp(y, 0, 1)
+			})
+		end
+
+		table.sort(result, function(a, b)
+			return a.X < b.X
+		end)
+
+		return result
+	end
+
+	graphsets = copyPoints(opts.default or opts.Default or {})
+	curvePoints = #graphsets
+
+	local function getData()
+		local result = {}
+
+		for i, point in ipairs(graphsets) do
+			result[i] = {
+				X = point.X,
+				Y = point.Y
+			}
+		end
+
+		return result
+	end
+
+	local function notifyChanged()
+		curvePoints = #graphsets
+ if linegraph.OnChanged then linegraph.OnChanged:Fire(getData()) end
+
+		if type(opts.Callback) == "function" then
+			opts.Callback(getData())
+		end
+	end
+
+	local holder = library:Create("Frame", {
+		Name = "Holder";
+		Size = UDim2.new(0.95, 0, 0, 20);
+		BackgroundTransparency = 1;
+		LayoutOrder = #elementsholder:GetChildren();
+		Parent = elementsholder;
+	})
+
+	local uitext = library:Create("TextLabel", {
+		Name = "TextLabel";
+		Size = UDim2.new(0.937, 0, 1, 0);
+		BackgroundTransparency = 1;
+		Text = text;
+		TextSize = 13;
+		TextColor3 = library.FontColor;
+		Font = library.Font;
+		LayoutOrder = 1;
+		TextXAlignment = Enum.TextXAlignment.Left;
+		TextYAlignment = Enum.TextYAlignment.Center;
+		Parent = holder;
+	}, {
+		instancep = "TextColor3";
+		tinstance = library.FontColor;
+	}, {
+		instancep = "Font";
+		tinstance = library.Font;
+	})
+
+	library:Create("UITextSizeConstraint", {
+		Name = "UITextSizeConstraint";
+		MaxTextSize = 13;
+		Parent = uitext;
+	})
+
+	library:Create("UIStroke", {
+		Name = "UIStroke";
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+		Color = Color3.fromRGB(0, 0, 0);
+		Thickness = 1;
+		Parent = uitext;
+	}, {
+		instancep = "Color";
+		tinstance = library.UIstroke;
+	})
+
+	library:Create("UIListLayout", {
+		Name = "UIListLayout";
+		FillDirection = Enum.FillDirection.Horizontal;
+		HorizontalAlignment = Enum.HorizontalAlignment.Left;
+		SortOrder = Enum.SortOrder.LayoutOrder;
+		Parent = holder;
+	})
+
+	local buttonopen = library:Create("ImageButton", {
+		Name = "ButtonOpen";
+		Size = UDim2.new(0, 19, 0, 19);
+		LayoutOrder = 2;
+		BackgroundTransparency = 1;
+		Image = "rbxassetid://10734950309";
+		ImageColor3 = library.AccentColor;
+		Parent = holder;
+	}, {
+		instancep = "ImageColor3";
+		tinstance = library.AccentColor;
+	})
+
+	local function getPopupPosition()
+		local absolute = buttonopen.AbsolutePosition
+		local base = screengui.AbsolutePosition
+
+		return UDim2.fromOffset(
+			absolute.X - base.X,
+			absolute.Y - base.Y
+		)
+	end
+
+	local closeGraph
+
+	local function openGraph()
+		if opened or destroyed then
+			return
+		end
+
+		opened = true
+
+		-- Use the existing library ScreenGui; don't create another one.
+		local lineG = library:Create("Frame", {
+			Name = "CursorBox";
+			Size = UDim2.fromOffset(15, 15);
+			Position = getPopupPosition();
+			BackgroundTransparency = 1;
+			ZIndex = 2;
+			Parent = screengui;
+		})
+
+		instance = lineG
+
+		followConn = buttonopen:GetPropertyChangedSignal(
+			"AbsolutePosition"
+		):Connect(function()
+			if opened and instance and instance.Parent then
+				instance.Position = getPopupPosition()
+			end
+		end)
+
+		if trackConnection then
+			trackConnection(followConn)
+		end
+
+		local framewindow = library:Create("Frame", {
+			Name = "Frame";
+			Size = UDim2.fromOffset(323, 246);
+			Position = UDim2.new(1, 0, 1.4, 0);
+			BackgroundColor3 = library.MainColor;
+			BorderSizePixel = 0;
+			ZIndex = 2;
+			Parent = lineG;
+		}, {
+			instancep = "BackgroundColor3";
+			tinstance = library.MainColor;
+		})
+
+		library:Create("UIStroke", {
+			Name = "UIStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			LineJoinMode = Enum.LineJoinMode.Miter;
+			Color = library.SecondaryColor;
+			Thickness = 1;
+			ZIndex = 2;
+			Parent = framewindow;
+		}, {
+			instancep = "Color";
+			tinstance = library.SecondaryColor;
+		})
+
+		library:Create("UIStroke", {
+			Name = "OuterStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			LineJoinMode = Enum.LineJoinMode.Miter;
+			Color = library.MainColor;
+			Thickness = 4;
+			ZIndex = 2;
+			Parent = framewindow;
+		}, {
+			instancep = "Color";
+			tinstance = library.MainColor;
+		})
+
+		local title = library:Create("TextLabel", {
+			Name = "TextLabel";
+			Size = UDim2.new(1, 0, 0, 18);
+			Position = UDim2.fromOffset(0, 0);
+			BackgroundTransparency = 1;
+			Text = text or "Line Graph";
+			TextColor3 = library.FontColor;
+			Font = library.Font;
+			TextSize = 13;
+			TextXAlignment = Enum.TextXAlignment.Left;
+			ZIndex = 3;
+			Parent = framewindow;
+		}, {
+			instancep = "TextColor3";
+			tinstance = library.FontColor;
+		}, {
+			instancep = "Font";
+			tinstance = library.Font;
+		})
+
+		library:Create("UIPadding", {
+			PaddingLeft = UDim.new(0, 6);
+			Parent = title;
+		})
+
+		library:Create("UIStroke", {
+			Name = "UIStroke";
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+			Color = library.UIstroke;
+			Thickness = 1;
+			Parent = title;
+		}, {
+			instancep = "Color";
+			tinstance = library.UIstroke;
+		})
+
+		local GraphHolder = library:Create("Frame", {
+			Name = "GraphHolder";
+			Position = UDim2.fromOffset(4, 24);
+			Size = UDim2.fromOffset(315, 168);
+			BackgroundTransparency = 1;
+			BorderSizePixel = 0;
+			ClipsDescendants = false;
+			Active = true;
+			ZIndex = 2;
+			Parent = framewindow;
+		})
+
+		library:Create("UIStroke", {
+			Color = library.SecondaryColor;
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+			Parent = GraphHolder;
+		}, {
+			instancep = "Color";
+			tinstance = library.SecondaryColor;
+		})
+
+		local grid = library:Create("Frame", {
+			Name = "Grid";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 2;
+			Parent = GraphHolder;
+		})
+
+		local curveLayer = library:Create("Frame", {
+			Name = "CurveLines";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 3;
+			Parent = GraphHolder;
+		})
+
+		local pointLayer = library:Create("Frame", {
+			Name = "Points";
+			Size = UDim2.fromScale(1, 1);
+			BackgroundTransparency = 1;
+			ZIndex = 5;
+			Parent = GraphHolder;
+		})
+
+		for i = 1, 4 do
+			library:Create("Frame", {
+				Name = "HorizontalLine";
+				Position = UDim2.fromScale(0, i / 5);
+				Size = UDim2.new(1, 0, 0, 1);
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.SecondaryColor;
+				ZIndex = 2;
+				Parent = grid;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.SecondaryColor;
+			})
+		end
+
+		for i = 1, 7 do
+			library:Create("Frame", {
+				Name = "VerticalLine";
+				Position = UDim2.fromScale(i / 8, 0);
+				Size = UDim2.new(0, 1, 1, 0);
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.SecondaryColor;
+				ZIndex = 2;
+				Parent = grid;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.SecondaryColor;
+			})
+		end
+
+		local function toPixels(point)
+			local size = GraphHolder.AbsoluteSize
+
+			return Vector2.new(
+				point.X * size.X,
+				(1 - point.Y) * size.Y
+			)
+		end
+
+		local function createSegment(a, b)
+			local delta = b - a
+			local length = delta.Magnitude
+
+			if length < 0.5 then
+				return
+			end
+
+			local segment = library:Create("Frame", {
+				Name = "CurveSegment";
+				AnchorPoint = Vector2.new(0, 0.5);
+				Position = UDim2.fromOffset(a.X, a.Y);
+				Size = UDim2.fromOffset(length, 2);
+				Rotation = math.deg(math.atan2(delta.Y, delta.X));
+				BorderSizePixel = 0;
+				BackgroundColor3 = library.AccentColor;
+				ZIndex = 3;
+				Parent = curveLayer;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.AccentColor;
+			})
+
+			table.insert(curveFrames, segment)
+		end
+
+		local function catmullRom(p0, p1, p2, p3, t)
+			local t2 = t * t
+			local t3 = t2 * t
+
+			return Vector2.new(
+				0.5 * (
+					2 * p1.X
+					+ (-p0.X + p2.X) * t
+					+ (2*p0.X - 5*p1.X + 4*p2.X - p3.X) * t2
+					+ (-p0.X + 3*p1.X - 3*p2.X + p3.X) * t3
+				),
+				0.5 * (
+					2 * p1.Y
+					+ (-p0.Y + p2.Y) * t
+					+ (2*p0.Y - 5*p1.Y + 4*p2.Y - p3.Y) * t2
+					+ (-p0.Y + 3*p1.Y - 3*p2.Y + p3.Y) * t3
+				)
+			)
+		end
+
+		local function interpolateY(a, b, t)
+			if selectedPreset == "Exponential"
+				or selectedPreset == "Ease In" then
+				t = t * t
+			elseif selectedPreset == "Ease Out" then
+				t = 1 - (1 - t) * (1 - t)
+			elseif selectedPreset == "Ease In Out" then
+				if t < 0.5 then
+					t = 2 * t * t
+				else
+					t = 1 - ((-2 * t + 2) ^ 2) / 2
+				end
+			end
+
+			return a + (b - a) * t
+		end
+
+		local renderGraph
+
+		local function drawCurve()
+			clearList(curveFrames)
+
+			if #graphsets < 2 then
+				return
+			end
+
+			local points = {}
+
+			for i, point in ipairs(graphsets) do
+				points[i] = toPixels(point)
+			end
+
+			for i = 1, #points - 1 do
+				local p1 = points[i]
+				local p2 = points[i + 1]
+
+				if selectedPreset == "Smooth" then
+					local p0 = points[math.max(1, i - 1)]
+					local p3 = points[math.min(#points, i + 2)]
+					local previous = p1
+
+					for step = 1, 20 do
+						local nextPoint = catmullRom(
+							p0, p1, p2, p3, step / 20
+						)
+
+						createSegment(previous, nextPoint)
+						previous = nextPoint
+					end
+				else
+					local previous = p1
+
+					for step = 1, 20 do
+						local t = step / 20
+
+						local nextPoint = Vector2.new(
+							p1.X + (p2.X - p1.X) * t,
+							interpolateY(p1.Y, p2.Y, t)
+						)
+
+						createSegment(previous, nextPoint)
+						previous = nextPoint
+					end
+				end
+			end
+		end
+
+		local function endDrag()
+			draggingPoint = nil
+
+			disconnectConnection(dragMoveConn)
+			disconnectConnection(dragEndConn)
+
+			dragMoveConn = nil
+			dragEndConn = nil
+
+			table.sort(graphsets, function(a, b)
+				return a.X < b.X
+			end)
+
+			if opened then
+				renderGraph()
+				notifyChanged()
+			end
+		end
+
+		local function startDrag(point)
+			disconnectConnection(dragMoveConn)
+			disconnectConnection(dragEndConn)
+
+			draggingPoint = point
+
+			dragMoveConn = UIS.InputChanged:Connect(function(input)
+				if not draggingPoint or not opened or destroyed then
+					return
+				end
+
+				if input.UserInputType ~= Enum.UserInputType.MouseMovement
+					and input.UserInputType ~= Enum.UserInputType.Touch then
+					return
+				end
+
+				local position = input.Position
+				local origin = GraphHolder.AbsolutePosition
+				local size = GraphHolder.AbsoluteSize
+
+				if size.X <= 0 or size.Y <= 0 then
+					return
+				end
+
+				draggingPoint.X = math.clamp(
+					(position.X - origin.X) / size.X, 0, 1
+				)
+
+				draggingPoint.Y = math.clamp(
+					1 - (position.Y - origin.Y) / size.Y, 0, 1
+				)
+
+				renderGraph()
+				notifyChanged()
+			end)
+
+			dragEndConn = UIS.InputEnded:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch then
+					endDrag()
+				end
+			end)
+
+			if trackConnection then
+				trackConnection(dragMoveConn)
+				trackConnection(dragEndConn)
+			end
+		end
+
+		renderGraph = function()
+			clearPointConnections()
+			clearList(pointFrames)
+
+			for _, point in ipairs(graphsets) do
+				local pixel = toPixels(point)
+
+				local dot = library:Create("TextButton", {
+					Name = "CurveDot";
+					AnchorPoint = Vector2.new(0.5, 0.5);
+					Position = UDim2.fromOffset(pixel.X, pixel.Y);
+					Size = UDim2.fromOffset(10, 10);
+					BackgroundColor3 = library.AccentColor;
+					BorderSizePixel = 0;
+					Text = "";
+					AutoButtonColor = false;
+					Active = true;
+					ZIndex = 5;
+					Parent = pointLayer;
+				}, {
+					instancep = "BackgroundColor3";
+					tinstance = library.AccentColor;
+				})
+
+				library:Create("UICorner", {
+					CornerRadius = UDim.new(1, 0);
+					Parent = dot;
+				})
+
+				library:Create("TextLabel", {
+					Name = "PointValue";
+					AnchorPoint = Vector2.new(0.5, 1);
+					Position = UDim2.new(0.5, 0, 0, -3);
+					Size = UDim2.fromOffset(90, 14);
+					BackgroundTransparency = 1;
+					Text = string.format("%.2f, %.2f", point.X, point.Y);
+					TextColor3 = library.FontColor;
+					Font = library.Font;
+					TextSize = 10;
+					ZIndex = 6;
+					Parent = dot;
+				}, {
+					instancep = "TextColor3";
+					tinstance = library.FontColor;
+				}, {
+					instancep = "Font";
+					tinstance = library.Font;
+				})
+
+				table.insert(pointFrames, dot)
+
+				local connection = dot.InputBegan:Connect(function(input)
+					if not opened or destroyed then
+						return
+					end
+
+					if input.UserInputType == Enum.UserInputType.MouseButton1
+						or input.UserInputType == Enum.UserInputType.Touch then
+						startDrag(point)
+					end
+				end)
+
+				table.insert(pointConnections, connection)
+
+				if trackConnection then
+					trackConnection(connection)
+				end
+			end
+
+			drawCurve()
+		end
+
+		addConnection(GraphHolder.InputBegan, function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+
+			if not opened or destroyed then
+				return
+			end
+
+			local position = input.Position
+			local origin = GraphHolder.AbsolutePosition
+			local size = GraphHolder.AbsoluteSize
+
+			if size.X <= 0 or size.Y <= 0 then
+				return
+			end
+
+			local x = math.clamp(
+				(position.X - origin.X) / size.X, 0, 1
+			)
+
+			local y = math.clamp(
+				1 - (position.Y - origin.Y) / size.Y, 0, 1
+			)
+
+			table.insert(graphsets, {
+				X = x;
+				Y = y;
+			})
+
+			table.sort(graphsets, function(a, b)
+				return a.X < b.X
+			end)
+
+			renderGraph()
+			notifyChanged()
+		end)
+
+		if opts.Presets == true then
+			local presetButton = library:Create("TextButton", {
+				Name = "PresetButton";
+				Position = UDim2.fromOffset(6, 197);
+				Size = UDim2.new(1, -12, 0, 20);
+				BackgroundColor3 = library.MainColor;
+				Text = "Curve: " .. selectedPreset .. "  v";
+				TextColor3 = library.FontColor;
+				Font = library.Font;
+				TextSize = 12;
+				BorderSizePixel = 0;
+				ZIndex = 10;
+				Parent = framewindow;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.MainColor;
+			}, {
+				instancep = "TextColor3";
+				tinstance = library.FontColor;
+			}, {
+				instancep = "Font";
+				tinstance = library.Font;
+			})
+
+			local menu = library:Create("Frame", {
+				Name = "PresetMenu";
+				Position = UDim2.new(0, 6, 1, -48 - (#presets * 20));
+				Size = UDim2.new(1, -12, 0, #presets * 20);
+				BackgroundColor3 = library.MainColor;
+				BorderSizePixel = 0;
+				Visible = false;
+				ZIndex = 20;
+				Parent = framewindow;
+			}, {
+				instancep = "BackgroundColor3";
+				tinstance = library.MainColor;
+			})
+
+			library:Create("UIListLayout", {
+				SortOrder = Enum.SortOrder.LayoutOrder;
+				Parent = menu;
+			})
+
+			for i, preset in ipairs(presets) do
+				local option = library:Create("TextButton", {
+					Name = preset;
+					Size = UDim2.new(1, 0, 0, 20);
+					BackgroundColor3 = library.MainColor;
+					BorderSizePixel = 0;
+					Text = preset;
+					TextColor3 = library.FontColor;
+					Font = library.Font;
+					TextSize = 12;
+					LayoutOrder = i;
+					ZIndex = 21;
+					Parent = menu;
+				}, {
+					instancep = "BackgroundColor3";
+					tinstance = library.MainColor;
+				}, {
+					instancep = "TextColor3";
+					tinstance = library.FontColor;
+				}, {
+					instancep = "Font";
+					tinstance = library.Font;
+				})
+
+				addConnection(option.Activated, function()
+					selectedPreset = preset
+					presetButton.Text = "Curve: " .. preset .. "  v"
+					menu.Visible = false
+
+					renderGraph()
+					notifyChanged()
+				end)
+			end
+
+			addConnection(presetButton.Activated, function()
+				menu.Visible = not menu.Visible
+			end)
+		end
+
+		local resetButton = library:Create("TextButton", {
+			Name = "ResetGraph";
+			Position = UDim2.new(0, 6, 1, -25);
+			Size = UDim2.new(1, -12, 0, 20);
+			BackgroundColor3 = library.MainColor;
+			Text = "Reset Graph";
+			TextColor3 = library.FontColor;
+			Font = library.Font;
+			TextSize = 12;
+			BorderSizePixel = 0;
+			ZIndex = 10;
+			Parent = framewindow;
+		}, {
+			instancep = "BackgroundColor3";
+			tinstance = library.MainColor;
+		}, {
+			instancep = "TextColor3";
+			tinstance = library.FontColor;
+		}, {
+			instancep = "Font";
+			tinstance = library.Font;
+		})
+
+		addConnection(resetButton.Activated, function()
+			table.clear(graphsets)
+			renderGraph()
+			notifyChanged()
+		end)
+
+		addConnection(
+			GraphHolder:GetPropertyChangedSignal("AbsoluteSize"),
+			function()
+				if opened then
+					renderGraph()
+				end
+			end
+		)
+
+		-- Defer the outside-click check so the opening click cannot close it.
+		outsideConn = UIS.InputBegan:Connect(function(input)
+			if not opened or not instance or not instance.Parent then
+				return
+			end
+
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+
+			local position = input.Position
+			local topLeft = framewindow.AbsolutePosition
+			local bottomRight = topLeft + framewindow.AbsoluteSize
+
+			local inWindow =
+				position.X >= topLeft.X
+				and position.X <= bottomRight.X
+				and position.Y >= topLeft.Y
+				and position.Y <= bottomRight.Y
+
+			local buttonPos = buttonopen.AbsolutePosition
+			local buttonSize = buttonopen.AbsoluteSize
+
+			local inButton =
+				position.X >= buttonPos.X
+				and position.X <= buttonPos.X + buttonSize.X
+				and position.Y >= buttonPos.Y
+				and position.Y <= buttonPos.Y + buttonSize.Y
+
+			if not inWindow and not inButton then
+				closeGraph()
+			end
+		end)
+
+		if trackConnection then
+			trackConnection(outsideConn)
+		end
+
+		task.defer(function()
+			if opened and GraphHolder.Parent then
+				renderGraph()
+			end
+		end)
+	end
+
+	closeGraph = function()
+		if not opened then
+			return
+		end
+
+		-- Set this first so callbacks stop acting while the popup closes.
+		opened = false
+
+		clearOpenConnections()
+
+		if instance then
+			instance:Destroy()
+			instance = nil
+		end
+	end
+
+	-- IMPORTANT: This connection is deliberately NOT added to
+	-- openConnections, so closing the popup won't kill the reopen button.
+	buttonConnection = buttonopen.Activated:Connect(function()
+		if destroyed then
+			return
+		end
+
+		if opened then
+			closeGraph()
+		else
+			openGraph()
+		end
+	end)
+
+	if trackConnection then
+		trackConnection(buttonConnection)
+	end
+
+	function linegraph:Get()
+		return getData()
+	end
+
+	function linegraph:Set(values)
+		if destroyed then
+			return
+		end
+
+		graphsets = copyPoints(values)
+		curvePoints = #graphsets
+
+		if opened then
+			closeGraph()
+			openGraph()
+		end
+
+		notifyChanged()
+	end
+
+	function linegraph:Reset()
+		if destroyed then
+			return
+		end
+
+		graphsets = {}
+		curvePoints = 0
+
+		if opened then
+			closeGraph()
+			openGraph()
+		end
+
+		notifyChanged()
+	end
+
+	function linegraph:SetPreset(preset)
+		if destroyed then
+			return false
+		end
+
+		for _, name in ipairs(presets) do
+			if name == preset then
+				selectedPreset = name
+
+				if opened then
+					closeGraph()
+					openGraph()
+				end
+
+				notifyChanged()
+				return true
+			end
+		end
+
+		return false
+	end
+
+	function linegraph:Destroy()
+		if destroyed then
+			return
+		end
+
+		destroyed = true
+		closeGraph()
+
+		disconnectConnection(buttonConnection)
+		buttonConnection = nil
+
+		clearOpenConnections()
+		clearPointConnections()
+
+		if holder then
+			holder:Destroy()
+			holder = nil
+		end
+	end
+
+function linegraph:GetValue() return getData() end
+function linegraph:SetValue(values) self:Set(values) return self end
+linegraph.Type = "LineGraph"
+linegraph.OnChanged = newSignal()
+library.Options = library.Options or Options or {}
+library.Options[text] = linegraph
+if Options then Options[text] = linegraph end
+	return linegraph
+end
+
+
+
+					
+        return groupbox
+    end
+
+    local function MakeGroupbox(holderForGroupbox, title)
+					
+					local groupboxf = library:Create("Frame", {
+						Name = "Groupbox";
+						Size = UDim2.new(0.95, 0,0, 0);
+						Position = UDim2.new(0, 0,0, 0);
+						BackgroundColor3 = library.MainColor;
+						AutomaticSize = Enum.AutomaticSize.Y;
+						LayoutOrder = #holderForGroupbox:GetChildren();
+						Parent = holderForGroupbox;
+					}, {
+						instancep = "BackgroundColor3";
+						tinstance = library.MainColor;
+					})
+
+					local uistroke = library:Create("UIStroke", {
+						Name = "UIStroke";
+						Parent = groupboxf;
+						Thickness = 1;
+						Color = library.SecondaryColor;
+						ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+					}, {
+						instancep = "Color";
+						tinstance = library.SecondaryColor;
+					})
+
+					local uilay = library:Create("UIListLayout", {
+						Name = "uil";
+						FillDirection = Enum.FillDirection.Vertical;
+						Padding = UDim.new(0, 1);
+						SortOrder = Enum.SortOrder.LayoutOrder;
+						HorizontalAlignment = Enum.HorizontalAlignment.Center;
+						VerticalAlignment = Enum.VerticalAlignment.Top;
+
+						Parent = groupboxf;
+					})
+
+					local uipad = library:Create("UIPadding", {
+						Name = "uip";
+						PaddingRight = UDim.new(0, 0);
+						PaddingLeft = UDim.new(0, 0);
+						PaddingTop = UDim.new(0, 0);
+						PaddingBottom = UDim.new(0, 4);
+						Parent = groupboxf;
+					})
+
+					local accent = library:Create("Frame", {
+						Name = "Accent";
+						Size = UDim2.new(1, 0,0, 1);
+						Position = UDim2.new(0, 0,0, 0);
+						BackgroundColor3 = library.AccentColor;
+						LayoutOrder = -1000;
+						Parent = groupboxf;
+					}, {
+						instancep = "BackgroundColor3";
+						tinstance = library.AccentColor;
+					})
+
+					local titlegroupbox = library:Create("TextLabel", {
+						Name = "Title";
+						Size = UDim2.new(1, 0,0, 20);
+						LayoutOrder = -1;
+
+						BackgroundTransparency = 1;
+						Text = title;
+						Font = library.Font;
+						TextColor3 = library.FontColor;
+						TextSize = 14;
+
+						Parent = groupboxf;
+					}, {
+						instancep = "TextColor3";
+						tinstance = library.FontColor;
+					}, {
+						instancep = "Font";
+						tinstance = library.Font;
+					})
+
+					local titleuis = library:Create("UIStroke", {
+						Name = "UIStroke";
+						Parent = titlegroupbox;
+						Thickness = 1;
+						Color = library.UIstroke;
+					}, {
+						instancep = "Color";
+						tinstance = library.UIstroke;
+					})
+
+					local titleuits = library:Create("UITextSizeConstraint", {
+						Name = "uit";
+						MaxTextSize = 14;
+						Parent = titlegroupbox;
+					})
+
+					local titleuip = library:Create("UIPadding", {
+						Name = "uip";
+						PaddingRight = UDim.new(0, 0);
+						PaddingLeft = UDim.new(0, 0);
+						PaddingTop = UDim.new(0, 3);
+						PaddingBottom = UDim.new(0, 0);
+						Parent = titlegroupbox;
+					})
+
+					local elementsholder = library:Create("Frame", {
+						Name = "elem";
+						Size = UDim2.new(1, 0,0, 0);
+						BackgroundTransparency = 1;
+						LayoutOrder = 1;
+						AutomaticSize = Enum.AutomaticSize.Y;
+						Parent = groupboxf;
+					})
+
+					local elemsuill = library:Create("UIListLayout", {
+						Name = "UIListLayout";
+						FillDirection = Enum.FillDirection.Horizontal;
+						Wraps = true;
+						HorizontalAlignment = Enum.HorizontalAlignment.Center;
+						VerticalAlignment = Enum.VerticalAlignment.Top;
+						SortOrder = Enum.SortOrder.LayoutOrder;
+						Padding = UDim.new(0, 5);
+						Parent = elementsholder;
+					})
+
+					local elemsuip = library:Create("UIPadding", {
+						Name = "UIPadding";
+						PaddingBottom = UDim.new(0, 0);
+						PaddingLeft = UDim.new(0, 0);
+						PaddingRight = UDim.new(0, 0);
+						PaddingTop = UDim.new(0, 3);
+						Parent = elementsholder;
+					})
+
+					-- api	
+					
+        return MakeAPI(elementsholder)
+    end
+
 			local tab = {}
 			local intabs = {}
 
@@ -1403,10143 +6565,12 @@ function library:NewWindow(configuration)
 
 				-- creation
 				function Intab:AddLeftGroupbox(title)
-					local groupbox = {
-						elements = {};
-					}
-
-					local groupboxf = library:Create("Frame", {
-						Name = "Groupbox";
-						Size = UDim2.new(0.95, 0,0, 0);
-						Position = UDim2.new(0, 0,0, 0);
-						BackgroundColor3 = library.MainColor;
-						AutomaticSize = Enum.AutomaticSize.Y;
-						LayoutOrder = #Leftin:GetChildren();
-						Parent = Leftin;
-					}, {
-						instancep = "BackgroundColor3";
-						tinstance = library.MainColor;
-					})
-
-					local uistroke = library:Create("UIStroke", {
-						Name = "UIStroke";
-						Parent = groupboxf;
-						Thickness = 1;
-						Color = library.SecondaryColor;
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-					}, {
-						instancep = "Color";
-						tinstance = library.SecondaryColor;
-					})
-
-					local uilay = library:Create("UIListLayout", {
-						Name = "uil";
-						FillDirection = Enum.FillDirection.Vertical;
-						Padding = UDim.new(0, 1);
-						SortOrder = Enum.SortOrder.LayoutOrder;
-						HorizontalAlignment = Enum.HorizontalAlignment.Center;
-						VerticalAlignment = Enum.VerticalAlignment.Top;
-
-						Parent = groupboxf;
-					})
-
-					local uipad = library:Create("UIPadding", {
-						Name = "uip";
-						PaddingRight = UDim.new(0, 0);
-						PaddingLeft = UDim.new(0, 0);
-						PaddingTop = UDim.new(0, 0);
-						PaddingBottom = UDim.new(0, 4);
-						Parent = groupboxf;
-					})
-
-					local accent = library:Create("Frame", {
-						Name = "Accent";
-						Size = UDim2.new(1, 0,0, 1);
-						Position = UDim2.new(0, 0,0, 0);
-						BackgroundColor3 = library.AccentColor;
-						LayoutOrder = -1000;
-						Parent = groupboxf;
-					}, {
-						instancep = "BackgroundColor3";
-						tinstance = library.AccentColor;
-					})
-
-					local titlegroupbox = library:Create("TextLabel", {
-						Name = "Title";
-						Size = UDim2.new(1, 0,0, 20);
-						LayoutOrder = -1;
-
-						BackgroundTransparency = 1;
-						Text = title;
-						Font = library.Font;
-						TextColor3 = library.FontColor;
-						TextSize = 14;
-
-						Parent = groupboxf;
-					}, {
-						instancep = "TextColor3";
-						tinstance = library.FontColor;
-					}, {
-						instancep = "Font";
-						tinstance = library.Font;
-					})
-
-					local titleuis = library:Create("UIStroke", {
-						Name = "UIStroke";
-						Parent = titlegroupbox;
-						Thickness = 1;
-						Color = library.UIstroke;
-					}, {
-						instancep = "Color";
-						tinstance = library.UIstroke;
-					})
-
-					local titleuits = library:Create("UITextSizeConstraint", {
-						Name = "uit";
-						MaxTextSize = 14;
-						Parent = titlegroupbox;
-					})
-
-					local titleuip = library:Create("UIPadding", {
-						Name = "uip";
-						PaddingRight = UDim.new(0, 0);
-						PaddingLeft = UDim.new(0, 0);
-						PaddingTop = UDim.new(0, 3);
-						PaddingBottom = UDim.new(0, 0);
-						Parent = titlegroupbox;
-					})
-
-					local elementsholder = library:Create("Frame", {
-						Name = "elem";
-						Size = UDim2.new(1, 0,0, 0);
-						BackgroundTransparency = 1;
-						LayoutOrder = 1;
-						AutomaticSize = Enum.AutomaticSize.Y;
-						Parent = groupboxf;
-					})
-
-					local elemsuill = library:Create("UIListLayout", {
-						Name = "UIListLayout";
-						FillDirection = Enum.FillDirection.Horizontal;
-						Wraps = true;
-						HorizontalAlignment = Enum.HorizontalAlignment.Center;
-						VerticalAlignment = Enum.VerticalAlignment.Top;
-						SortOrder = Enum.SortOrder.LayoutOrder;
-						Padding = UDim.new(0, 5);
-						Parent = elementsholder;
-					})
-
-					local elemsuip = library:Create("UIPadding", {
-						Name = "UIPadding";
-						PaddingBottom = UDim.new(0, 0);
-						PaddingLeft = UDim.new(0, 0);
-						PaddingRight = UDim.new(0, 0);
-						PaddingTop = UDim.new(0, 3);
-						Parent = elementsholder;
-					})
-
-					-- api	
-					function groupbox:AddLabel(text, opts)
-				--[[
-				    MAX 3 COLOR PICKERS (cant use key picker if u do this)
-				    MAX 1 KEY PICKER (cant use color pickers if u do this)
-				]]
-
-						local label = {}
-						local colorpickers = {}
-						local keypicker = nil
-
-						local RestrictedKeypicker = false
-						local RestrictedColorpicker = false
-
-						local holder = library:Create("Frame", {
-							Name = "Holder";
-							Size = UDim2.new(0.95, 0,0, 20);
-							BackgroundTransparency = 1;
-							LayoutOrder = #elementsholder:GetChildren();
-							Parent = elementsholder;
-						})
-
-						local uitext = library:Create("TextLabel", {
-							Name = "TextLabel";
-							Size = UDim2.new(.795, 0,1, 0);
-							BackgroundTransparency = 1;
-							Text = text;
-							TextSize = 13;
-							TextColor3 = library.FontColor;
-							Font = library.Font;
-							LayoutOrder = 1;
-							TextXAlignment = Enum.TextXAlignment.Left;
-							TextYAlignment = Enum.TextYAlignment.Center;
-							Parent = holder;
-						}, {
-							instancep = "TextColor3";
-							tinstance = library.FontColor;
-						})
-
-						local uitextsui = library:Create("UITextSizeConstraint", {
-							Name = "UITextSizeConstraint";
-							MaxTextSize = 13;
-							Parent = uitext;
-						})
-
-						local uistroke = library:Create("UIStroke", {
-							Name = "UIStroke";
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-							Color = Color3.fromRGB(0, 0, 0);
-							Thickness = 1;
-							Parent = uitext;
-						}, {
-							instancep = "Color";
-							tinstance = library.UIstroke;
-						})
-
-						local uill = library:Create("UIListLayout", {
-							Name = "UIListLayout";
-							FillDirection = Enum.FillDirection.Horizontal;
-							HorizontalAlignment = Enum.HorizontalAlignment.Left;
-							SortOrder = Enum.SortOrder.LayoutOrder;
-							Parent = holder;
-						})
-
-						local holder2 = library:Create("Frame", {
-							Name = "Holder";
-							Size = UDim2.new(0.043, 50,1, 0);
-							BackgroundTransparency = 1;
-							LayoutOrder = 2;
-							Parent = holder;
-						})
-
-						local uillh = library:Create("UIListLayout", {
-							Name = "UIListLayout";
-							FillDirection = Enum.FillDirection.Horizontal;
-							HorizontalAlignment = Enum.HorizontalAlignment.Right;
-							VerticalAlignment = Enum.VerticalAlignment.Center;
-							SortOrder = Enum.SortOrder.LayoutOrder;
-							Padding = UDim.new(0, 6);
-							Parent = holder2;
-						})
-
-						function label:AddColorPicker(name, opts)
-							if RestrictedColorpicker then
-								error("Restricted your using a keypicker!")
-								return
-							end
-
-							if #colorpickers >= 3 then
-								error("Max number of colorpickers reached")
-								return
-							end
-
-							local colorpicker = {}
-							table.insert(colorpickers, colorpicker)
-							RestrictedKeypicker = true
-							local color = opts.Startcolor or Color3.new(1, 1, 1)
-							local transparency = opts.Transparency or 0
-							local pointPosition
-
-							colorpicker.Color = color
-							colorpicker.Transparency = transparency
-							colorpicker.OnChanged = newSignal()
-							Options[name] = colorpicker
-							local opened = false
-							local instance 
-							local followConn
-							local outsideConn
-
-							local colorbox = library:Create("Frame", {
-								Name = "ColorBox";
-								Size = UDim2.new(0, 15,0, 15);
-								BackgroundColor3 = color;
-								LayoutOrder = #holder2:GetChildren();
-								Parent = holder2;
-							})
-
-							local uistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								LineJoinMode = Enum.LineJoinMode.Miter;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								Parent = colorbox;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local hitbox = library:Create("TextButton", {
-								Name = "Hitbox";
-								Size = UDim2.new(1,0,1,0);
-								BackgroundTransparency = 1;
-								Active = true;
-								ZIndex = 10;
-								Selectable = true;
-								Text = "";
-								Parent = colorbox;
-							})
-
-							local function OnChange(newcolor, newtransparency)
-								colorpicker.Color = newcolor
-								colorpicker.Transparency = newtransparency
-
-								if opts.Callback then
-									opts.Callback(newcolor, newtransparency)
-								end
-
-								colorpicker.OnChanged:Fire(newcolor, newtransparency)
-							end
-
-							local function Createcolorpickerbox()
-								opened = true
-
-								local function getPos()
-									local abs = colorbox.AbsolutePosition
-									local base = screengui.AbsolutePosition
-									return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
-								end
-
-								local cursorbox = library:Create("Frame", {
-									Name = "CursorBox";
-									Size = UDim2.new(0, 15,0, 15);
-									Position = getPos();
-									BackgroundColor3 = Color3.new(1,1,1);
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = screengui;
-								})
-
-								instance = cursorbox
-
-								followConn = colorbox:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-									if instance then
-										instance.Position = getPos()
-									end
-								end)
-
-								local framewindow = library:Create("Frame", {
-									Name = "Frame";
-									Size = UDim2.new(0, 323,0, 198);
-									Position = UDim2.new(1, 0,1.4, 0);
-									BackgroundColor3 = library.MainColor;
-									ZIndex = 2;
-									Parent = cursorbox;
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local uistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									LineJoinMode = Enum.LineJoinMode.Miter;
-									Color = library.SecondaryColor;
-									Thickness = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								}, {
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local uistroke2 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									LineJoinMode = Enum.LineJoinMode.Miter;
-									Color = library.MainColor;
-									Thickness = 4;
-									Parent = framewindow;
-								}, {
-									instancep = "Color";
-									tinstance = library.MainColor;
-								})
-
-								local text = library:Create("TextLabel", {
-									Name = "TextLabel";
-									Size = UDim2.new(1, 0,0, 16);
-									Position = UDim2.new(0, 0,0, 0);
-									Text = name;
-									TextColor3 = library.FontColor;
-									Font = library.Font;
-									TextSize = 13;
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local textuistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = text;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local textuisize = library:Create("UITextSizeConstraint", {
-									Name = "UISizeConstraint";
-									MaxTextSize = 13;
-									Parent = text;
-								})
-
-								local colors = library:Create("Frame", {
-									Name = "Colors";
-									Size = UDim2.new(1, 0,0, 23);
-									Position = UDim2.new(0, 0,0.879, 0);
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								})
-
-								local colorsUIl = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									FillDirection = Enum.FillDirection.Horizontal;
-									HorizontalAlignment = Enum.HorizontalAlignment.Center;
-									Padding = UDim.new(0, 8);
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									VerticalAlignment = Enum.VerticalAlignment.Center;
-									Parent = colors;
-								})
-
-								local colorsboxcolor = library:Create("Frame", {
-									Name = "Color";
-									Size = UDim2.new(0, 20,0, 20);
-									BackgroundColor3 = color;
-									ZIndex = 2;
-									LayoutOrder = 1;
-									Parent = colors;
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = color;
-								})
-
-								local colorsboxcoloruistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									Color = library.SecondaryColor;
-									Thickness = 1;
-									Parent = colorsboxcolor;
-								}, {
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local function rgbText(c)
-									return math.floor(c.R * 255 + 0.5) .. "," .. math.floor(c.G * 255 + 0.5) .. "," .. math.floor(c.B * 255 + 0.5)
-								end
-
-								local huecoloreditbox = library:Create("TextBox", {
-									Name = "Hue";
-									Size = UDim2.new(0, 71,0, 20);
-									BackgroundColor3 = library.MainColor;
-									TextColor3 = library.FontColor;
-									Text = rgbText(color);
-									TextSize = 13;
-									Font = Enum.Font.SourceSans;
-									MultiLine = false;
-									ZIndex = 2;
-									LayoutOrder = 2;
-									Parent = colors;
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								})
-
-								local huecolorboxuis1 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									Color = library.SecondaryColor;
-									Thickness = 1;
-									Parent = huecoloreditbox;
-								}, {
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local huecolorboxuis2 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = huecoloreditbox;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local transditbox = library:Create("TextBox", {
-									Name = "trans";
-									Size = UDim2.new(0, 71,0, 20);
-									BackgroundColor3 = library.MainColor;
-									TextColor3 = library.FontColor;
-									Text = transparency;
-									TextSize = 13;
-									Font = Enum.Font.SourceSans;
-									MultiLine = false;
-									ZIndex = 2;
-									LayoutOrder = 2;
-									Parent = colors;
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								})
-
-								local transboxuis1 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									Color = library.SecondaryColor;
-									Thickness = 1;
-									Parent = transditbox;
-								}, {
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local transboxuis2 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = transditbox;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local hexditbox = library:Create("TextBox", {
-									Name = "trans";
-									Size = UDim2.new(0, 71,0, 20);
-									BackgroundColor3 = library.MainColor;
-									TextColor3 = library.FontColor;
-									Text = color:ToHex();
-									TextSize = 13;
-									Font = Enum.Font.SourceSans;
-									MultiLine = false;
-									ZIndex = 2; 
-									LayoutOrder = 2;
-									Parent = colors;
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								})
-
-								local hexboxuis1 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									Color = library.SecondaryColor;
-									Thickness = 1;
-									Parent = hexditbox;
-								}, {
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local hexboxuis2 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = hexditbox;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local main = library:Create("Frame", {
-									Name = "Main";
-									Size = UDim2.new(1, 0,0, 158);
-									Position = UDim2.new(0, 0,0.081, 0);
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								})
-
-								local uillmain = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									FillDirection = Enum.FillDirection.Horizontal;
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									HorizontalAlignment = Enum.HorizontalAlignment.Center;
-									VerticalAlignment = Enum.VerticalAlignment.Center;
-									Padding = UDim.new(0, 5);
-									Parent = main;
-								})
-
-								local h, s, v = color:ToHSV()
-								local UIS = game:GetService("UserInputService")
-
-								local huebox = library:Create("Frame", {
-									Name = "HueBox";
-									Size = UDim2.new(0.576, 50,0.94, 0);
-									BackgroundColor3 = Color3.fromHSV(h, 1, 1);
-									ZIndex = 2;
-									Parent = main;
-								})
-
-								local helight = library:Create("Frame", {
-									Name = "HueBox2";
-									Size = UDim2.new(1,0,1,0);
-									BackgroundColor3 = Color3.new(1, 1, 1);
-									ZIndex = 3;
-									Parent = huebox;
-								})
-
-								local huelightgrad = library:Create("UIGradient", {
-									Name = "grad";
-									Parent = helight;
-
-									Transparency = NumberSequence.new({
-										NumberSequenceKeypoint.new(0, 0),
-										NumberSequenceKeypoint.new(1, 1),
-									})
-								})
-
-								local huedark = library:Create("Frame", {
-									Name = "HueBox3";
-									Size = UDim2.new(1,0,1,0);
-									BackgroundColor3 = Color3.new(0, 0, 0);
-									ZIndex = 3;
-									Parent = huebox;
-								})
-
-								local huedarkgrad = library:Create("UIGradient", {
-									Name = "grad";
-									Parent = huedark;
-
-									Rotation = 90,
-									Transparency = NumberSequence.new({
-										NumberSequenceKeypoint.new(0, 1),
-										NumberSequenceKeypoint.new(1, 0),
-									}),
-								})
-
-								local shiftbox = library:Create("Frame", {
-									Name = "shiftbox";
-									Size = UDim2.new(-0.057, 50,0.94, 0);
-									BackgroundColor3 = Color3.new(1,1,1);
-									ZIndex = 2;
-									LayoutOrder = 2;
-									Parent = main;
-								})
-
-								local rainbow = {}
-								for i = 0, 6 do
-									table.insert(rainbow, ColorSequenceKeypoint.new(i / 6, Color3.fromHSV(i / 6, 1, 1)))
-								end
-
-								local shiftgrad = library:Create("UIGradient", {
-									Name = "grad";
-									Rotation = 90;
-									Color = ColorSequence.new(rainbow);
-									Parent = shiftbox;
-								})
-
-								local transparencybox = library:Create("Frame", {
-									Name = "TransparencyBox";
-									Size = UDim2.new(-0.057, 50,0.94, 0);
-									BackgroundColor3 = Color3.new(1,1,1);
-									ZIndex = 2;
-									LayoutOrder = 3;
-									Parent = main;
-								})
-
-								local imagetrans = library:Create("ImageLabel", {
-									Name = "ImageLabel";
-									Size = UDim2.new(1,0,1,0);
-									BackgroundColor3 = Color3.new(1,1,1);
-									Parent = transparencybox;
-									Image = "rbxassetid://155451930";
-									ScaleType = Enum.ScaleType.Tile;
-									TileSize = UDim2.new(1, 0,0.3, 0);
-								})
-
-								local transfade = library:Create("Frame", {
-									Name = "Fade";
-									Size = UDim2.new(1,0,1,0);
-									BackgroundColor3 = color;
-									ZIndex = 3;
-									Parent = transparencybox;
-								})
-
-								local transfadegrad = library:Create("UIGradient", {
-									Name = "grad";
-									Rotation = 90;
-									Transparency = NumberSequence.new({
-										NumberSequenceKeypoint.new(0, 0),
-										NumberSequenceKeypoint.new(1, 1),
-									});
-									Parent = transfade;
-								})
-
-								local function refresh()
-									color = Color3.fromHSV(h, s, v)
-									colorbox.BackgroundColor3 = color
-									colorsboxcolor.BackgroundColor3 = color
-									huebox.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
-									transfade.BackgroundColor3 = color
-									huecoloreditbox.Text = rgbText(color)
-									hexditbox.Text = color:ToHex()
-									transditbox.Text = tostring(math.floor(transparency * 100 + 0.5) / 100)
-									OnChange(color, transparency, pointPosition)
-								end
-
-								local function makeSlider(box, start, onChange)
-									box.Active = true
-
-									local bar = library:Create("Frame", {
-										Name = "Bar";
-										Size = UDim2.new(1, 4,0, 3);
-										AnchorPoint = Vector2.new(0.5, 0.5);
-										Position = UDim2.new(0.5, 0,start, 0);
-										BackgroundColor3 = Color3.new(1, 1, 1);
-										ZIndex = 5;
-										Parent = box;
-									})
-
-									local barstroke = library:Create("UIStroke", {
-										Name = "UIStroke";
-										ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-										Color = Color3.new(0, 0, 0);
-										Thickness = 1;
-										Parent = bar;
-									})
-
-									local moveConn, endConn
-
-									local function stop()
-										if moveConn then moveConn:Disconnect() moveConn = nil end
-										if endConn then endConn:Disconnect() endConn = nil end
-									end
-
-									local function update(input)
-										local a = math.clamp((input.Position.Y - box.AbsolutePosition.Y) / box.AbsoluteSize.Y, 0, 1)
-										bar.Position = UDim2.new(0.5, 0,a, 0)
-										onChange(a)
-									end
-
-									trackConnection(box.InputBegan:Connect(function(input)
-										if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-											stop()
-											update(input)
-
-											moveConn = UIS.InputChanged:Connect(function(i)
-												if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-													update(i)
-												end
-											end)
-
-											endConn = UIS.InputEnded:Connect(function(i)
-												if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-													stop()
-												end
-											end)
-										end
-									end))
-
-									return function(a)
-										bar.Position = UDim2.new(0.5, 0,a, 0)
-									end
-								end
-
-								local setHueBar = makeSlider(shiftbox, h, function(a)
-									h = a
-									refresh()
-								end)
-
-								local setTransBar = makeSlider(transparencybox, transparency, function(a)
-									transparency = a
-									refresh()
-								end)
-
-								local cursor = library:Create("Frame", {
-									Name = "Cursor";
-									Size = UDim2.new(0, 8,0, 8);
-									AnchorPoint = Vector2.new(0.5, 0.5);
-									Position = UDim2.new(s, 0,1 - v, 0);
-									BackgroundColor3 = Color3.new(1, 1, 1);
-									ZIndex = 6;
-									Parent = huebox;
-								})
-
-								local cursorcorner = library:Create("UICorner", {
-									CornerRadius = UDim.new(1, 0);
-									Parent = cursor;
-								})
-
-								local cursorstroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									Color = Color3.new(0, 0, 0);
-									Thickness = 1;
-									Parent = cursor;
-								})
-
-								local function setCursor(ns, nv)
-									cursor.Position = UDim2.new(ns, 0,1 - nv, 0)
-								end
-
-								do
-									huedark.Active = true
-									local moveConn, endConn
-
-									local function stop()
-										if moveConn then moveConn:Disconnect() moveConn = nil end
-										if endConn then endConn:Disconnect() endConn = nil end
-									end
-
-									local function update(input)
-										local pos, size = huebox.AbsolutePosition, huebox.AbsoluteSize
-										s = math.clamp((input.Position.X - pos.X) / size.X, 0, 1)
-										v = 1 - math.clamp((input.Position.Y - pos.Y) / size.Y, 0, 1)
-										setCursor(s, v)
-										refresh()
-									end
-
-									trackConnection(huedark.InputBegan:Connect(function(input)
-										if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-											stop()
-											update(input)
-
-											moveConn = UIS.InputChanged:Connect(function(i)
-												if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-													update(i)
-												end
-											end)
-
-											endConn = UIS.InputEnded:Connect(function(i)
-												if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-													stop()
-												end
-											end)
-										end
-									end))
-								end
-
-								huecoloreditbox.FocusLost:Connect(function()
-									local r, g, b = huecoloreditbox.Text:match("^%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*$")
-									r, g, b = tonumber(r), tonumber(g), tonumber(b)
-
-									if r and g and b then
-										local c = Color3.fromRGB(math.clamp(r, 0, 255), math.clamp(g, 0, 255), math.clamp(b, 0, 255))
-										h, s, v = c:ToHSV()
-										setHueBar(h)
-										setCursor(s, v)
-										refresh()
-									else
-										huecoloreditbox.Text = rgbText(color)
-									end
-								end)
-
-								outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
-									if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-										return
-									end
-
-									local function isInside(gui)
-										local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
-										local m = input.Position
-										return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
-									end
-
-									if isInside(framewindow) or isInside(colorbox) then
-										return
-									end
-
-									colorpicker:Close()
-								end))
-
-							end
-
-							function colorpicker:Close()
-								if not opened then return end
-								opened = false
-
-								if followConn then
-									followConn:Disconnect()
-									followConn = nil
-								end
-
-								if outsideConn then
-									outsideConn:Disconnect()
-									outsideConn = nil
-								end
-
-								if instance then
-									instance:Destroy()
-									instance = nil
-								end
-							end
-
-							hitbox.Activated:Connect(function()
-								if opened then
-									colorpicker:Close()
-								else
-									Createcolorpickerbox()
-								end
-							end)
-
-							function colorpicker:AddColorPicker(name, opts)
-								return label:AddColorPicker(name, opts)
-							end
-
-							library.windowinstances.Colorbox = colorpicker
-
-							return colorpicker
-						end
-
-						function label:AddKeyPicker(name, opts)
-							if type(name) == "table" then
-								opts = name
-								name = uitext.Text
-							end
-
-							opts = opts or {}
-
-							local picker = {}
-							local InputService = InputService or game:GetService("UserInputService")
-
-							local function resolvekey(k)
-								if typeof(k) == "EnumItem" then
-									return k
-								end
-
-								if type(k) == "string" then
-									local ok, res = pcall(function()
-										return Enum.KeyCode[k]
-									end)
-									if ok then
-										return res
-									end
-								end
-
-								return nil
-							end
-
-							local currentkey = resolvekey(opts.Default)
-							local Mode = opts.Mode or "Hold"
-							local modes = {"Hold", "Toggle", "Always"}
-
-							local opened = false
-							local instance
-							local followConn
-							local outsideConn
-							local waitkeyconn
-
-							local waiting_for_key = false
-
-							local winkeytext
-							local winmodetext
-
-							local ignoredkeys = {
-								library.Menukey;
-								Enum.KeyCode.Return,
-								Enum.KeyCode.End,
-								Enum.KeyCode.Home,
-								Enum.KeyCode.PageUp,
-								Enum.KeyCode.PageDown,
-							}
-
-							local ignoredset = {}
-							for _, k in next, ignoredkeys do
-								if k then
-									ignoredset[k] = true
-								end
-							end
-
-							if RestrictedKeypicker then
-								error("Restricted your using a colorpicker!")
-								return
-							end
-
-							if keypicker then
-								warn("KeyPicker already exists for this label")
-								return
-							end
-
-							keypicker = picker
-							RestrictedColorpicker = true
-
-							picker.Key = currentkey
-							picker.Mode = Mode
-							picker.OnChanged = newSignal()
-							Options[name] = picker
-
-							local keyframe = library:Create("Frame", {
-								Name = "KeyPicker",
-								Size = UDim2.new(0, 50, 0, 15),
-								LayoutOrder = #holder2:GetChildren();
-								BackgroundColor3 = library.MainColor,
-								Parent = holder2;
-							},{
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local uistrokekey = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = keyframe,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local keybox = library:Create("TextButton", {
-								Name = "KeyBox",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 4,
-								Parent = keyframe,
-							})
-
-							local keytext = library:Create("TextLabel", {
-								Name = "KeyText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "None",
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								Parent = keyframe,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local active = false
-							picker.Value = false
-
-							local function setState(state)
-								if active == state then return end
-								active = state
-								picker.Value = state
-
-								if opts.Callback then
-									opts.Callback(state)
-								end
-							end
-
-							local function updatetexts()
-								local t
-								if waiting_for_key then
-									t = "..."
-								elseif currentkey then
-									t = keyshorts[currentkey] or currentkey.Name
-								else
-									t = "None"
-								end
-
-								keytext.Text = t
-								if winkeytext then
-									winkeytext.Text = t
-								end
-								if winmodetext then
-									winmodetext.Text = Mode
-								end
-							end
-
-							local function setKey(k)
-								currentkey = k
-								picker.Key = k
-								updatetexts()
-
-								if opts.CallbackKey then
-									opts.CallbackKey(k)
-								end
-
-								picker.OnChanged:Fire(currentkey, Mode)
-							end
-
-							local function setMode(m)
-								Mode = m
-								picker.Mode = m
-								updatetexts()
-
-								setState(m == "Always")
-
-								if opts.CallbackMode then
-									opts.CallbackMode(m)
-								end
-
-								picker.OnChanged:Fire(currentkey, Mode)
-							end
-
-							local function startbind()
-								if waiting_for_key then
-									return
-								end
-
-								waiting_for_key = true
-								updatetexts()
-
-								waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-									if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-									if ignoredset[input.KeyCode] then return end
-
-									if waitkeyconn then
-										waitkeyconn:Disconnect()
-										waitkeyconn = nil
-									end
-
-									task.defer(function()
-										waiting_for_key = false
-										updatetexts()
-									end)
-
-									if input.KeyCode == Enum.KeyCode.Backspace then
-										setKey(nil)
-									else
-										setKey(input.KeyCode)
-									end
-								end))
-							end
-
-							local function openminiwindow()
-								opened = true
-
-								local function getPos()
-									local abs = keyframe.AbsolutePosition
-									local base = screengui.AbsolutePosition
-									return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
-								end
-
-								local cursorbox = library:Create("Frame", {
-									Name = "CursorBox";
-									Size = UDim2.new(0, 15,0, 15);
-									Position = getPos();
-									BackgroundColor3 = Color3.new(1,1,1);
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = screengui;
-								})
-
-								instance = cursorbox
-
-								followConn = keyframe:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-									if instance then
-										instance.Position = getPos()
-									end
-								end)
-
-								local framewindow = library:Create("Frame", {
-									Name = "Frame";
-									Size = UDim2.new(0, 323,0, 93);
-									Position = UDim2.new(1, 0,1.4, 0);
-									BackgroundColor3 = library.MainColor;
-									ZIndex = 2;
-									Parent = cursorbox;
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local uistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									LineJoinMode = Enum.LineJoinMode.Miter;
-									Color = library.SecondaryColor;
-									Thickness = 1;
-									Parent = framewindow;
-								}, {
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local uistroke2 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									LineJoinMode = Enum.LineJoinMode.Miter;
-									Color = library.MainColor;
-									Thickness = 4;
-									Parent = framewindow;
-								}, {
-									instancep = "Color";
-									tinstance = library.MainColor;
-								})
-
-								local text = library:Create("TextLabel", {
-									Name = "TextLabel";
-									Size = UDim2.new(1, 0,0, 16);
-									Position = UDim2.new(0, 0,0, 0);
-									Text = name;
-									TextColor3 = library.FontColor;
-									Font = library.Font;
-									TextSize = 13;
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local textuistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = text;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local textuisize = library:Create("UITextSizeConstraint", {
-									Name = "UISizeConstraint";
-									MaxTextSize = 13;
-									Parent = text;
-								})
-
-								local holder = library:Create("Frame", {
-									Name = "Holder";
-									Size = UDim2.new(1, 0,-0.228, 96);
-									Position = UDim2.new(0, 0,0.195, 0);
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								})
-
-								local uill = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									Padding = UDim.new(0, 5);
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									FillDirection = Enum.FillDirection.Vertical;
-									HorizontalAlignment = Enum.HorizontalAlignment.Center;
-									VerticalAlignment = Enum.VerticalAlignment.Top;
-									Parent = holder;
-								})
-
-								local uipadd = library:Create("UIPadding", {
-									Name = "UIPadding";
-									PaddingLeft = UDim.new(0, 0);
-									PaddingRight = UDim.new(0, 0);
-									PaddingTop = UDim.new(0, 3);
-									PaddingBottom = UDim.new(0, 0);
-									Parent = holder;
-								})
-
-								local keysetbind = library:Create("Frame", {
-									Name = "KeysetBind";
-									Size = UDim2.new(.95, 0,0, 20);
-									BackgroundTransparency = 1;
-									LayoutOrder = 1;
-									Parent = holder;
-									ZIndex = 2;
-								})
-
-								local keybindsetuil = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									Padding = UDim.new(0, 0);
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									FillDirection = Enum.FillDirection.Horizontal;
-									HorizontalAlignment = Enum.HorizontalAlignment.Left;
-									VerticalAlignment = Enum.VerticalAlignment.Center;
-									Parent = keysetbind;
-								})
-
-								local keylabelset = library:Create("TextLabel", {
-									Name = "KeyLabel";
-									Size = UDim2.new(1, -55,1, 0);
-									BackgroundTransparency = 1;
-									Text = "Keybind";
-									TextColor3 = library.FontColor;
-									TextSize = 13;
-									TextXAlignment = Enum.TextXAlignment.Left;
-									TextYAlignment = Enum.TextYAlignment.Center;
-									Font = library.Font;
-									LayoutOrder = 1;
-									ZIndex = 2;
-									Parent = keysetbind;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local labeluistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = keylabelset;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local labeltsize = library:Create("UITextSizeConstraint", {
-									Name = "UITextSizeConstraint";
-									MaxTextSize = 13;
-									Parent = keylabelset;
-								})
-
-								local winkeyframe = library:Create("Frame", {
-									Name = "KeyPicker",
-									Size = UDim2.new(0, 50, 0, 15),
-									LayoutOrder = 2;
-									BackgroundColor3 = library.MainColor,
-									ZIndex = 2;
-									Parent = keysetbind,
-								},{
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local winuistrokekey = library:Create("UIStroke", {
-									Name = "UIStroke",
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-									Color = library.SecondaryColor,
-									Thickness = 1,
-									Parent = winkeyframe,
-								},{
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local winkeybox = library:Create("TextButton", {
-									Name = "KeyBox",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "",
-									ZIndex = 3,
-									Parent = winkeyframe,
-								})
-
-								winkeytext = library:Create("TextLabel", {
-									Name = "KeyText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "None",
-									TextColor3 = library.FontColor,
-									TextSize = 13,
-									Font = library.Font,
-									TextXAlignment = Enum.TextXAlignment.Center,
-									ZIndex = 2,
-									Parent = winkeyframe,
-								},{
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-
-								local modesetbind = library:Create("Frame", {
-									Name = "ModesetBind";
-									Size = UDim2.new(.95, 0,0, 20);
-									BackgroundTransparency = 1;
-									LayoutOrder = 2;
-									Parent = holder;
-									ZIndex = 2;
-								})
-
-								local modesetuil = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									Padding = UDim.new(0, 0);
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									FillDirection = Enum.FillDirection.Horizontal;
-									HorizontalAlignment = Enum.HorizontalAlignment.Left;
-									VerticalAlignment = Enum.VerticalAlignment.Center;
-									Parent = modesetbind;
-								})
-
-								local modelabelset = library:Create("TextLabel", {
-									Name = "ModeLabel";
-									Size = UDim2.new(1, -55,1, 0);
-									BackgroundTransparency = 1;
-									Text = "Mode";
-									TextColor3 = library.FontColor;
-									TextSize = 13;
-									TextXAlignment = Enum.TextXAlignment.Left;
-									TextYAlignment = Enum.TextYAlignment.Center;
-									Font = library.Font;
-									LayoutOrder = 1;
-									ZIndex = 2;
-									Parent = modesetbind;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local labelmuistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = modelabelset;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local labelmtsize = library:Create("UITextSizeConstraint", {
-									Name = "UITextSizeConstraint";
-									MaxTextSize = 13;
-									Parent = modelabelset;
-								})
-
-								local modeframe = library:Create("Frame", {
-									Name = "ModePicker",
-									Size = UDim2.new(0, 50, 0, 15),
-									LayoutOrder = 2;
-									BackgroundColor3 = library.MainColor,
-									ZIndex = 2;
-									Parent = modesetbind,
-								},{
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local uistrokemode = library:Create("UIStroke", {
-									Name = "UIStroke",
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-									Color = library.SecondaryColor,
-									Thickness = 1,
-									Parent = modeframe,
-								},{
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local Modebox = library:Create("TextButton", {
-									Name = "ModeBox",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "",
-									ZIndex = 3,
-									Parent = modeframe,
-								})
-
-								winmodetext = library:Create("TextLabel", {
-									Name = "ModeText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = Mode,
-									TextColor3 = library.FontColor,
-									TextSize = 13,
-									Font = library.Font,
-									TextXAlignment = Enum.TextXAlignment.Center,
-									ZIndex = 2,
-									Parent = modeframe,
-								},{
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local unbindbox = library:Create("Frame", {
-									Name = "UnbindBox",
-									Size = UDim2.new(0.95, 0,0, 15),
-									LayoutOrder = 3,
-									BackgroundColor3 = library.MainColor,
-									ZIndex = 2,
-									Parent = holder,
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local unbindstroke = library:Create("UIStroke", {
-									Name = "UIStroke",
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-									Color = library.SecondaryColor,
-									Thickness = 1,
-									Parent = unbindbox,
-								},{
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local unbindtext = library:Create("TextLabel", {
-									Name = "UnbindText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "Unbind",
-									TextColor3 = library.FontColor,
-									TextSize = 13,
-									Font = library.Font,
-									TextXAlignment = Enum.TextXAlignment.Center,
-									ZIndex = 2,
-									Parent = unbindbox,
-								},{
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local unbindboxt = library:Create("TextButton", {
-									Name = "UnbindBoxText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "",
-									ZIndex = 3,
-									Parent = unbindbox,
-								})
-
-								winkeybox.MouseButton1Click:Connect(startbind)
-
-								Modebox.MouseButton1Click:Connect(function()
-									local index = table.find(modes, Mode) or 1
-									setMode(modes[index % #modes + 1])
-								end)
-
-								unbindboxt.MouseButton1Click:Connect(function()
-									setKey(nil)
-								end)
-
-								updatetexts()
-
-								outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
-									if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-										return
-									end
-
-									local function isInside(gui)
-										local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
-										local m = input.Position
-										return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
-									end
-
-									if isInside(framewindow) or isInside(keyframe) then
-										return
-									end
-
-									picker:Close()
-								end))
-							end
-
-							function picker:Close()
-								if not opened then return end
-								opened = false
-
-								winkeytext = nil
-								winmodetext = nil
-
-								if followConn then
-									followConn:Disconnect()
-									followConn = nil
-								end
-
-								if outsideConn then
-									outsideConn:Disconnect()
-									outsideConn = nil
-								end
-
-								if instance then
-									instance:Destroy()
-									instance = nil
-								end
-							end
-
-							keybox.MouseButton1Click:Connect(startbind)
-
-							keybox.MouseButton2Click:Connect(function()
-								if opened then
-									picker:Close()
-								else
-									openminiwindow()
-								end
-							end)
-
-							trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if waiting_for_key then return end
-								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-								if not currentkey or input.KeyCode ~= currentkey then return end
-
-								if Mode == "Toggle" then
-									setState(not active)
-								elseif Mode == "Hold" then
-									setState(true)
-								end
-							end))
-
-							trackConnection(InputService.InputEnded:Connect(function(input)
-								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-								if not currentkey or input.KeyCode ~= currentkey then return end
-
-								if Mode == "Hold" then
-									setState(false)
-								end
-							end))
-
-							updatetexts()
-
-							if Mode == "Always" then
-								setState(true)
-							end
-
-							library.windowinstances.Keybindbox = picker
-
-							return picker
-						end
-
-						return label
-					end
-
-					function groupbox:AddToggle(name, opts)
-						local toggle = {}
-						local togglename = name
-						local toggled = opts.Default
-
-						if opts.Default == nil then
-							toggled = false
-						end
-
-						toggle.Value = toggled
-
-						local holder = library:Create("Frame", {
-							Name = "Holder";
-							Size = UDim2.new(0.95, 0,0, 20);
-							BackgroundTransparency = 1;
-							LayoutOrder = #elementsholder:GetChildren();
-							Parent = elementsholder;
-						})
-
-						local hb = library:Create("TextButton", {
-							Name = "Hitbox";
-							Size = UDim2.new(1, 0, 1, 0);
-							BackgroundTransparency = 1;
-							ZIndex = 2;
-							Text = "";
-							Parent = holder;
-						})
-
-						local elements = library:Create("Frame", {
-							Name = "Holder2";
-							Size = UDim2.new(1,0,1,0);
-							BackgroundTransparency = 1;
-							Parent = holder;
-						})
-
-						local uilistlayout = library:Create("UIListLayout", {
-							Name = "UIListLayout";
-							FillDirection = Enum.FillDirection.Horizontal;
-							HorizontalAlignment = Enum.HorizontalAlignment.Left;
-							SortOrder = Enum.SortOrder.LayoutOrder;
-							VerticalAlignment = Enum.VerticalAlignment.Center;
-							Padding = UDim.new(0, 0);
-							Parent = elements;
-						})
-
-						local boxelem = library:Create("Frame", {
-							Name = "Box";
-							Size = UDim2.new(0, 15, 0, 15);
-							BackgroundColor3 = library.AccentColor;
-							BackgroundTransparency = 1;
-							LayoutOrder = 1;
-							Parent = elements;
-						}, {
-							instancep = "BackgroundColor3";
-							tinstance = library.AccentColor;
-						})
-
-						local uis1 = library:Create("UIStroke", {
-							Name = "UIStroke";
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-							LineJoinMode = Enum.LineJoinMode.Miter;
-							Color = library.SecondaryColor;
-							Thickness = 1;
-
-							Parent = boxelem;
-						}, {
-							instancep = "Color";
-							tinstance = library.SecondaryColor;
-						})
-
-						local label = library:Create("TextLabel", {
-							Name = "Label";
-							Size = UDim2.new(0.772, 0, 1, 0);
-							BackgroundTransparency = 1;
-							Text = name;
-							TextColor3 = library.FontColor;
-							Font = library.Font;
-							TextSize = 13;
-							TextXAlignment = Enum.TextXAlignment.Left;
-							LayoutOrder = 2;
-							TextYAlignment = Enum.TextYAlignment.Center;
-							Parent = elements;
-						}, {
-							instancep = "TextColor3";
-							tinstance = library.FontColor;
-						}, {
-							instancep = "Font";
-							tinstance = library.Font;
-						})
-
-						local luip = library:Create("UIPadding", {
-							Name = "UIPadding";
-							PaddingLeft = UDim.new(0, 7);
-							PaddingRight = UDim.new(0, 0);
-							PaddingTop = UDim.new(0, 0);
-							PaddingBottom = UDim.new(0, 0);
-							Parent = label;
-						})
-
-						local luis = library:Create("UIStroke", {
-							Name = "UIStroke";
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-							Color = library.UIstroke;
-							Thickness = 1;
-
-							Parent = label;
-						}, {
-							instancep = "Color";
-							tinstance = library.UIstroke;
-						})
-
-						local luitextsize = library:Create("UITextSizeConstraint", {
-							Name = "UITextSizeConstraint";
-							MaxTextSize = 13;
-							Parent = label;
-						})
-
-						if toggled then
-							boxelem.BackgroundTransparency = 0
-						end
-
-						local function togglef()
-							toggled = not toggled
-
-							if toggled then
-								boxelem.BackgroundTransparency = 0
-							else
-								boxelem.BackgroundTransparency = 1
-							end
-
-							Toggles[togglename].value = toggled
-							toggle.Value = toggled
-
-							if opts.Callback then
-								opts.Callback(toggled)
-							end
-
-							if library.UpdateDependencyBoxes then
-								library:UpdateDependencyBoxes()
-							end
-						end
-
-						hb.MouseButton1Click:Connect(togglef)
-
-						Toggles[togglename] = {
-							value = toggled;
-							keypicker = nil;
-						}
-
-						function toggle:AddKeyPicker(name, opts)
-							if type(name) == "table" then
-								opts = name
-								name = togglename
-							end
-
-							opts = opts or {}
-
-							local keypicker = {}
-							local InputService = InputService or game:GetService("UserInputService")
-
-							local function resolvekey(k)
-								if typeof(k) == "EnumItem" then
-									return k
-								end
-
-								if type(k) == "string" then
-									local ok, res = pcall(function()
-										return Enum.KeyCode[k]
-									end)
-									if ok then
-										return res
-									end
-								end
-
-								return nil
-							end
-
-							local currentkey = resolvekey(opts.Default)
-							local Mode = opts.Mode or "Hold"
-							local modes = {"Hold", "Toggle", "Always"}
-
-							local opened = false
-							local instance
-							local followConn
-							local outsideConn
-							local waitkeyconn
-
-							local waiting_for_key = false
-
-							local winkeytext
-							local winmodetext
-
-							local ignoredkeys = {
-								library.Menukey;
-								Enum.KeyCode.Return,
-								Enum.KeyCode.End,
-								Enum.KeyCode.Home,
-								Enum.KeyCode.PageUp,
-								Enum.KeyCode.PageDown,
-							}
-
-							local ignoredset = {}
-							for _, k in next, ignoredkeys do
-								if k then
-									ignoredset[k] = true
-								end
-							end
-
-							if not Toggles[togglename].keypicker then
-								Toggles[togglename].keypicker = keypicker
-							else
-								warn("KeyPicker already exists for toggle: "..togglename)
-								return 
-							end
-
-							keypicker.Key = currentkey
-							keypicker.Mode = Mode
-							keypicker.OnChanged = newSignal()
-							Options[name] = keypicker
-
-							local keyframe = library:Create("Frame", {
-								Name = "KeyPicker",
-								Size = UDim2.new(0, 50, 0, 15),
-								LayoutOrder = 999;
-								BackgroundColor3 = library.MainColor,
-								Parent = elements;
-							},{
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local uistrokekey = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = keyframe,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local keybox = library:Create("TextButton", {
-								Name = "KeyBox",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 4,
-								Parent = keyframe,
-							})
-
-							local keytext = library:Create("TextLabel", {
-								Name = "KeyText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "None",
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								Parent = keyframe,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local function setState(state)
-								if toggled == state then return end
-								togglef()
-								Toggles[togglename].value = toggled
-							end
-
-							local function updatetexts()
-								local t
-								if waiting_for_key then
-									t = "..."
-								elseif currentkey then
-									t = keyshorts[currentkey] or currentkey.Name
-								else
-									t = "None"
-								end
-
-								keytext.Text = t
-								if winkeytext then
-									winkeytext.Text = t
-								end
-								if winmodetext then
-									winmodetext.Text = Mode
-								end
-							end
-
-							local function setKey(k)
-								currentkey = k
-								keypicker.Key = k
-								updatetexts()
-
-								if opts.CallbackKey then
-									opts.CallbackKey(k)
-								end
-
-								keypicker.OnChanged:Fire(currentkey, Mode)
-							end
-
-							local function setMode(m)
-								Mode = m
-								keypicker.Mode = m
-								updatetexts()
-
-								setState(m == "Always")
-
-								if opts.CallbackMode then
-									opts.CallbackMode(m)
-								end
-
-								keypicker.OnChanged:Fire(currentkey, Mode)
-							end
-
-							local function startbind()
-								if waiting_for_key then
-									return
-								end
-
-								waiting_for_key = true
-								updatetexts()
-
-								waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-									if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-									if ignoredset[input.KeyCode] then return end
-
-									if waitkeyconn then
-										waitkeyconn:Disconnect()
-										waitkeyconn = nil
-									end
-
-									task.defer(function()
-										waiting_for_key = false
-										updatetexts()
-									end)
-
-									if input.KeyCode == Enum.KeyCode.Backspace then
-										setKey(nil)
-									else
-										setKey(input.KeyCode)
-									end
-								end))
-							end
-
-							local function openminiwindow()
-								opened = true
-
-								local function getPos()
-									local abs = keyframe.AbsolutePosition
-									local base = screengui.AbsolutePosition
-									return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
-								end
-
-								local cursorbox = library:Create("Frame", {
-									Name = "CursorBox";
-									Size = UDim2.new(0, 15,0, 15);
-									Position = getPos();
-									BackgroundColor3 = Color3.new(1,1,1);
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = screengui;
-								})
-
-								instance = cursorbox
-
-								followConn = keyframe:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-									if instance then
-										instance.Position = getPos()
-									end
-								end)
-
-								local framewindow = library:Create("Frame", {
-									Name = "Frame";
-									Size = UDim2.new(0, 323,0, 93);
-									Position = UDim2.new(1, 0,1.4, 0);
-									BackgroundColor3 = library.MainColor;
-									ZIndex = 2;
-									Parent = cursorbox;
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local uistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									LineJoinMode = Enum.LineJoinMode.Miter;
-									Color = library.SecondaryColor;
-									Thickness = 1;
-									Parent = framewindow;
-								}, {
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local uistroke2 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									LineJoinMode = Enum.LineJoinMode.Miter;
-									Color = library.MainColor;
-									Thickness = 4;
-									Parent = framewindow;
-								}, {
-									instancep = "Color";
-									tinstance = library.MainColor;
-								})
-
-								local text = library:Create("TextLabel", {
-									Name = "TextLabel";
-									Size = UDim2.new(1, 0,0, 16);
-									Position = UDim2.new(0, 0,0, 0);
-									Text = name;
-									TextColor3 = library.FontColor;
-									Font = library.Font;
-									TextSize = 13;
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local textuistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = text;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local textuisize = library:Create("UITextSizeConstraint", {
-									Name = "UISizeConstraint";
-									MaxTextSize = 13;
-									Parent = text;
-								})
-
-								local holder = library:Create("Frame", {
-									Name = "Holder";
-									Size = UDim2.new(1, 0,-0.228, 96);
-									Position = UDim2.new(0, 0,0.195, 0);
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								})
-
-								local uill = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									Padding = UDim.new(0, 5);
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									FillDirection = Enum.FillDirection.Vertical;
-									HorizontalAlignment = Enum.HorizontalAlignment.Center;
-									VerticalAlignment = Enum.VerticalAlignment.Top;
-									Parent = holder;
-								})
-
-								local uipadd = library:Create("UIPadding", {
-									Name = "UIPadding";
-									PaddingLeft = UDim.new(0, 0);
-									PaddingRight = UDim.new(0, 0);
-									PaddingTop = UDim.new(0, 3);
-									PaddingBottom = UDim.new(0, 0);
-									Parent = holder;
-								})
-
-								local keysetbind = library:Create("Frame", {
-									Name = "KeysetBind";
-									Size = UDim2.new(.95, 0,0, 20);
-									BackgroundTransparency = 1;
-									LayoutOrder = 1;
-									Parent = holder;
-									ZIndex = 2;
-								})
-
-								local keybindsetuil = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									Padding = UDim.new(0, 0);
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									FillDirection = Enum.FillDirection.Horizontal;
-									HorizontalAlignment = Enum.HorizontalAlignment.Left;
-									VerticalAlignment = Enum.VerticalAlignment.Center;
-									Parent = keysetbind;
-								})
-
-								local keylabelset = library:Create("TextLabel", {
-									Name = "KeyLabel";
-									Size = UDim2.new(1, -55,1, 0);
-									BackgroundTransparency = 1;
-									Text = "Keybind";
-									TextColor3 = library.FontColor;
-									TextSize = 13;
-									TextXAlignment = Enum.TextXAlignment.Left;
-									TextYAlignment = Enum.TextYAlignment.Center;
-									Font = library.Font;
-									LayoutOrder = 1;
-									ZIndex = 2;
-									Parent = keysetbind;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local labeluistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = keylabelset;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local labeltsize = library:Create("UITextSizeConstraint", {
-									Name = "UITextSizeConstraint";
-									MaxTextSize = 13;
-									Parent = keylabelset;
-								})
-
-								local winkeyframe = library:Create("Frame", {
-									Name = "KeyPicker",
-									Size = UDim2.new(0, 50, 0, 15),
-									LayoutOrder = 2;
-									BackgroundColor3 = library.MainColor,
-									ZIndex = 2;
-									Parent = keysetbind,
-								},{
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local winuistrokekey = library:Create("UIStroke", {
-									Name = "UIStroke",
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-									Color = library.SecondaryColor,
-									Thickness = 1,
-									Parent = winkeyframe,
-								},{
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local winkeybox = library:Create("TextButton", {
-									Name = "KeyBox",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "",
-									ZIndex = 3,
-									Parent = winkeyframe,
-								})
-
-								winkeytext = library:Create("TextLabel", {
-									Name = "KeyText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "None",
-									TextColor3 = library.FontColor,
-									TextSize = 13,
-									Font = library.Font,
-									TextXAlignment = Enum.TextXAlignment.Center,
-									ZIndex = 2,
-									Parent = winkeyframe,
-								},{
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-
-								local modesetbind = library:Create("Frame", {
-									Name = "ModesetBind";
-									Size = UDim2.new(.95, 0,0, 20);
-									BackgroundTransparency = 1;
-									LayoutOrder = 2;
-									Parent = holder;
-									ZIndex = 2;
-								})
-
-								local modesetuil = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									Padding = UDim.new(0, 0);
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									FillDirection = Enum.FillDirection.Horizontal;
-									HorizontalAlignment = Enum.HorizontalAlignment.Left;
-									VerticalAlignment = Enum.VerticalAlignment.Center;
-									Parent = modesetbind;
-								})
-
-								local modelabelset = library:Create("TextLabel", {
-									Name = "ModeLabel";
-									Size = UDim2.new(1, -55,1, 0);
-									BackgroundTransparency = 1;
-									Text = "Mode";
-									TextColor3 = library.FontColor;
-									TextSize = 13;
-									TextXAlignment = Enum.TextXAlignment.Left;
-									TextYAlignment = Enum.TextYAlignment.Center;
-									Font = library.Font;
-									LayoutOrder = 1;
-									ZIndex = 2;
-									Parent = modesetbind;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local labelmuistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = modelabelset;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local labelmtsize = library:Create("UITextSizeConstraint", {
-									Name = "UITextSizeConstraint";
-									MaxTextSize = 13;
-									Parent = modelabelset;
-								})
-
-								local modeframe = library:Create("Frame", {
-									Name = "ModePicker",
-									Size = UDim2.new(0, 50, 0, 15),
-									LayoutOrder = 2;
-									BackgroundColor3 = library.MainColor,
-									ZIndex = 2;
-									Parent = modesetbind,
-								},{
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local uistrokemode = library:Create("UIStroke", {
-									Name = "UIStroke",
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-									Color = library.SecondaryColor,
-									Thickness = 1,
-									Parent = modeframe,
-								},{
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local Modebox = library:Create("TextButton", {
-									Name = "ModeBox",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "",
-									ZIndex = 3,
-									Parent = modeframe,
-								})
-
-								winmodetext = library:Create("TextLabel", {
-									Name = "ModeText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = Mode,
-									TextColor3 = library.FontColor,
-									TextSize = 13,
-									Font = library.Font,
-									TextXAlignment = Enum.TextXAlignment.Center,
-									ZIndex = 2,
-									Parent = modeframe,
-								},{
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local unbindbox = library:Create("Frame", {
-									Name = "UnbindBox",
-									Size = UDim2.new(0.95, 0,0, 15),
-									LayoutOrder = 3,
-									BackgroundColor3 = library.MainColor,
-									ZIndex = 2,
-									Parent = holder,
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local unbindstroke = library:Create("UIStroke", {
-									Name = "UIStroke",
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-									Color = library.SecondaryColor,
-									Thickness = 1,
-									Parent = unbindbox,
-								},{
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local unbindtext = library:Create("TextLabel", {
-									Name = "UnbindText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "Unbind",
-									TextColor3 = library.FontColor,
-									TextSize = 13,
-									Font = library.Font,
-									TextXAlignment = Enum.TextXAlignment.Center,
-									ZIndex = 2,
-									Parent = unbindbox,
-								},{
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local unbindboxt = library:Create("TextButton", {
-									Name = "UnbindBoxText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "",
-									ZIndex = 3,
-									Parent = unbindbox,
-								})
-
-								winkeybox.MouseButton1Click:Connect(startbind)
-
-								Modebox.MouseButton1Click:Connect(function()
-									local index = table.find(modes, Mode) or 1
-									setMode(modes[index % #modes + 1])
-								end)
-
-								unbindboxt.MouseButton1Click:Connect(function()
-									setKey(nil)
-								end)
-
-								updatetexts()
-
-								outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
-									if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-										return
-									end
-
-									local function isInside(gui)
-										local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
-										local m = input.Position
-										return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
-									end
-
-									if isInside(framewindow) or isInside(keyframe) then
-										return
-									end
-
-									keypicker:Close()
-								end))
-							end
-
-							function keypicker:Close()
-								if not opened then return end
-								opened = false
-
-								winkeytext = nil
-								winmodetext = nil
-
-								if followConn then
-									followConn:Disconnect()
-									followConn = nil
-								end
-
-								if outsideConn then
-									outsideConn:Disconnect()
-									outsideConn = nil
-								end
-
-								if instance then
-									instance:Destroy()
-									instance = nil
-								end
-							end
-
-							keybox.MouseButton1Click:Connect(startbind)
-
-							keybox.MouseButton2Click:Connect(function()
-								if opened then
-									keypicker:Close()
-								else
-									openminiwindow()
-								end
-							end)
-
-							trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if waiting_for_key then return end
-								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-								if not currentkey or input.KeyCode ~= currentkey then return end
-
-								if Mode == "Toggle" then
-									setState(not toggled)
-								elseif Mode == "Hold" then
-									setState(true)
-								end
-							end))
-
-							trackConnection(InputService.InputEnded:Connect(function(input)
-								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-								if not currentkey or input.KeyCode ~= currentkey then return end
-
-								if Mode == "Hold" then
-									setState(false)
-								end
-							end))
-
-							updatetexts()
-
-							if Mode == "Always" then
-								setState(true)
-							end
-
-							library.windowinstances.Keybindbox = keypicker
-
-							return keypicker
-						end
-
-						return toggle
-					end
-
-					function groupbox:AddSlider(name, opts)
-						opts = opts or {}
-
-						local slider = {}
-						local UIS = InputService
-
-						local config = {
-							Minimum = opts.Minimum;
-							Maximum = opts.Maximum;
-							DefaultValue = opts.Default;
-							Step = opts.Step;
-							Format = opts.Format;
-						}
-
-						local range = config.Maximum - config.Minimum
-						if range <= 0 then
-							range = 1
-						end
-
-						local stepsize = config.Step > 0 and config.Step
-
-						local function decimalsof(n)
-							local d = tostring(n):match("%.(%d+)")
-							return d and #d or 0
-						end
-
-						local decimals = opts.Rounding or math.max(decimalsof(stepsize), decimalsof(config.Minimum))
-
-						local currentvalue = config.Minimum
-						local dragging = false
-
-						local mainframe = library:Create("Frame", {
-							Name = "Slider",
-							Size = UDim2.new(0.95, 0, 0, 15),
-							BackgroundTransparency = 1,
-							LayoutOrder = #elementsholder:GetChildren(),
-							Parent = elementsholder,
-						})
-
-						if opts.Smaller then
-							mainframe.Size = UDim2.new(0.465, 0, 0, 15)
-						end
-
-						local uistroke = library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							LineJoinMode = Enum.LineJoinMode.Miter,
-							Parent = mainframe,
-						}, {
-							instancep = "Color";
-							tinstance = library.SecondaryColor;
-						})
-
-						local frame = library:Create("Frame", {
-							Name = "Frame",
-							Size = UDim2.new(0, 0, 1, 0),
-							BackgroundColor3 = library.AccentColor,
-							Parent = mainframe,
-						}, {
-							instancep = "BackgroundColor3";
-							tinstance = library.AccentColor;
-						})
-
-						local hitbox = library:Create("TextButton", {
-							Name = "Hitbox",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = "",
-							ZIndex = 3,
-							Parent = mainframe,
-						})
-
-						local text = library:Create("TextLabel", {
-							Name = "Text",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = name,
-							TextColor3 = library.FontColor,
-							Font = library.Font,
-							TextSize = 13,
-							TextXAlignment = Enum.TextXAlignment.Center,
-							TextYAlignment = Enum.TextYAlignment.Center,
-							ZIndex = 2,
-							Parent = mainframe,
-						}, {
-							instancep = "TextColor3";
-							tinstance = library.FontColor;
-						}, {
-							instancep = "Font";
-							tinstance = library.Font;
-						})
-
-						local uistoke2 = library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-							Color = library.UIstroke,
-							Thickness = 1,
-							LineJoinMode = Enum.LineJoinMode.Round,
-							Parent = text,
-						}, {
-							instancep = "Color";
-							tinstance = library.UIstroke;
-						})
-
-						local textuisize = library:Create("UITextSizeConstraint", {
-							Name = "UITextSizeConstraint",
-							MaxTextSize = 13,
-							Parent = text,
-						})
-
-						local function fmt(n)
-							return tostring(n)
-						end
-
-						local function refreshui()
-							local alpha = (currentvalue - config.Minimum) / range
-							frame.Size = UDim2.new(math.clamp(alpha, 0, 1), 0, 1, 0)
-
-							local suffix = ""
-							if config.Format ~= "" then
-								suffix = " " .. config.Format
-							end
-
-							text.Text = name .. ": " .. fmt(currentvalue) .. "/" .. fmt(config.Maximum) .. suffix
-						end
-
-						local function setvalue(v, silent)
-							v = math.clamp(v, config.Minimum, config.Maximum)
-							v = config.Minimum + math.floor((v - config.Minimum) / stepsize + 0.5) * stepsize
-							v = math.clamp(v, config.Minimum, config.Maximum)
-							v = tonumber(string.format("%." .. decimals .. "f", v))
-
-							local changed = v ~= currentvalue
-							currentvalue = v
-							slider.Value = v
-							refreshui()
-
-							if changed and not silent then
-								if opts.Callback then
-									opts.Callback(v)
-								end
-
-								slider.OnChanged:Fire(v)
-							end
-						end
-
-						slider.Value = currentvalue
-						slider.OnChanged = newSignal()
-						Options[name] = slider
-
-						function slider:SetValue(v)
-							setvalue(v)
-						end
-
-						function slider:GetValue()
-							return currentvalue
-						end
-
-						setvalue(config.DefaultValue, true)
-
-						local moveConn
-						local endConn
-
-						local function stop()
-							dragging = false
-
-							if moveConn then
-								moveConn:Disconnect()
-								moveConn = nil
-							end
-
-							if endConn then
-								endConn:Disconnect()
-								endConn = nil
-							end
-						end
-
-						local function drag(input)
-							local pos, size = mainframe.AbsolutePosition, mainframe.AbsoluteSize
-							local alpha = math.clamp((input.Position.X - pos.X) / size.X, 0, 1)
-							setvalue(config.Minimum + alpha * range)
-						end
-
-						trackConnection(hitbox.InputBegan:Connect(function(input)
-							if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-								stop()
-								dragging = true
-								drag(input)
-
-								moveConn = trackConnection(UIS.InputChanged:Connect(function(i)
-									if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-										drag(i)
-									end
-								end))
-
-								endConn = trackConnection(UIS.InputEnded:Connect(function(i)
-									if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-										stop()
-									end
-								end))
-							end
-						end))
-
-						return slider
-					end
-
-					function groupbox:AddButton(name , opts)
-						opts = opts or {}
-
-						local button = {}
-
-						local warnclick = opts.WarnClick or opts.Warn or false
-						local smaller = opts.Smaller or false
-						local armed = false
-						local armtoken = 0
-
-						local Holder = library:Create("Frame", {
-							Name = "Button",
-							Size = smaller and UDim2.new(0.465, 0, 0, 15) or UDim2.new(0.95, 0,0, 15),
-							LayoutOrder = #elementsholder:GetChildren(),
-							BackgroundColor3 = library.MainColor,
-							Parent = elementsholder,
-						}, {
-							instancep = "BackgroundColor3";
-							tinstance = library.MainColor;
-						})
-
-						local stroketext = library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							Parent = Holder,
-						},{
-							instancep = "Color";
-							tinstance = library.SecondaryColor;
-						})
-
-						local text = library:Create("TextLabel", {
-							Name = "text",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = name,
-							TextColor3 = library.FontColor,
-							TextSize = 13,
-							Font = library.Font,
-							TextXAlignment = Enum.TextXAlignment.Center,
-							ZIndex = 2,
-							Parent = Holder,
-						},{
-							instancep = "TextColor3";
-							tinstance = library.FontColor;
-						}, {
-							instancep = "Font";
-							tinstance = library.Font;
-						})
-
-						local uistroke = library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-							Color = library.UIstroke,
-							Thickness = 1,
-							Parent = text,
-						},{
-							instancep = "Color";
-							tinstance = library.UIstroke;
-						})
-
-						local textsizecon = library:Create("UITextSizeConstraint", {
-							Name = "UITextSizeConstraint",
-							MaxTextSize = 13,
-							Parent = text,
-						})
-
-						local Textbutton = library:Create("TextButton", {
-							Name = "Boxhit",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = "",
-							ZIndex = 3,
-							Parent = Holder,
-						})
-
-						local function disarm()
-							armed = false
-							armtoken += 1
-							text.Text = name
-							text.TextColor3 = library.FontColor
-						end
-
-						Textbutton.MouseButton1Click:Connect(function()
-							if warnclick and not armed then
-								armed = true
-								text.Text = "Are you sure?"
-								text.TextColor3 = Color3.fromRGB(255, 0, 0)
-
-								armtoken += 1
-								local mytoken = armtoken
-
-								task.delay(2, function()
-									if armed and armtoken == mytoken then
-										disarm()
-									end
-								end)
-
-								return
-							end
-
-							if armed then
-								disarm()
-							end
-
-							if opts.Callback then
-								opts.Callback()
-							end
-						end)
-
-						return button
-					end
-
-					function groupbox:AddDependencyBox()
-						local dependencybox = {}
-						dependencybox.Dependencies = {}
-
-						local groupbox = self
-						local Container = elementsholder
-
-						local Holder = library:Create("Frame", {
-							Name = "DependencyBox";
-							BackgroundTransparency = 1;
-							Size = UDim2.new(1, 0, 0, 0);
-							AutomaticSize = Enum.AutomaticSize.Y;
-							LayoutOrder = #Container:GetChildren();
-							Visible = false;
-							Parent = Container;
-						})
-
-						local Frame = library:Create("Frame", {
-							Name = "Elements";
-							BackgroundTransparency = 1;
-							Size = UDim2.new(1, 0, 0, 0);
-							AutomaticSize = Enum.AutomaticSize.Y;
-							Parent = Holder;
-						})
-
-						local Layout = library:Create("UIListLayout", {
-							Name = "UIListLayout";
-							FillDirection = Enum.FillDirection.Horizontal;
-							Wraps = true;
-							HorizontalAlignment = Enum.HorizontalAlignment.Center;
-							VerticalAlignment = Enum.VerticalAlignment.Top;
-							SortOrder = Enum.SortOrder.LayoutOrder;
-							Padding = UDim.new(0, 5);
-							Parent = Frame;
-						})
-
-						local order = 0
-
-						local function wrap(fname)
-							if typeof(groupbox[fname]) ~= "function" then
-								return
-							end
-
-							dependencybox[fname] = function(_, ...)
-								local before = {}
-
-								for _, child in ipairs(Container:GetChildren()) do
-									before[child] = true
-								end
-
-								local result = groupbox[fname](groupbox, ...)
-
-								for _, child in ipairs(Container:GetChildren()) do
-									if not before[child] then
-										order += 1
-										child.LayoutOrder = order
-										child.Parent = Frame
-									end
-								end
-
-								return result
-							end
-						end
-
-						for _, fname in ipairs({"AddLabel", "AddToggle", "AddSlider", "AddButton", "AddTextbox", "AddDropdown", "AddDependencyBox", "Divider"}) do
-							wrap(fname)
-						end
-
-						function dependencybox:Update()
-							for _, Dependency in next, dependencybox.Dependencies do
-								local Element = Dependency[1]
-								local Value = Dependency[2]
-
-								local current = Element.Value
-								if current == nil then
-									current = Element.value
-								end
-
-								if current ~= Value then
-									Holder.Visible = false
-									return
-								end
-							end
-
-							Holder.Visible = true
-						end
-
-						function dependencybox:SetupDependencies(Dependencies)
-							for _, Dependency in next, Dependencies do
-								assert(typeof(Dependency) == "table", "SetupDependencies: Dependency is not of type `table`.")
-								assert(Dependency[1], "SetupDependencies: Dependency is missing element argument.")
-								assert(Dependency[2] ~= nil, "SetupDependencies: Dependency is missing value argument.")
-							end
-
-							dependencybox.Dependencies = Dependencies
-							dependencybox:Update()
-						end
-
-						table.insert(groupbox.elements, dependencybox)
-						table.insert(library.DependencyBoxes, dependencybox)
-
-						return dependencybox
-					end
-
-					function groupbox:Divider()
-						local divider = {}
-
-						local frame = library:Create("Frame", {
-							Name = "Divider",
-							Size = UDim2.new(0.95, 0, 0, 3),
-							BackgroundColor3 = library.MainColor,
-							LayoutOrder = #elementsholder:GetChildren(),
-							Parent = elementsholder,
-						}, {
-							instancep = "BackgroundColor3";
-							tinstance = library.MainColor;
-						})
-
-						local uistroke1 = library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							ZIndex = 2,
-							Parent = frame,
-						}, {
-							instancep = "Color";
-							tinstance = library.SecondaryColor;
-						})
-
-						return divider
-					end
-
-					function groupbox:AddDropdown(name, opts)
-						opts = opts or {}
-
-						library.Options = library.Options or {}
-
-						--==========================================================
-						-- REUSE AN EXISTING DROPDOWN
-						--==========================================================
-
-						local existing = library.Options[name]
-
-						if existing then
-							if existing.Type == "Dropdown"
-								and existing.Controller
-								and type(existing.Controller.Refresh) == "function" then
-
-								local controller = existing.Controller
-
-								if opts.Text ~= nil then
-									controller:SetText(opts.Text)
-								end
-
-								if opts.Callback ~= nil then
-									controller:SetCallback(opts.Callback)
-								end
-
-								if opts.Values ~= nil then
-									controller:Refresh(opts.Values, opts.Default)
-								elseif opts.Default ~= nil then
-									controller:SetValue(opts.Default, true)
-								end
-
-								return controller
-							end
-
-							warn("An option named '" .. tostring(name) .. "' already exists.")
-							return nil
-						end
-
-						--==========================================================
-						-- STATE
-						--==========================================================
-
-						local Dropdown = {}
-
-						local values = {}
-						local elements = {}
-						local selectedIndices = {}
-						local connections = {}
-
-						local picked = nil
-						local isOpen = false
-						local destroyed = false
-
-						local multi = opts.Multipick == true
-						local callback = opts.Callback
-
-						local rowHeight = 20
-						local rowGap = 3
-						local padding = 4
-
-						local requestedVisible = tonumber(opts.MaxVisibleItems) or 10
-
-						if requestedVisible ~= requestedVisible then
-							requestedVisible = 10
-						end
-
-						local maxVisibleItems = math.clamp(
-							math.floor(requestedVisible),
-							1,
-							30
-						)
-
-						local changedEvent = Instance.new("BindableEvent")
-
-						local option = {
-							Type = "Dropdown",
-							Name = name,
-							Value = multi and {} or nil,
-							Values = values,
-							OnChanged = changedEvent.Event,
-							Controller = Dropdown,
-						}
-
-						library.Options[name] = option
-
-						local function connect(signal, fn)
-							local connection = signal:Connect(fn)
-							table.insert(connections, connection)
-							return connection
-						end
-
-						local function copyUnique(source)
-							local result = {}
-							local seen = {}
-
-							if type(source) ~= "table" then
-								return result
-							end
-
-							for _, value in ipairs(source) do
-								local supported = type(value) == "string"
-									or (
-										type(value) == "number"
-										and value == value
-										and value > -math.huge
-										and value < math.huge
-									)
-
-								if supported and not seen[value] then
-									seen[value] = true
-									table.insert(result, value)
-								end
-							end
-
-							return result
-						end
-
-						local function findIndex(value)
-							if type(value) == "number" then
-								if value % 1 == 0 and value >= 1 and value <= #values then
-									return value
-								end
-
-								return nil
-							end
-
-							return table.find(values, value)
-						end
-
-						local function getValue()
-							if not multi then
-								return picked
-							end
-
-							local selected = {}
-
-							for index, value in ipairs(values) do
-								if selectedIndices[index] then
-									table.insert(selected, value)
-								end
-							end
-
-							return selected
-						end
-
-						local function equalValues(a, b)
-							if type(a) ~= type(b) then
-								return false
-							end
-
-							if type(a) ~= "table" then
-								return a == b
-							end
-
-							if #a ~= #b then
-								return false
-							end
-
-							for index, value in ipairs(a) do
-								if b[index] ~= value then
-									return false
-								end
-							end
-
-							return true
-						end
-
-						--==========================================================
-						-- MAIN UI
-						--==========================================================
-
-						local main = library:Create("Frame", {
-							Name = "Dropdown",
-							ZIndex = 10,
-							Size = UDim2.new(0.95, 0, 0, 0),
-							AutomaticSize = Enum.AutomaticSize.Y,
-							LayoutOrder = #elementsholder:GetChildren(),
-							BackgroundTransparency = 1,
-							Parent = elementsholder,
-						})
-
-						library:Create("UIListLayout", {
-							FillDirection = Enum.FillDirection.Vertical,
-							HorizontalAlignment = Enum.HorizontalAlignment.Center,
-							VerticalAlignment = Enum.VerticalAlignment.Top,
-							Padding = UDim.new(0, 5),
-							SortOrder = Enum.SortOrder.LayoutOrder,
-							Parent = main,
-						})
-
-						local header = library:Create("TextLabel", {
-							Name = "Header",
-							ZIndex = 11,
-							Size = UDim2.new(1, 0, 0, 15),
-							LayoutOrder = 1,
-							BackgroundTransparency = 1,
-							Text = tostring(opts.Text or name),
-							Font = library.Font,
-							TextColor3 = library.FontColor,
-							TextSize = 13,
-							TextXAlignment = Enum.TextXAlignment.Left,
-							Parent = main,
-						}, {
-							instancep = "TextColor3",
-							tinstance = library.FontColor,
-						}, {
-							instancep = "Font",
-							tinstance = library.Font,
-						})
-
-						library:Create("UIStroke", {
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-							Color = library.UIstroke,
-							Thickness = 1,
-							Parent = header,
-						}, {
-							instancep = "Color",
-							tinstance = library.UIstroke,
-						})
-
-						local dropdownFrame = library:Create("Frame", {
-							Name = "DropdownFrame",
-							ZIndex = 10,
-							Size = UDim2.new(1, 0, 0, 0),
-							AutomaticSize = Enum.AutomaticSize.Y,
-							LayoutOrder = 2,
-							BackgroundTransparency = 1,
-							ClipsDescendants = false,
-							Parent = main,
-						})
-
-						library:Create("UIListLayout", {
-							FillDirection = Enum.FillDirection.Vertical,
-							HorizontalAlignment = Enum.HorizontalAlignment.Center,
-							VerticalAlignment = Enum.VerticalAlignment.Top,
-							SortOrder = Enum.SortOrder.LayoutOrder,
-							Padding = UDim.new(0, 3),
-							Parent = dropdownFrame,
-						})
-
-						local selectionRow = library:Create("Frame", {
-							Name = "SelectionRow",
-							ZIndex = 11,
-							Size = UDim2.new(1, 0, 0, 22),
-							LayoutOrder = 1,
-							BackgroundTransparency = 1,
-							Parent = dropdownFrame,
-						})
-
-						library:Create("UIStroke", {
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							Parent = selectionRow,
-						}, {
-							instancep = "Color",
-							tinstance = library.SecondaryColor,
-						})
-
-						local selectedLabel = library:Create("TextLabel", {
-							Name = "Selected",
-							ZIndex = 12,
-							Size = UDim2.new(1, -25, 1, 0),
-							BackgroundTransparency = 1,
-							Text = "-",
-							Font = library.Font,
-							TextColor3 = library.FontColor,
-							TextSize = 12,
-							TextXAlignment = Enum.TextXAlignment.Left,
-							TextTruncate = Enum.TextTruncate.AtEnd,
-							Parent = selectionRow,
-						}, {
-							instancep = "Font",
-							tinstance = library.Font,
-						}, {
-							instancep = "TextColor3",
-							tinstance = library.FontColor,
-						})
-
-						library:Create("UIPadding", {
-							PaddingLeft = UDim.new(0, 6),
-							PaddingRight = UDim.new(0, 3),
-							Parent = selectedLabel,
-						})
-
-						library:Create("UIStroke", {
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-							Color = library.UIstroke,
-							Thickness = 1,
-							Parent = selectedLabel,
-						}, {
-							instancep = "Color",
-							tinstance = library.UIstroke,
-						})
-
-						local arrow = library:Create("ImageLabel", {
-							Name = "DropdownImage",
-							ZIndex = 13,
-							Size = UDim2.fromOffset(15, 15),
-							Position = UDim2.new(1, -19, 0.5, -7),
-							BackgroundTransparency = 1,
-							Image = "rbxassetid://10709767827",
-							ScaleType = Enum.ScaleType.Crop,
-							Parent = selectionRow,
-						})
-
-						local button = library:Create("TextButton", {
-							Name = "DropdownButton",
-							ZIndex = 14,
-							Size = UDim2.fromScale(1, 1),
-							BackgroundTransparency = 1,
-							Text = "",
-							AutoButtonColor = false,
-							Parent = selectionRow,
-						})
-
-						-- Fixed viewport height; canvas grows to fit every item.
-						local holder = library:Create("ScrollingFrame", {
-							Name = "Holder",
-							ZIndex = 20,
-							Size = UDim2.new(1, 0, 0, 0),
-							AutomaticSize = Enum.AutomaticSize.None,
-							AutomaticCanvasSize = Enum.AutomaticSize.None,
-							CanvasSize = UDim2.fromOffset(0, 0),
-							CanvasPosition = Vector2.zero,
-							LayoutOrder = 2,
-							BackgroundColor3 = library.MainColor,
-							BorderSizePixel = 0,
-							ScrollBarThickness = 3,
-							ScrollBarImageColor3 = library.AccentColor,
-							ScrollingDirection = Enum.ScrollingDirection.Y,
-							Visible = false,
-							ClipsDescendants = true,
-							Parent = dropdownFrame,
-						}, {
-							instancep = "BackgroundColor3",
-							tinstance = library.MainColor,
-						}, {
-							instancep = "ScrollBarImageColor3",
-							tinstance = library.AccentColor,
-						})
-
-						library:Create("UIStroke", {
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							Parent = holder,
-						}, {
-							instancep = "Color",
-							tinstance = library.SecondaryColor,
-						})
-
-						library:Create("UIListLayout", {
-							FillDirection = Enum.FillDirection.Vertical,
-							HorizontalAlignment = Enum.HorizontalAlignment.Center,
-							VerticalAlignment = Enum.VerticalAlignment.Top,
-							Padding = UDim.new(0, rowGap),
-							SortOrder = Enum.SortOrder.LayoutOrder,
-							Parent = holder,
-						})
-
-						library:Create("UIPadding", {
-							PaddingLeft = UDim.new(0, padding),
-							PaddingRight = UDim.new(0, padding),
-							PaddingTop = UDim.new(0, padding),
-							PaddingBottom = UDim.new(0, padding),
-							Parent = holder,
-						})
-
-						--==========================================================
-						-- TOP-LEVEL DROPDOWN OVERLAY
-						--==========================================================
-
-						local overlayRoot
-
-						local sourceScreenGui = main:FindFirstAncestorOfClass("ScreenGui")
-						local player = LocalPlayer
-						local playerGui = (sourceScreenGui and sourceScreenGui.Parent)
-							or (player and player:FindFirstChildOfClass("PlayerGui"))
-
-						if playerGui then
-							local highestDisplayOrder = 0
-
-							for _, child in ipairs(playerGui:GetChildren()) do
-								if child:IsA("ScreenGui") then
-									highestDisplayOrder = math.max(highestDisplayOrder, child.DisplayOrder)
-								end
-							end
-
-							overlayRoot = Instance.new("Frame")
-							overlayRoot.Name = "OverlayRoot"
-							overlayRoot.BackgroundTransparency = 1
-							overlayRoot.BorderSizePixel = 0
-							overlayRoot.Size = UDim2.fromScale(1, 1)
-							overlayRoot.Position = UDim2.fromScale(0, 0)
-							overlayRoot.Parent = Overlaygui
-
-							holder.Parent = overlayRoot
-						end
-
-						local function positionHolder()
-							if not overlayRoot or not holder or not holder.Parent then
-								return
-							end
-
-							local rootPosition = overlayRoot.AbsolutePosition
-							local rootSize = overlayRoot.AbsoluteSize
-							local rowPosition = selectionRow.AbsolutePosition
-							local rowSize = selectionRow.AbsoluteSize
-							local width = math.max(0, rowSize.X)
-							local height = holder.Size.Y.Offset
-							local x = rowPosition.X - rootPosition.X
-							local y = rowPosition.Y - rootPosition.Y + rowSize.Y + 3
-
-							if y + height > rootSize.Y then
-								y = rowPosition.Y - rootPosition.Y - height - 3
-							end
-
-							x = math.clamp(x, 0, math.max(0, rootSize.X - width))
-							y = math.clamp(y, 0, math.max(0, rootSize.Y - height))
-
-							holder.Position = UDim2.fromOffset(x, y)
-							holder.Size = UDim2.fromOffset(width, height)
-						end
-
-						--==========================================================
-						-- UI UPDATES
-						--==========================================================
-
-						local function updateHolderSize()
-							local count = #values
-							local visibleRows = math.min(count, maxVisibleItems)
-
-							local function heightFor(rows)
-								if rows == 0 then
-									return 0
-								end
-
-								return padding * 2
-									+ rows * rowHeight
-									+ math.max(0, rows - 1) * rowGap
-							end
-
-							local holderHeight = heightFor(visibleRows)
-
-							if overlayRoot then
-								holder.Size = UDim2.fromOffset(selectionRow.AbsoluteSize.X, holderHeight)
-							else
-								holder.Size = UDim2.new(1, 0, 0, holderHeight)
-							end
-
-							holder.CanvasSize = UDim2.fromOffset(0, heightFor(count))
-							holder.ScrollingEnabled = count > maxVisibleItems
-
-							if count == 0 then
-								isOpen = false
-							end
-
-							holder.Visible = isOpen and count > 0
-							arrow.Rotation = holder.Visible and 180 or 0
-							positionHolder()
-						end
-
-						local function updateSelectedText()
-							local current = getValue()
-							local hasSelection
-
-							if multi then
-								local display = {}
-
-								for _, value in ipairs(current) do
-									table.insert(display, tostring(value))
-								end
-
-								hasSelection = #display > 0
-								selectedLabel.Text = hasSelection
-									and table.concat(display, ", ")
-									or "-"
-							else
-								hasSelection = current ~= nil
-								selectedLabel.Text = hasSelection and tostring(current) or "-"
-							end
-
-							selectedLabel.TextColor3 = hasSelection
-								and library.AccentColor
-								or library.FontColor
-
-							option.Value = current
-						end
-
-						local function updateItems()
-							for index, item in ipairs(elements) do
-								local selected = multi
-									and selectedIndices[index] == true
-									or (not multi and picked == item.name)
-
-								item.button.Text = selected
-									and ("✓  " .. tostring(item.name))
-									or tostring(item.name)
-
-								item.button.TextColor3 = selected
-									and library.AccentColor
-									or library.FontColor
-							end
-						end
-
-						local function updateUI()
-							updateSelectedText()
-							updateItems()
-							updateHolderSize()
-						end
-
-						-- Reapply current theme values to already-created instances.
-						local function refreshTheme()
-							if destroyed then
-								return
-							end
-
-							local strokeColor = library.UIstroke or library.UIStroke or library.SecondaryColor
-
-							header.TextColor3 = library.FontColor
-							header.Font = library.Font
-							selectedLabel.Font = library.Font
-							holder.BackgroundColor3 = library.MainColor
-							holder.ScrollBarImageColor3 = library.AccentColor
-
-							if typeof(library.FontFace) == "Font" then
-								header.FontFace = library.FontFace
-								selectedLabel.FontFace = library.FontFace
-							end
-
-							for _, root in ipairs({ main, holder }) do
-								for _, descendant in ipairs(root:GetDescendants()) do
-									if descendant:IsA("UIStroke") then
-										if descendant.Parent == selectionRow or descendant.Parent == holder then
-											descendant.Color = library.SecondaryColor
-										else
-											descendant.Color = strokeColor
-										end
-									elseif descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
-										descendant.Font = library.Font
-
-										if typeof(library.FontFace) == "Font" then
-											descendant.FontFace = library.FontFace
-										end
-									end
-								end
-							end
-
-							updateSelectedText()
-							updateItems()
-						end
-
-						local function readThemeSnapshot()
-							return {
-								MainColor = library.MainColor,
-								SecondaryColor = library.SecondaryColor,
-								AccentColor = library.AccentColor,
-								FontColor = library.FontColor,
-								UIstroke = library.UIstroke,
-								UIStroke = library.UIStroke,
-								Font = library.Font,
-								FontFace = library.FontFace,
-							}
-						end
-
-						local function themeSnapshotChanged(previous, current)
-							for key, value in pairs(previous) do
-								if current[key] ~= value then
-									return true
-								end
-							end
-
-							return false
-						end
-
-						local function notifyChanged()
-							local value = getValue()
-
-							option.Value = value
-
-							changedEvent:Fire(
-								type(value) == "table" and table.clone(value) or value
-							)
-
-							if type(callback) == "function" then
-								local ok, err = pcall(
-									callback,
-									type(value) == "table" and table.clone(value) or value
-								)
-
-								if not ok then
-									warn(
-										"[Dropdown:" .. tostring(name) .. "] Callback failed:",
-										err
-									)
-								end
-							end
-						end
-
-						local function setValue(value, silent)
-							if destroyed then
-								return false
-							end
-
-							local previous = getValue()
-
-							if multi then
-								table.clear(selectedIndices)
-
-								local selections
-
-								if type(value) == "table" then
-									selections = value
-								elseif value ~= nil then
-									selections = { value }
-								else
-									selections = {}
-								end
-
-								for _, selection in ipairs(selections) do
-									local index = findIndex(selection)
-
-									if index then
-										selectedIndices[index] = true
-									end
-								end
-							else
-								local index = findIndex(value)
-								picked = index and values[index] or nil
-							end
-
-							updateUI()
-
-							local changed = not equalValues(previous, getValue())
-
-							if changed and not silent then
-								notifyChanged()
-							end
-
-							return changed
-						end
-
-						--==========================================================
-						-- ITEM CREATION / DELETION
-						--==========================================================
-
-						local function destroyItems()
-							for _, item in ipairs(elements) do
-								if item.connection then
-									item.connection:Disconnect()
-								end
-
-								item.button:Destroy()
-							end
-
-							table.clear(elements)
-						end
-
-						local function buildItems()
-							for index, itemName in ipairs(values) do
-								local item = {
-									name = itemName,
-									index = index,
-								}
-
-								local itemButton = library:Create("TextButton", {
-									Name = "Item_" .. tostring(index),
-									ZIndex = 21,
-									Size = UDim2.new(1, -4, 0, rowHeight),
-									BackgroundTransparency = 1,
-									Text = tostring(itemName),
-									TextSize = 13,
-									TextColor3 = library.FontColor,
-									Font = library.Font,
-									TextXAlignment = Enum.TextXAlignment.Left,
-									TextTruncate = Enum.TextTruncate.AtEnd,
-									LayoutOrder = index,
-									AutoButtonColor = false,
-									Parent = holder,
-								}, {
-									instancep = "Font",
-									tinstance = library.Font,
-								}, {
-									instancep = "TextColor3",
-									tinstance = library.FontColor,
-								})
-
-								library:Create("UIStroke", {
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-									Color = library.UIstroke or library.UIStroke or library.SecondaryColor,
-									Thickness = 1,
-									Parent = itemButton,
-								}, {
-									instancep = "Color",
-									tinstance = library.UIstroke or library.UIStroke or library.SecondaryColor,
-								})
-
-								if typeof(library.FontFace) == "Font" then
-									itemButton.FontFace = library.FontFace
-								end
-
-								item.button = itemButton
-								elements[index] = item
-
-								item.connection = itemButton.MouseButton1Click:Connect(function()
-									if destroyed then
-										return
-									end
-
-									local previous = getValue()
-
-									if multi then
-										if selectedIndices[index] then
-											selectedIndices[index] = nil
-										else
-											selectedIndices[index] = true
-										end
-									else
-										picked = itemName
-										isOpen = false
-									end
-
-									updateUI()
-
-									if not equalValues(previous, getValue()) then
-										notifyChanged()
-									end
-								end)
-							end
-						end
-
-						--==========================================================
-						-- PUBLIC VALUE METHODS
-						--==========================================================
-
-						function Dropdown:GetValue()
-							return getValue()
-						end
-
-						function Dropdown:GetIndex()
-							if multi then
-								local indices = {}
-
-								for index in ipairs(values) do
-									if selectedIndices[index] then
-										table.insert(indices, index)
-									end
-								end
-
-								return indices
-							end
-
-							return picked ~= nil and table.find(values, picked) or nil
-						end
-
-						function Dropdown:GetValues()
-							return table.clone(values)
-						end
-
-						function Dropdown:SetValue(value, silent)
-							return setValue(value, silent == true)
-						end
-
-						function Dropdown:GetInstance()
-							return selectedLabel
-						end
-
-						function Dropdown:SetText(text)
-							if not destroyed then
-								header.Text = tostring(text or name)
-							end
-
-							return self
-						end
-
-						function Dropdown:SetCallback(fn)
-							assert(
-								fn == nil or type(fn) == "function",
-								"Dropdown:SetCallback expects a function or nil"
-							)
-
-							callback = fn
-							return self
-						end
-
-						--==========================================================
-						-- REFRESH / CLEAR / REMOVE
-						--==========================================================
-
-						function Dropdown:Refresh(newValues, defaultValue, silent)
-							if destroyed then
-								return self
-							end
-
-							local refreshed = copyUnique(newValues)
-							local previous = getValue()
-
-							destroyItems()
-							table.clear(values)
-							table.clear(selectedIndices)
-							picked = nil
-
-							for _, value in ipairs(refreshed) do
-								table.insert(values, value)
-							end
-
-							buildItems()
-
-							if defaultValue ~= nil then
-								setValue(defaultValue, true)
-							else
-								if multi then
-									for _, oldValue in ipairs(previous) do
-										local index = table.find(values, oldValue)
-
-										if index then
-											selectedIndices[index] = true
-										end
-									end
-								elseif previous ~= nil and table.find(values, previous) then
-									picked = previous
-								end
-
-								updateUI()
-							end
-
-							holder.CanvasPosition = Vector2.zero
-
-							if silent == false and not equalValues(previous, getValue()) then
-								notifyChanged()
-							end
-
-							refreshTheme()
-
-							return self
-						end
-
-						function Dropdown:SetValues(newValues, defaultValue, silent)
-							return self:Refresh(newValues, defaultValue, silent)
-						end
-
-						function Dropdown:Clear(silent)
-							return self:Refresh({}, nil, silent)
-						end
-
-						function Dropdown:AddItem(itemName)
-							if destroyed then
-								return nil
-							end
-
-							local existingIndex = table.find(values, itemName)
-
-							if existingIndex then
-								return elements[existingIndex]
-							end
-
-							local updated = table.clone(values)
-							table.insert(updated, itemName)
-
-							self:Refresh(updated)
-
-							local index = table.find(values, itemName)
-							return index and elements[index] or nil
-						end
-
-						function Dropdown:RemoveItem(itemName, silent)
-							if destroyed then
-								return false
-							end
-
-							local index = table.find(values, itemName)
-
-							if not index then
-								return false
-							end
-
-							local updated = table.clone(values)
-							table.remove(updated, index)
-
-							self:Refresh(updated, nil, silent)
-
-							return true
-						end
-
-						function Dropdown:Open()
-							if not destroyed and #values > 0 then
-								isOpen = true
-								updateHolderSize()
-							end
-
-							return self
-						end
-
-						function Dropdown:Close()
-							if not destroyed then
-								isOpen = false
-								updateHolderSize()
-							end
-
-							return self
-						end
-
-						--==========================================================
-						-- OVERLAY TRACKING + LIVE THEME WATCHER
-						--==========================================================
-
-						if overlayRoot then
-							connect(selectionRow:GetPropertyChangedSignal("AbsolutePosition"), positionHolder)
-							connect(selectionRow:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
-							connect(overlayRoot:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
-						end
-
-						local themeSnapshot = readThemeSnapshot()
-
-						connect(game:GetService("RunService").Heartbeat, function()
-							if destroyed then
-								return
-							end
-
-							local currentSnapshot = readThemeSnapshot()
-
-							if themeSnapshotChanged(themeSnapshot, currentSnapshot) then
-								themeSnapshot = currentSnapshot
-								refreshTheme()
-							end
-						end)
-
-						--==========================================================
-						-- CLEANUP
-						--==========================================================
-
-						local function cleanup()
-							if destroyed then
-								return
-							end
-
-							destroyed = true
-
-							destroyItems()
-
-							for _, connection in ipairs(connections) do
-								connection:Disconnect()
-							end
-
-							table.clear(connections)
-
-							if overlayGui then
-								overlayGui:Destroy()
-								overlayGui = nil
-								overlayRoot = nil
-							end
-
-							if library.Options[name] == option then
-								library.Options[name] = nil
-							end
-
-							option.Controller = nil
-							changedEvent:Destroy()
-						end
-
-						function Dropdown:Destroy()
-							if destroyed then
-								return
-							end
-
-							cleanup()
-							main:Destroy()
-						end
-
-						connect(main.Destroying, cleanup)
-
-						connect(button.MouseButton1Click, function()
-							if destroyed then
-								return
-							end
-
-							isOpen = not isOpen
-							updateHolderSize()
-						end)
-
-						--==========================================================
-						-- OPTION API
-						--==========================================================
-
-						local forwardedMethods = {
-							"GetValue",
-							"GetIndex",
-							"GetValues",
-							"SetValue",
-							"SetValues",
-							"Refresh",
-							"Clear",
-							"AddItem",
-							"RemoveItem",
-							"GetInstance",
-							"SetText",
-							"SetCallback",
-							"Open",
-							"Close",
-							"Destroy",
-						}
-
-						for _, methodName in ipairs(forwardedMethods) do
-							local method = Dropdown[methodName]
-
-							option[methodName] = function(_, ...)
-								return method(Dropdown, ...)
-							end
-						end
-
-						--==========================================================
-						-- INITIALIZATION
-						--==========================================================
-
-						Dropdown.Instance = selectedLabel
-						Dropdown.Main = main
-						Dropdown.Header = header
-						Dropdown.Holder = holder
-						Dropdown.Option = option
-						Dropdown.OnChanged = changedEvent.Event
-
-						if typeof(library.FontFace) == "Font" then
-							header.FontFace = library.FontFace
-							selectedLabel.FontFace = library.FontFace
-						end
-
-						Dropdown:Refresh(opts.Values or {}, opts.Default, true)
-						refreshTheme()
-						positionHolder()
-
-						return Dropdown
-					end
-
-					function groupbox:AddInput(name, opts)
-						opts = opts or {}
-
-						local input = {}
-
-						local initialValue = tostring(opts.Default or "")
-						local changedEvent = Instance.new("BindableEvent")
-
-						local option = {
-							Type = "Input",
-							Name = name,
-							Value = initialValue,
-							OnChanged = changedEvent.Event,
-						}
-
-						library.Options = library.Options or {}
-						library.Options[name] = option
-
-						local Holder = library:Create("Frame", {
-							Name = "Input",
-							Size = UDim2.new(0.95, 0, 0, 20),
-							LayoutOrder = #elementsholder:GetChildren(),
-							BackgroundColor3 = library.MainColor,
-							Parent = elementsholder,
-						}, {
-							instancep = "BackgroundColor3",
-							tinstance = library.MainColor,
-						})
-
-						library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							Parent = Holder,
-						}, {
-							instancep = "Color",
-							tinstance = library.SecondaryColor,
-						})
-
-						local text = library:Create("TextBox", {
-							Name = "Text",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							ClearTextOnFocus = false,
-							MultiLine = false,
-							PlaceholderText = name .. "..",
-							Text = initialValue,
-							TextColor3 = library.FontColor,
-							TextSize = 13,
-							Font = library.Font,
-							TextXAlignment = Enum.TextXAlignment.Center,
-							ZIndex = 2,
-							Parent = Holder,
-						}, {
-							instancep = "TextColor3",
-							tinstance = library.FontColor,
-						}, {
-							instancep = "Font",
-							tinstance = library.Font,
-						})
-
-						library:Create("UIStroke", {
-							Name = "TextStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-							Color = library.UIstroke,
-							Thickness = 1,
-							Parent = text,
-						}, {
-							instancep = "Color",
-							tinstance = library.UIstroke,
-						})
-
-						library:Create("UITextSizeConstraint", {
-							Name = "UITextSizeConstraint",
-							MaxTextSize = 13,
-							Parent = text,
-						})
-
-						local updating = false
-
-						local function setValue(value, silent)
-							value = tostring(value or "")
-
-							option.Value = value
-
-							if text.Text ~= value then
-								updating = true
-								text.Text = value
-								updating = false
-							end
-
-							if not silent then
-								changedEvent:Fire(value)
-
-								if opts.Callback then
-									opts.Callback(value)
-								end
-							end
-						end
-
-						function option:GetValue()
-							return option.Value
-						end
-
-						function option:SetValue(value)
-							setValue(value, false)
-						end
-
-						function input:GetValue()
-							return option.Value
-						end
-
-						function input:SetValue(value)
-							option:SetValue(value)
-						end
-
-						function input:GetInstance()
-							return text
-						end
-
-						text:GetPropertyChangedSignal("Text"):Connect(function()
-							if updating then
-								return
-							end
-
-							local value = text.Text
-
-							if option.Value == value then
-								return
-							end
-
-							option.Value = value
-							changedEvent:Fire(value)
-
-							if opts.Callback then
-								opts.Callback(value)
-							end
-						end)
-
-						input.Instance = text
-						input.Holder = Holder
-						input.Option = option
-
-						return input
-					end	
-					
-					
-
-function groupbox:AddLineGraph(text, opts)
-	opts = opts or {}
-
-	local linegraph = {}
-	local graphsets = {}
-	local curvePoints = 0
-	local opened = false
-	local destroyed = false
-
-	local instance
-	local followConn
-	local outsideConn
-	local buttonConnection
-	local openConnections = {}
-	local pointFrames = {}
-	local pointConnections = {}
-	local curveFrames = {}
-
-	local UIS = game:GetService("UserInputService")
-
-	local selectedPreset = opts.Preset or "Linear"
-	local draggingPoint
-	local dragMoveConn
-	local dragEndConn
-
-	local presets = {
-		"Linear",
-		"Smooth",
-		"Exponential",
-		"Ease In",
-		"Ease Out",
-		"Ease In Out"
-	}
-
-	local function addConnection(signal, callback)
-		local connection = signal:Connect(callback)
-
-		if trackConnection then
-			trackConnection(connection)
-		end
-
-		table.insert(openConnections, connection)
-		return connection
-	end
-
-	local function disconnectConnection(connection)
-		if connection then
-			connection:Disconnect()
-		end
-	end
-
-	local function clearPointConnections()
-		for _, connection in ipairs(pointConnections) do
-			disconnectConnection(connection)
-		end
-
-		table.clear(pointConnections)
-	end
-
-	local function clearOpenConnections()
-		for _, connection in ipairs(openConnections) do
-			disconnectConnection(connection)
-		end
-
-		table.clear(openConnections)
-		clearPointConnections()
-
-		disconnectConnection(followConn)
-		disconnectConnection(outsideConn)
-		disconnectConnection(dragMoveConn)
-		disconnectConnection(dragEndConn)
-
-		followConn = nil
-		outsideConn = nil
-		dragMoveConn = nil
-		dragEndConn = nil
-		draggingPoint = nil
-	end
-
-	local function clearList(list)
-		for _, object in ipairs(list) do
-			if object then
-				object:Destroy()
-			end
-		end
-
-		table.clear(list)
-	end
-
-	local function copyPoints(values)
-		local result = {}
-
-		for _, point in ipairs(values or {}) do
-			local x = tonumber(point.X or point.x or point[1]) or 0
-			local y = tonumber(point.Y or point.y or point[2]) or 0
-
-			table.insert(result, {
-				X = math.clamp(x, 0, 1),
-				Y = math.clamp(y, 0, 1)
-			})
-		end
-
-		table.sort(result, function(a, b)
-			return a.X < b.X
-		end)
-
-		return result
-	end
-
-	graphsets = copyPoints(opts.default or opts.Default or {})
-	curvePoints = #graphsets
-
-	local function getData()
-		local result = {}
-
-		for i, point in ipairs(graphsets) do
-			result[i] = {
-				X = point.X,
-				Y = point.Y
-			}
-		end
-
-		return result
-	end
-
-	local function notifyChanged()
-		curvePoints = #graphsets
-
-		if type(opts.Callback) == "function" then
-			opts.Callback(getData())
-		end
-	end
-
-	local holder = library:Create("Frame", {
-		Name = "Holder";
-		Size = UDim2.new(0.95, 0, 0, 20);
-		BackgroundTransparency = 1;
-		LayoutOrder = #elementsholder:GetChildren();
-		Parent = elementsholder;
-	})
-
-	local uitext = library:Create("TextLabel", {
-		Name = "TextLabel";
-		Size = UDim2.new(0.937, 0, 1, 0);
-		BackgroundTransparency = 1;
-		Text = text;
-		TextSize = 13;
-		TextColor3 = library.FontColor;
-		Font = library.Font;
-		LayoutOrder = 1;
-		TextXAlignment = Enum.TextXAlignment.Left;
-		TextYAlignment = Enum.TextYAlignment.Center;
-		Parent = holder;
-	}, {
-		instancep = "TextColor3";
-		tinstance = library.FontColor;
-	}, {
-		instancep = "Font";
-		tinstance = library.Font;
-	})
-
-	library:Create("UITextSizeConstraint", {
-		Name = "UITextSizeConstraint";
-		MaxTextSize = 13;
-		Parent = uitext;
-	})
-
-	library:Create("UIStroke", {
-		Name = "UIStroke";
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-		Color = Color3.fromRGB(0, 0, 0);
-		Thickness = 1;
-		Parent = uitext;
-	}, {
-		instancep = "Color";
-		tinstance = library.UIstroke;
-	})
-
-	library:Create("UIListLayout", {
-		Name = "UIListLayout";
-		FillDirection = Enum.FillDirection.Horizontal;
-		HorizontalAlignment = Enum.HorizontalAlignment.Left;
-		SortOrder = Enum.SortOrder.LayoutOrder;
-		Parent = holder;
-	})
-
-	local buttonopen = library:Create("ImageButton", {
-		Name = "ButtonOpen";
-		Size = UDim2.new(0, 19, 0, 19);
-		LayoutOrder = 2;
-		BackgroundTransparency = 1;
-		Image = "rbxassetid://10734950309";
-		ImageColor3 = library.AccentColor;
-		Parent = holder;
-	}, {
-		instancep = "ImageColor3";
-		tinstance = library.AccentColor;
-	})
-
-	local function getPopupPosition()
-		local absolute = buttonopen.AbsolutePosition
-		local base = screengui.AbsolutePosition
-
-		return UDim2.fromOffset(
-			absolute.X - base.X,
-			absolute.Y - base.Y
-		)
-	end
-
-	local closeGraph
-
-	local function openGraph()
-		if opened or destroyed then
-			return
-		end
-
-		opened = true
-
-		-- Use the existing library ScreenGui; don't create another one.
-		local lineG = library:Create("Frame", {
-			Name = "CursorBox";
-			Size = UDim2.fromOffset(15, 15);
-			Position = getPopupPosition();
-			BackgroundTransparency = 1;
-			ZIndex = 2;
-			Parent = screengui;
-		})
-
-		instance = lineG
-
-		followConn = buttonopen:GetPropertyChangedSignal(
-			"AbsolutePosition"
-		):Connect(function()
-			if opened and instance and instance.Parent then
-				instance.Position = getPopupPosition()
-			end
-		end)
-
-		if trackConnection then
-			trackConnection(followConn)
-		end
-
-		local framewindow = library:Create("Frame", {
-			Name = "Frame";
-			Size = UDim2.fromOffset(323, 246);
-			Position = UDim2.new(1, 0, 1.4, 0);
-			BackgroundColor3 = library.MainColor;
-			BorderSizePixel = 0;
-			ZIndex = 2;
-			Parent = lineG;
-		}, {
-			instancep = "BackgroundColor3";
-			tinstance = library.MainColor;
-		})
-
-		library:Create("UIStroke", {
-			Name = "UIStroke";
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-			LineJoinMode = Enum.LineJoinMode.Miter;
-			Color = library.SecondaryColor;
-			Thickness = 1;
-			ZIndex = 2;
-			Parent = framewindow;
-		}, {
-			instancep = "Color";
-			tinstance = library.SecondaryColor;
-		})
-
-		library:Create("UIStroke", {
-			Name = "OuterStroke";
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-			LineJoinMode = Enum.LineJoinMode.Miter;
-			Color = library.MainColor;
-			Thickness = 4;
-			ZIndex = 2;
-			Parent = framewindow;
-		}, {
-			instancep = "Color";
-			tinstance = library.MainColor;
-		})
-
-		local title = library:Create("TextLabel", {
-			Name = "TextLabel";
-			Size = UDim2.new(1, 0, 0, 18);
-			Position = UDim2.fromOffset(0, 0);
-			BackgroundTransparency = 1;
-			Text = text or "Line Graph";
-			TextColor3 = library.FontColor;
-			Font = library.Font;
-			TextSize = 13;
-			TextXAlignment = Enum.TextXAlignment.Left;
-			ZIndex = 3;
-			Parent = framewindow;
-		}, {
-			instancep = "TextColor3";
-			tinstance = library.FontColor;
-		}, {
-			instancep = "Font";
-			tinstance = library.Font;
-		})
-
-		library:Create("UIPadding", {
-			PaddingLeft = UDim.new(0, 6);
-			Parent = title;
-		})
-
-		library:Create("UIStroke", {
-			Name = "UIStroke";
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-			Color = library.UIstroke;
-			Thickness = 1;
-			Parent = title;
-		}, {
-			instancep = "Color";
-			tinstance = library.UIstroke;
-		})
-
-		local GraphHolder = library:Create("Frame", {
-			Name = "GraphHolder";
-			Position = UDim2.fromOffset(4, 24);
-			Size = UDim2.fromOffset(315, 168);
-			BackgroundTransparency = 1;
-			BorderSizePixel = 0;
-			ClipsDescendants = false;
-			Active = true;
-			ZIndex = 2;
-			Parent = framewindow;
-		})
-
-		library:Create("UIStroke", {
-			Color = library.SecondaryColor;
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-			Parent = GraphHolder;
-		}, {
-			instancep = "Color";
-			tinstance = library.SecondaryColor;
-		})
-
-		local grid = library:Create("Frame", {
-			Name = "Grid";
-			Size = UDim2.fromScale(1, 1);
-			BackgroundTransparency = 1;
-			ZIndex = 2;
-			Parent = GraphHolder;
-		})
-
-		local curveLayer = library:Create("Frame", {
-			Name = "CurveLines";
-			Size = UDim2.fromScale(1, 1);
-			BackgroundTransparency = 1;
-			ZIndex = 3;
-			Parent = GraphHolder;
-		})
-
-		local pointLayer = library:Create("Frame", {
-			Name = "Points";
-			Size = UDim2.fromScale(1, 1);
-			BackgroundTransparency = 1;
-			ZIndex = 5;
-			Parent = GraphHolder;
-		})
-
-		for i = 1, 4 do
-			library:Create("Frame", {
-				Name = "HorizontalLine";
-				Position = UDim2.fromScale(0, i / 5);
-				Size = UDim2.new(1, 0, 0, 1);
-				BorderSizePixel = 0;
-				BackgroundColor3 = library.SecondaryColor;
-				ZIndex = 2;
-				Parent = grid;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.SecondaryColor;
-			})
-		end
-
-		for i = 1, 7 do
-			library:Create("Frame", {
-				Name = "VerticalLine";
-				Position = UDim2.fromScale(i / 8, 0);
-				Size = UDim2.new(0, 1, 1, 0);
-				BorderSizePixel = 0;
-				BackgroundColor3 = library.SecondaryColor;
-				ZIndex = 2;
-				Parent = grid;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.SecondaryColor;
-			})
-		end
-
-		local function toPixels(point)
-			local size = GraphHolder.AbsoluteSize
-
-			return Vector2.new(
-				point.X * size.X,
-				(1 - point.Y) * size.Y
-			)
-		end
-
-		local function createSegment(a, b)
-			local delta = b - a
-			local length = delta.Magnitude
-
-			if length < 0.5 then
-				return
-			end
-
-			local segment = library:Create("Frame", {
-				Name = "CurveSegment";
-				AnchorPoint = Vector2.new(0, 0.5);
-				Position = UDim2.fromOffset(a.X, a.Y);
-				Size = UDim2.fromOffset(length, 2);
-				Rotation = math.deg(math.atan2(delta.Y, delta.X));
-				BorderSizePixel = 0;
-				BackgroundColor3 = library.AccentColor;
-				ZIndex = 3;
-				Parent = curveLayer;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.AccentColor;
-			})
-
-			table.insert(curveFrames, segment)
-		end
-
-		local function catmullRom(p0, p1, p2, p3, t)
-			local t2 = t * t
-			local t3 = t2 * t
-
-			return Vector2.new(
-				0.5 * (
-					2 * p1.X
-					+ (-p0.X + p2.X) * t
-					+ (2*p0.X - 5*p1.X + 4*p2.X - p3.X) * t2
-					+ (-p0.X + 3*p1.X - 3*p2.X + p3.X) * t3
-				),
-				0.5 * (
-					2 * p1.Y
-					+ (-p0.Y + p2.Y) * t
-					+ (2*p0.Y - 5*p1.Y + 4*p2.Y - p3.Y) * t2
-					+ (-p0.Y + 3*p1.Y - 3*p2.Y + p3.Y) * t3
-				)
-			)
-		end
-
-		local function interpolateY(a, b, t)
-			if selectedPreset == "Exponential"
-				or selectedPreset == "Ease In" then
-				t = t * t
-			elseif selectedPreset == "Ease Out" then
-				t = 1 - (1 - t) * (1 - t)
-			elseif selectedPreset == "Ease In Out" then
-				if t < 0.5 then
-					t = 2 * t * t
-				else
-					t = 1 - ((-2 * t + 2) ^ 2) / 2
-				end
-			end
-
-			return a + (b - a) * t
-		end
-
-		local renderGraph
-
-		local function drawCurve()
-			clearList(curveFrames)
-
-			if #graphsets < 2 then
-				return
-			end
-
-			local points = {}
-
-			for i, point in ipairs(graphsets) do
-				points[i] = toPixels(point)
-			end
-
-			for i = 1, #points - 1 do
-				local p1 = points[i]
-				local p2 = points[i + 1]
-
-				if selectedPreset == "Smooth" then
-					local p0 = points[math.max(1, i - 1)]
-					local p3 = points[math.min(#points, i + 2)]
-					local previous = p1
-
-					for step = 1, 20 do
-						local nextPoint = catmullRom(
-							p0, p1, p2, p3, step / 20
-						)
-
-						createSegment(previous, nextPoint)
-						previous = nextPoint
-					end
-				else
-					local previous = p1
-
-					for step = 1, 20 do
-						local t = step / 20
-
-						local nextPoint = Vector2.new(
-							p1.X + (p2.X - p1.X) * t,
-							interpolateY(p1.Y, p2.Y, t)
-						)
-
-						createSegment(previous, nextPoint)
-						previous = nextPoint
-					end
-				end
-			end
-		end
-
-		local function endDrag()
-			draggingPoint = nil
-
-			disconnectConnection(dragMoveConn)
-			disconnectConnection(dragEndConn)
-
-			dragMoveConn = nil
-			dragEndConn = nil
-
-			table.sort(graphsets, function(a, b)
-				return a.X < b.X
-			end)
-
-			if opened then
-				renderGraph()
-				notifyChanged()
-			end
-		end
-
-		local function startDrag(point)
-			disconnectConnection(dragMoveConn)
-			disconnectConnection(dragEndConn)
-
-			draggingPoint = point
-
-			dragMoveConn = UIS.InputChanged:Connect(function(input)
-				if not draggingPoint or not opened or destroyed then
-					return
-				end
-
-				if input.UserInputType ~= Enum.UserInputType.MouseMovement
-					and input.UserInputType ~= Enum.UserInputType.Touch then
-					return
-				end
-
-				local position = input.Position
-				local origin = GraphHolder.AbsolutePosition
-				local size = GraphHolder.AbsoluteSize
-
-				if size.X <= 0 or size.Y <= 0 then
-					return
-				end
-
-				draggingPoint.X = math.clamp(
-					(position.X - origin.X) / size.X, 0, 1
-				)
-
-				draggingPoint.Y = math.clamp(
-					1 - (position.Y - origin.Y) / size.Y, 0, 1
-				)
-
-				renderGraph()
-				notifyChanged()
-			end)
-
-			dragEndConn = UIS.InputEnded:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1
-					or input.UserInputType == Enum.UserInputType.Touch then
-					endDrag()
-				end
-			end)
-
-			if trackConnection then
-				trackConnection(dragMoveConn)
-				trackConnection(dragEndConn)
-			end
-		end
-
-		renderGraph = function()
-			clearPointConnections()
-			clearList(pointFrames)
-
-			for _, point in ipairs(graphsets) do
-				local pixel = toPixels(point)
-
-				local dot = library:Create("TextButton", {
-					Name = "CurveDot";
-					AnchorPoint = Vector2.new(0.5, 0.5);
-					Position = UDim2.fromOffset(pixel.X, pixel.Y);
-					Size = UDim2.fromOffset(10, 10);
-					BackgroundColor3 = library.AccentColor;
-					BorderSizePixel = 0;
-					Text = "";
-					AutoButtonColor = false;
-					Active = true;
-					ZIndex = 5;
-					Parent = pointLayer;
-				}, {
-					instancep = "BackgroundColor3";
-					tinstance = library.AccentColor;
-				})
-
-				library:Create("UICorner", {
-					CornerRadius = UDim.new(1, 0);
-					Parent = dot;
-				})
-
-				library:Create("TextLabel", {
-					Name = "PointValue";
-					AnchorPoint = Vector2.new(0.5, 1);
-					Position = UDim2.new(0.5, 0, 0, -3);
-					Size = UDim2.fromOffset(90, 14);
-					BackgroundTransparency = 1;
-					Text = string.format("%.2f, %.2f", point.X, point.Y);
-					TextColor3 = library.FontColor;
-					Font = library.Font;
-					TextSize = 10;
-					ZIndex = 6;
-					Parent = dot;
-				}, {
-					instancep = "TextColor3";
-					tinstance = library.FontColor;
-				}, {
-					instancep = "Font";
-					tinstance = library.Font;
-				})
-
-				table.insert(pointFrames, dot)
-
-				local connection = dot.InputBegan:Connect(function(input)
-					if not opened or destroyed then
-						return
-					end
-
-					if input.UserInputType == Enum.UserInputType.MouseButton1
-						or input.UserInputType == Enum.UserInputType.Touch then
-						startDrag(point)
-					end
-				end)
-
-				table.insert(pointConnections, connection)
-
-				if trackConnection then
-					trackConnection(connection)
-				end
-			end
-
-			drawCurve()
-		end
-
-		addConnection(GraphHolder.InputBegan, function(input)
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then
-				return
-			end
-
-			if not opened or destroyed then
-				return
-			end
-
-			local position = input.Position
-			local origin = GraphHolder.AbsolutePosition
-			local size = GraphHolder.AbsoluteSize
-
-			if size.X <= 0 or size.Y <= 0 then
-				return
-			end
-
-			local x = math.clamp(
-				(position.X - origin.X) / size.X, 0, 1
-			)
-
-			local y = math.clamp(
-				1 - (position.Y - origin.Y) / size.Y, 0, 1
-			)
-
-			table.insert(graphsets, {
-				X = x;
-				Y = y;
-			})
-
-			table.sort(graphsets, function(a, b)
-				return a.X < b.X
-			end)
-
-			renderGraph()
-			notifyChanged()
-		end)
-
-		if opts.Presets == true then
-			local presetButton = library:Create("TextButton", {
-				Name = "PresetButton";
-				Position = UDim2.fromOffset(6, 197);
-				Size = UDim2.new(1, -12, 0, 20);
-				BackgroundColor3 = library.MainColor;
-				Text = "Curve: " .. selectedPreset .. "  v";
-				TextColor3 = library.FontColor;
-				Font = library.Font;
-				TextSize = 12;
-				BorderSizePixel = 0;
-				ZIndex = 10;
-				Parent = framewindow;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.MainColor;
-			}, {
-				instancep = "TextColor3";
-				tinstance = library.FontColor;
-			}, {
-				instancep = "Font";
-				tinstance = library.Font;
-			})
-
-			local menu = library:Create("Frame", {
-				Name = "PresetMenu";
-				Position = UDim2.new(0, 6, 1, -48 - (#presets * 20));
-				Size = UDim2.new(1, -12, 0, #presets * 20);
-				BackgroundColor3 = library.MainColor;
-				BorderSizePixel = 0;
-				Visible = false;
-				ZIndex = 20;
-				Parent = framewindow;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.MainColor;
-			})
-
-			library:Create("UIListLayout", {
-				SortOrder = Enum.SortOrder.LayoutOrder;
-				Parent = menu;
-			})
-
-			for i, preset in ipairs(presets) do
-				local option = library:Create("TextButton", {
-					Name = preset;
-					Size = UDim2.new(1, 0, 0, 20);
-					BackgroundColor3 = library.MainColor;
-					BorderSizePixel = 0;
-					Text = preset;
-					TextColor3 = library.FontColor;
-					Font = library.Font;
-					TextSize = 12;
-					LayoutOrder = i;
-					ZIndex = 21;
-					Parent = menu;
-				}, {
-					instancep = "BackgroundColor3";
-					tinstance = library.MainColor;
-				}, {
-					instancep = "TextColor3";
-					tinstance = library.FontColor;
-				}, {
-					instancep = "Font";
-					tinstance = library.Font;
-				})
-
-				addConnection(option.Activated, function()
-					selectedPreset = preset
-					presetButton.Text = "Curve: " .. preset .. "  v"
-					menu.Visible = false
-
-					renderGraph()
-					notifyChanged()
-				end)
-			end
-
-			addConnection(presetButton.Activated, function()
-				menu.Visible = not menu.Visible
-			end)
-		end
-
-		local resetButton = library:Create("TextButton", {
-			Name = "ResetGraph";
-			Position = UDim2.new(0, 6, 1, -25);
-			Size = UDim2.new(1, -12, 0, 20);
-			BackgroundColor3 = library.MainColor;
-			Text = "Reset Graph";
-			TextColor3 = library.FontColor;
-			Font = library.Font;
-			TextSize = 12;
-			BorderSizePixel = 0;
-			ZIndex = 10;
-			Parent = framewindow;
-		}, {
-			instancep = "BackgroundColor3";
-			tinstance = library.MainColor;
-		}, {
-			instancep = "TextColor3";
-			tinstance = library.FontColor;
-		}, {
-			instancep = "Font";
-			tinstance = library.Font;
-		})
-
-		addConnection(resetButton.Activated, function()
-			table.clear(graphsets)
-			renderGraph()
-			notifyChanged()
-		end)
-
-		addConnection(
-			GraphHolder:GetPropertyChangedSignal("AbsoluteSize"),
-			function()
-				if opened then
-					renderGraph()
-				end
-			end
-		)
-
-		-- Defer the outside-click check so the opening click cannot close it.
-		outsideConn = UIS.InputBegan:Connect(function(input)
-			if not opened or not instance or not instance.Parent then
-				return
-			end
-
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then
-				return
-			end
-
-			local position = input.Position
-			local topLeft = framewindow.AbsolutePosition
-			local bottomRight = topLeft + framewindow.AbsoluteSize
-
-			local inWindow =
-				position.X >= topLeft.X
-				and position.X <= bottomRight.X
-				and position.Y >= topLeft.Y
-				and position.Y <= bottomRight.Y
-
-			local buttonPos = buttonopen.AbsolutePosition
-			local buttonSize = buttonopen.AbsoluteSize
-
-			local inButton =
-				position.X >= buttonPos.X
-				and position.X <= buttonPos.X + buttonSize.X
-				and position.Y >= buttonPos.Y
-				and position.Y <= buttonPos.Y + buttonSize.Y
-
-			if not inWindow and not inButton then
-				closeGraph()
-			end
-		end)
-
-		if trackConnection then
-			trackConnection(outsideConn)
-		end
-
-		task.defer(function()
-			if opened and GraphHolder.Parent then
-				renderGraph()
-			end
-		end)
-	end
-
-	closeGraph = function()
-		if not opened then
-			return
-		end
-
-		-- Set this first so callbacks stop acting while the popup closes.
-		opened = false
-
-		clearOpenConnections()
-
-		if instance then
-			instance:Destroy()
-			instance = nil
-		end
-	end
-
-	-- IMPORTANT: This connection is deliberately NOT added to
-	-- openConnections, so closing the popup won't kill the reopen button.
-	buttonConnection = buttonopen.Activated:Connect(function()
-		if destroyed then
-			return
-		end
-
-		if opened then
-			closeGraph()
-		else
-			openGraph()
-		end
-	end)
-
-	if trackConnection then
-		trackConnection(buttonConnection)
-	end
-
-	function linegraph:Get()
-		return getData()
-	end
-
-	function linegraph:Set(values)
-		if destroyed then
-			return
-		end
-
-		graphsets = copyPoints(values)
-		curvePoints = #graphsets
-
-		if opened then
-			closeGraph()
-			openGraph()
-		end
-
-		notifyChanged()
-	end
-
-	function linegraph:Reset()
-		if destroyed then
-			return
-		end
-
-		graphsets = {}
-		curvePoints = 0
-
-		if opened then
-			closeGraph()
-			openGraph()
-		end
-
-		notifyChanged()
-	end
-
-	function linegraph:SetPreset(preset)
-		if destroyed then
-			return false
-		end
-
-		for _, name in ipairs(presets) do
-			if name == preset then
-				selectedPreset = name
-
-				if opened then
-					closeGraph()
-					openGraph()
-				end
-
-				notifyChanged()
-				return true
-			end
-		end
-
-		return false
-	end
-
-	function linegraph:Destroy()
-		if destroyed then
-			return
-		end
-
-		destroyed = true
-		closeGraph()
-
-		disconnectConnection(buttonConnection)
-		buttonConnection = nil
-
-		clearOpenConnections()
-		clearPointConnections()
-
-		if holder then
-			holder:Destroy()
-			holder = nil
-		end
-	end
-
-	return linegraph
+ return MakeGroupbox(Leftin, title)
 end
-
-
-
-					return groupbox
-				end
 
 				function Intab:AddRightGroupbox(title)
-					local groupbox = {
-						elements = {};
-					}
-
-					local groupboxf = library:Create("Frame", {
-						Name = "Groupbox";
-						Size = UDim2.new(0.95, 0,0, 0);
-						Position = UDim2.new(0, 0,0, 0);
-						BackgroundColor3 = library.MainColor;
-						AutomaticSize = Enum.AutomaticSize.Y;
-						LayoutOrder = #Rightin:GetChildren();
-						Parent = Rightin;
-					}, {
-						instancep = "BackgroundColor3";
-						tinstance = library.MainColor;
-					})
-
-					local uistroke = library:Create("UIStroke", {
-						Name = "UIStroke";
-						Parent = groupboxf;
-						Thickness = 1;
-						Color = library.SecondaryColor;
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-					}, {
-						instancep = "Color";
-						tinstance = library.SecondaryColor;
-					})
-
-					local uilay = library:Create("UIListLayout", {
-						Name = "uil";
-						FillDirection = Enum.FillDirection.Vertical;
-						Padding = UDim.new(0, 1);
-						SortOrder = Enum.SortOrder.LayoutOrder;
-						HorizontalAlignment = Enum.HorizontalAlignment.Center;
-						VerticalAlignment = Enum.VerticalAlignment.Top;
-
-						Parent = groupboxf;
-					})
-
-					local uipad = library:Create("UIPadding", {
-						Name = "uip";
-						PaddingRight = UDim.new(0, 0);
-						PaddingLeft = UDim.new(0, 0);
-						PaddingTop = UDim.new(0, 0);
-						PaddingBottom = UDim.new(0, 4);
-						Parent = groupboxf;
-					})
-
-					local accent = library:Create("Frame", {
-						Name = "Accent";
-						Size = UDim2.new(1, 0,0, 1);
-						Position = UDim2.new(0, 0,0, 0);
-						BackgroundColor3 = library.AccentColor;
-						LayoutOrder = -1000;
-						Parent = groupboxf;
-					}, {
-						instancep = "BackgroundColor3";
-						tinstance = library.AccentColor;
-					})
-
-					local titlegroupbox = library:Create("TextLabel", {
-						Name = "Title";
-						Size = UDim2.new(1, 0,0, 20);
-						LayoutOrder = -1;
-
-						BackgroundTransparency = 1;
-						Text = title;
-						Font = library.Font;
-						TextColor3 = library.FontColor;
-						TextSize = 14;
-
-						Parent = groupboxf;
-					}, {
-						instancep = "TextColor3";
-						tinstance = library.FontColor;
-					}, {
-						instancep = "Font";
-						tinstance = library.Font;
-					})
-
-					local titleuis = library:Create("UIStroke", {
-						Name = "UIStroke";
-						Parent = titlegroupbox;
-						Thickness = 1;
-						Color = library.UIstroke;
-					}, {
-						instancep = "Color";
-						tinstance = library.UIstroke;
-					})
-
-					local titleuits = library:Create("UITextSizeConstraint", {
-						Name = "uit";
-						MaxTextSize = 14;
-						Parent = titlegroupbox;
-					})
-
-					local titleuip = library:Create("UIPadding", {
-						Name = "uip";
-						PaddingRight = UDim.new(0, 0);
-						PaddingLeft = UDim.new(0, 0);
-						PaddingTop = UDim.new(0, 3);
-						PaddingBottom = UDim.new(0, 0);
-						Parent = titlegroupbox;
-					})
-
-					local elementsholder = library:Create("Frame", {
-						Name = "elem";
-						Size = UDim2.new(1, 0,0, 0);
-						BackgroundTransparency = 1;
-						LayoutOrder = 1;
-						AutomaticSize = Enum.AutomaticSize.Y;
-						Parent = groupboxf;
-					})
-
-					local elemsuill = library:Create("UIListLayout", {
-						Name = "UIListLayout";
-						FillDirection = Enum.FillDirection.Horizontal;
-						Wraps = true;
-						HorizontalAlignment = Enum.HorizontalAlignment.Center;
-						VerticalAlignment = Enum.VerticalAlignment.Top;
-						SortOrder = Enum.SortOrder.LayoutOrder;
-						Padding = UDim.new(0, 5);
-						Parent = elementsholder;
-					})
-
-					local elemsuip = library:Create("UIPadding", {
-						Name = "UIPadding";
-						PaddingBottom = UDim.new(0, 0);
-						PaddingLeft = UDim.new(0, 0);
-						PaddingRight = UDim.new(0, 0);
-						PaddingTop = UDim.new(0, 3);
-						Parent = elementsholder;
-					})
-
-					-- api	
-					function groupbox:AddLabel(text, opts)
-				--[[
-				    MAX 3 COLOR PICKERS (cant use key picker if u do this)
-				    MAX 1 KEY PICKER (cant use color pickers if u do this)
-				]]
-
-						local label = {}
-						local colorpickers = {}
-						local keypicker = nil
-
-						local RestrictedKeypicker = false
-						local RestrictedColorpicker = false
-
-						local holder = library:Create("Frame", {
-							Name = "Holder";
-							Size = UDim2.new(0.95, 0,0, 20);
-							BackgroundTransparency = 1;
-							LayoutOrder = #elementsholder:GetChildren();
-							Parent = elementsholder;
-						})
-
-						local uitext = library:Create("TextLabel", {
-							Name = "TextLabel";
-							Size = UDim2.new(.795, 0,1, 0);
-							BackgroundTransparency = 1;
-							Text = text;
-							TextSize = 13;
-							TextColor3 = library.FontColor;
-							Font = library.Font;
-							LayoutOrder = 1;
-							TextXAlignment = Enum.TextXAlignment.Left;
-							TextYAlignment = Enum.TextYAlignment.Center;
-							Parent = holder;
-						}, {
-							instancep = "TextColor3";
-							tinstance = library.FontColor;
-						})
-
-						local uitextsui = library:Create("UITextSizeConstraint", {
-							Name = "UITextSizeConstraint";
-							MaxTextSize = 13;
-							Parent = uitext;
-						})
-
-						local uistroke = library:Create("UIStroke", {
-							Name = "UIStroke";
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-							Color = Color3.fromRGB(0, 0, 0);
-							Thickness = 1;
-							Parent = uitext;
-						}, {
-							instancep = "Color";
-							tinstance = library.UIstroke;
-						})
-
-						local uill = library:Create("UIListLayout", {
-							Name = "UIListLayout";
-							FillDirection = Enum.FillDirection.Horizontal;
-							HorizontalAlignment = Enum.HorizontalAlignment.Left;
-							SortOrder = Enum.SortOrder.LayoutOrder;
-							Parent = holder;
-						})
-
-						local holder2 = library:Create("Frame", {
-							Name = "Holder";
-							Size = UDim2.new(0.043, 50,1, 0);
-							BackgroundTransparency = 1;
-							LayoutOrder = 2;
-							Parent = holder;
-						})
-
-						local uillh = library:Create("UIListLayout", {
-							Name = "UIListLayout";
-							FillDirection = Enum.FillDirection.Horizontal;
-							HorizontalAlignment = Enum.HorizontalAlignment.Right;
-							VerticalAlignment = Enum.VerticalAlignment.Center;
-							SortOrder = Enum.SortOrder.LayoutOrder;
-							Padding = UDim.new(0, 6);
-							Parent = holder2;
-						})
-
-						function label:AddColorPicker(name, opts)
-							if RestrictedColorpicker then
-								error("Restricted your using a keypicker!")
-								return
-							end
-
-							if #colorpickers >= 3 then
-								error("Max number of colorpickers reached")
-								return
-							end
-
-							local colorpicker = {}
-							table.insert(colorpickers, colorpicker)
-							RestrictedKeypicker = true
-							local color = opts.Startcolor or Color3.new(1, 1, 1)
-							local transparency = opts.Transparency or 0
-							local pointPosition
-
-							colorpicker.Color = color
-							colorpicker.Transparency = transparency
-							colorpicker.OnChanged = newSignal()
-							Options[name] = colorpicker
-							local opened = false
-							local instance 
-							local followConn
-							local outsideConn
-
-							local colorbox = library:Create("Frame", {
-								Name = "ColorBox";
-								Size = UDim2.new(0, 15,0, 15);
-								BackgroundColor3 = color;
-								LayoutOrder = #holder2:GetChildren();
-								Parent = holder2;
-							})
-
-							local uistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								LineJoinMode = Enum.LineJoinMode.Miter;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								Parent = colorbox;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local hitbox = library:Create("TextButton", {
-								Name = "Hitbox";
-								Size = UDim2.new(1,0,1,0);
-								BackgroundTransparency = 1;
-								Active = true;
-								ZIndex = 10;
-								Selectable = true;
-								Text = "";
-								Parent = colorbox;
-							})
-
-							local function OnChange(newcolor, newtransparency)
-								colorpicker.Color = newcolor
-								colorpicker.Transparency = newtransparency
-
-								if opts.Callback then
-									opts.Callback(newcolor, newtransparency)
-								end
-
-								colorpicker.OnChanged:Fire(newcolor, newtransparency)
-							end
-
-							local function Createcolorpickerbox()
-								opened = true
-
-								local function getPos()
-									local abs = colorbox.AbsolutePosition
-									local base = screengui.AbsolutePosition
-									return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
-								end
-
-								local cursorbox = library:Create("Frame", {
-									Name = "CursorBox";
-									Size = UDim2.new(0, 15,0, 15);
-									Position = getPos();
-									BackgroundColor3 = Color3.new(1,1,1);
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = screengui;
-								})
-
-								instance = cursorbox
-
-								followConn = colorbox:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-									if instance then
-										instance.Position = getPos()
-									end
-								end)
-
-								local framewindow = library:Create("Frame", {
-									Name = "Frame";
-									Size = UDim2.new(0, 323,0, 198);
-									Position = UDim2.new(1, 0,1.4, 0);
-									BackgroundColor3 = library.MainColor;
-									ZIndex = 2;
-									Parent = cursorbox;
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local uistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									LineJoinMode = Enum.LineJoinMode.Miter;
-									Color = library.SecondaryColor;
-									Thickness = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								}, {
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local uistroke2 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									LineJoinMode = Enum.LineJoinMode.Miter;
-									Color = library.MainColor;
-									Thickness = 4;
-									Parent = framewindow;
-								}, {
-									instancep = "Color";
-									tinstance = library.MainColor;
-								})
-
-								local text = library:Create("TextLabel", {
-									Name = "TextLabel";
-									Size = UDim2.new(1, 0,0, 16);
-									Position = UDim2.new(0, 0,0, 0);
-									Text = name;
-									TextColor3 = library.FontColor;
-									Font = library.Font;
-									TextSize = 13;
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local textuistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = text;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local textuisize = library:Create("UITextSizeConstraint", {
-									Name = "UISizeConstraint";
-									MaxTextSize = 13;
-									Parent = text;
-								})
-
-								local colors = library:Create("Frame", {
-									Name = "Colors";
-									Size = UDim2.new(1, 0,0, 23);
-									Position = UDim2.new(0, 0,0.879, 0);
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								})
-
-								local colorsUIl = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									FillDirection = Enum.FillDirection.Horizontal;
-									HorizontalAlignment = Enum.HorizontalAlignment.Center;
-									Padding = UDim.new(0, 8);
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									VerticalAlignment = Enum.VerticalAlignment.Center;
-									Parent = colors;
-								})
-
-								local colorsboxcolor = library:Create("Frame", {
-									Name = "Color";
-									Size = UDim2.new(0, 20,0, 20);
-									BackgroundColor3 = color;
-									ZIndex = 2;
-									LayoutOrder = 1;
-									Parent = colors;
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = color;
-								})
-
-								local colorsboxcoloruistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									Color = library.SecondaryColor;
-									Thickness = 1;
-									Parent = colorsboxcolor;
-								}, {
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local function rgbText(c)
-									return math.floor(c.R * 255 + 0.5) .. "," .. math.floor(c.G * 255 + 0.5) .. "," .. math.floor(c.B * 255 + 0.5)
-								end
-
-								local huecoloreditbox = library:Create("TextBox", {
-									Name = "Hue";
-									Size = UDim2.new(0, 71,0, 20);
-									BackgroundColor3 = library.MainColor;
-									TextColor3 = library.FontColor;
-									Text = rgbText(color);
-									TextSize = 13;
-									Font = Enum.Font.SourceSans;
-									MultiLine = false;
-									ZIndex = 2;
-									LayoutOrder = 2;
-									Parent = colors;
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								})
-
-								local huecolorboxuis1 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									Color = library.SecondaryColor;
-									Thickness = 1;
-									Parent = huecoloreditbox;
-								}, {
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local huecolorboxuis2 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = huecoloreditbox;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local transditbox = library:Create("TextBox", {
-									Name = "trans";
-									Size = UDim2.new(0, 71,0, 20);
-									BackgroundColor3 = library.MainColor;
-									TextColor3 = library.FontColor;
-									Text = transparency;
-									TextSize = 13;
-									Font = Enum.Font.SourceSans;
-									MultiLine = false;
-									ZIndex = 2;
-									LayoutOrder = 2;
-									Parent = colors;
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								})
-
-								local transboxuis1 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									Color = library.SecondaryColor;
-									Thickness = 1;
-									Parent = transditbox;
-								}, {
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local transboxuis2 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = transditbox;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local hexditbox = library:Create("TextBox", {
-									Name = "trans";
-									Size = UDim2.new(0, 71,0, 20);
-									BackgroundColor3 = library.MainColor;
-									TextColor3 = library.FontColor;
-									Text = color:ToHex();
-									TextSize = 13;
-									Font = Enum.Font.SourceSans;
-									MultiLine = false;
-									ZIndex = 2; 
-									LayoutOrder = 2;
-									Parent = colors;
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								})
-
-								local hexboxuis1 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									Color = library.SecondaryColor;
-									Thickness = 1;
-									Parent = hexditbox;
-								}, {
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local hexboxuis2 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = hexditbox;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local main = library:Create("Frame", {
-									Name = "Main";
-									Size = UDim2.new(1, 0,0, 158);
-									Position = UDim2.new(0, 0,0.081, 0);
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								})
-
-								local uillmain = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									FillDirection = Enum.FillDirection.Horizontal;
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									HorizontalAlignment = Enum.HorizontalAlignment.Center;
-									VerticalAlignment = Enum.VerticalAlignment.Center;
-									Padding = UDim.new(0, 5);
-									Parent = main;
-								})
-
-								local h, s, v = color:ToHSV()
-								local UIS = game:GetService("UserInputService")
-
-								local huebox = library:Create("Frame", {
-									Name = "HueBox";
-									Size = UDim2.new(0.576, 50,0.94, 0);
-									BackgroundColor3 = Color3.fromHSV(h, 1, 1);
-									ZIndex = 2;
-									Parent = main;
-								})
-
-								local helight = library:Create("Frame", {
-									Name = "HueBox2";
-									Size = UDim2.new(1,0,1,0);
-									BackgroundColor3 = Color3.new(1, 1, 1);
-									ZIndex = 3;
-									Parent = huebox;
-								})
-
-								local huelightgrad = library:Create("UIGradient", {
-									Name = "grad";
-									Parent = helight;
-
-									Transparency = NumberSequence.new({
-										NumberSequenceKeypoint.new(0, 0),
-										NumberSequenceKeypoint.new(1, 1),
-									})
-								})
-
-								local huedark = library:Create("Frame", {
-									Name = "HueBox3";
-									Size = UDim2.new(1,0,1,0);
-									BackgroundColor3 = Color3.new(0, 0, 0);
-									ZIndex = 3;
-									Parent = huebox;
-								})
-
-								local huedarkgrad = library:Create("UIGradient", {
-									Name = "grad";
-									Parent = huedark;
-
-									Rotation = 90,
-									Transparency = NumberSequence.new({
-										NumberSequenceKeypoint.new(0, 1),
-										NumberSequenceKeypoint.new(1, 0),
-									}),
-								})
-
-								local shiftbox = library:Create("Frame", {
-									Name = "shiftbox";
-									Size = UDim2.new(-0.057, 50,0.94, 0);
-									BackgroundColor3 = Color3.new(1,1,1);
-									ZIndex = 2;
-									LayoutOrder = 2;
-									Parent = main;
-								})
-
-								local rainbow = {}
-								for i = 0, 6 do
-									table.insert(rainbow, ColorSequenceKeypoint.new(i / 6, Color3.fromHSV(i / 6, 1, 1)))
-								end
-
-								local shiftgrad = library:Create("UIGradient", {
-									Name = "grad";
-									Rotation = 90;
-									Color = ColorSequence.new(rainbow);
-									Parent = shiftbox;
-								})
-
-								local transparencybox = library:Create("Frame", {
-									Name = "TransparencyBox";
-									Size = UDim2.new(-0.057, 50,0.94, 0);
-									BackgroundColor3 = Color3.new(1,1,1);
-									ZIndex = 2;
-									LayoutOrder = 3;
-									Parent = main;
-								})
-
-								local imagetrans = library:Create("ImageLabel", {
-									Name = "ImageLabel";
-									Size = UDim2.new(1,0,1,0);
-									BackgroundColor3 = Color3.new(1,1,1);
-									Parent = transparencybox;
-									Image = "rbxassetid://155451930";
-									ScaleType = Enum.ScaleType.Tile;
-									TileSize = UDim2.new(1, 0,0.3, 0);
-								})
-
-								local transfade = library:Create("Frame", {
-									Name = "Fade";
-									Size = UDim2.new(1,0,1,0);
-									BackgroundColor3 = color;
-									ZIndex = 3;
-									Parent = transparencybox;
-								})
-
-								local transfadegrad = library:Create("UIGradient", {
-									Name = "grad";
-									Rotation = 90;
-									Transparency = NumberSequence.new({
-										NumberSequenceKeypoint.new(0, 0),
-										NumberSequenceKeypoint.new(1, 1),
-									});
-									Parent = transfade;
-								})
-
-								local function refresh()
-									color = Color3.fromHSV(h, s, v)
-									colorbox.BackgroundColor3 = color
-									colorsboxcolor.BackgroundColor3 = color
-									huebox.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
-									transfade.BackgroundColor3 = color
-									huecoloreditbox.Text = rgbText(color)
-									hexditbox.Text = color:ToHex()
-									transditbox.Text = tostring(math.floor(transparency * 100 + 0.5) / 100)
-									OnChange(color, transparency, pointPosition)
-								end
-
-								local function makeSlider(box, start, onChange)
-									box.Active = true
-
-									local bar = library:Create("Frame", {
-										Name = "Bar";
-										Size = UDim2.new(1, 4,0, 3);
-										AnchorPoint = Vector2.new(0.5, 0.5);
-										Position = UDim2.new(0.5, 0,start, 0);
-										BackgroundColor3 = Color3.new(1, 1, 1);
-										ZIndex = 5;
-										Parent = box;
-									})
-
-									local barstroke = library:Create("UIStroke", {
-										Name = "UIStroke";
-										ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-										Color = Color3.new(0, 0, 0);
-										Thickness = 1;
-										Parent = bar;
-									})
-
-									local moveConn, endConn
-
-									local function stop()
-										if moveConn then moveConn:Disconnect() moveConn = nil end
-										if endConn then endConn:Disconnect() endConn = nil end
-									end
-
-									local function update(input)
-										local a = math.clamp((input.Position.Y - box.AbsolutePosition.Y) / box.AbsoluteSize.Y, 0, 1)
-										bar.Position = UDim2.new(0.5, 0,a, 0)
-										onChange(a)
-									end
-
-									trackConnection(box.InputBegan:Connect(function(input)
-										if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-											stop()
-											update(input)
-
-											moveConn = trackConnection(UIS.InputChanged:Connect(function(i)
-												if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-													update(i)
-												end
-											end))
-
-											endConn = trackConnection(UIS.InputEnded:Connect(function(i)
-												if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-													stop()
-												end
-											end))
-										end
-									end))
-
-									return function(a)
-										bar.Position = UDim2.new(0.5, 0,a, 0)
-									end
-								end
-
-								local setHueBar = makeSlider(shiftbox, h, function(a)
-									h = a
-									refresh()
-								end)
-
-								local setTransBar = makeSlider(transparencybox, transparency, function(a)
-									transparency = a
-									refresh()
-								end)
-
-								local cursor = library:Create("Frame", {
-									Name = "Cursor";
-									Size = UDim2.new(0, 8,0, 8);
-									AnchorPoint = Vector2.new(0.5, 0.5);
-									Position = UDim2.new(s, 0,1 - v, 0);
-									BackgroundColor3 = Color3.new(1, 1, 1);
-									ZIndex = 6;
-									Parent = huebox;
-								})
-
-								local cursorcorner = library:Create("UICorner", {
-									CornerRadius = UDim.new(1, 0);
-									Parent = cursor;
-								})
-
-								local cursorstroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									Color = Color3.new(0, 0, 0);
-									Thickness = 1;
-									Parent = cursor;
-								})
-
-								local function setCursor(ns, nv)
-									cursor.Position = UDim2.new(ns, 0,1 - nv, 0)
-								end
-
-								do
-									huedark.Active = true
-									local moveConn, endConn
-
-									local function stop()
-										if moveConn then moveConn:Disconnect() moveConn = nil end
-										if endConn then endConn:Disconnect() endConn = nil end
-									end
-
-									local function update(input)
-										local pos, size = huebox.AbsolutePosition, huebox.AbsoluteSize
-										s = math.clamp((input.Position.X - pos.X) / size.X, 0, 1)
-										v = 1 - math.clamp((input.Position.Y - pos.Y) / size.Y, 0, 1)
-										setCursor(s, v)
-										refresh()
-									end
-
-									trackConnection(huedark.InputBegan:Connect(function(input)
-										if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-											stop()
-											update(input)
-
-											moveConn = trackConnection(UIS.InputChanged:Connect(function(i)
-												if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-													update(i)
-												end
-											end))
-
-											endConn = trackConnection(UIS.InputEnded:Connect(function(i)
-												if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-													stop()
-												end
-											end))
-										end
-									end))
-								end
-
-								huecoloreditbox.FocusLost:Connect(function()
-									local r, g, b = huecoloreditbox.Text:match("^%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*$")
-									r, g, b = tonumber(r), tonumber(g), tonumber(b)
-
-									if r and g and b then
-										local c = Color3.fromRGB(math.clamp(r, 0, 255), math.clamp(g, 0, 255), math.clamp(b, 0, 255))
-										h, s, v = c:ToHSV()
-										setHueBar(h)
-										setCursor(s, v)
-										refresh()
-									else
-										huecoloreditbox.Text = rgbText(color)
-									end
-								end)
-
-								outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
-									if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-										return
-									end
-
-									local function isInside(gui)
-										local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
-										local m = input.Position
-										return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
-									end
-
-									if isInside(framewindow) or isInside(colorbox) then
-										return
-									end
-
-									colorpicker:Close()
-								end))
-
-							end
-
-							function colorpicker:Close()
-								if not opened then return end
-								opened = false
-
-								if followConn then
-									followConn:Disconnect()
-									followConn = nil
-								end
-
-								if outsideConn then
-									outsideConn:Disconnect()
-									outsideConn = nil
-								end
-
-								if instance then
-									instance:Destroy()
-									instance = nil
-								end
-							end
-
-							hitbox.Activated:Connect(function()
-								if opened then
-									colorpicker:Close()
-								else
-									Createcolorpickerbox()
-								end
-							end)
-
-							function colorpicker:AddColorPicker(name, opts)
-								return label:AddColorPicker(name, opts)
-							end
-
-							library.windowinstances.Colorbox = colorpicker
-
-							return colorpicker
-						end
-
-						function label:AddKeyPicker(name, opts)
-							if type(name) == "table" then
-								opts = name
-								name = uitext.Text
-							end
-
-							opts = opts or {}
-
-							local picker = {}
-							local InputService = InputService or game:GetService("UserInputService")
-
-							local function resolvekey(k)
-								if typeof(k) == "EnumItem" then
-									return k
-								end
-
-								if type(k) == "string" then
-									local ok, res = pcall(function()
-										return Enum.KeyCode[k]
-									end)
-									if ok then
-										return res
-									end
-								end
-
-								return nil
-							end
-
-							local currentkey = resolvekey(opts.Default)
-							local Mode = opts.Mode or "Hold"
-							local modes = {"Hold", "Toggle", "Always"}
-
-							local opened = false
-							local instance
-							local followConn
-							local outsideConn
-							local waitkeyconn
-
-							local waiting_for_key = false
-
-							local winkeytext
-							local winmodetext
-
-							local ignoredkeys = {
-								library.Menukey;
-								Enum.KeyCode.Return,
-								Enum.KeyCode.End,
-								Enum.KeyCode.Home,
-								Enum.KeyCode.PageUp,
-								Enum.KeyCode.PageDown,
-							}
-
-							local ignoredset = {}
-							for _, k in next, ignoredkeys do
-								if k then
-									ignoredset[k] = true
-								end
-							end
-
-							if RestrictedKeypicker then
-								error("Restricted your using a colorpicker!")
-								return
-							end
-
-							if keypicker then
-								warn("KeyPicker already exists for this label")
-								return
-							end
-
-							keypicker = picker
-							RestrictedColorpicker = true
-
-							picker.Key = currentkey
-							picker.Mode = Mode
-							picker.OnChanged = newSignal()
-							Options[name] = picker
-
-							local keyframe = library:Create("Frame", {
-								Name = "KeyPicker",
-								Size = UDim2.new(0, 50, 0, 15),
-								LayoutOrder = #holder2:GetChildren();
-								BackgroundColor3 = library.MainColor,
-								Parent = holder2;
-							},{
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local uistrokekey = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = keyframe,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local keybox = library:Create("TextButton", {
-								Name = "KeyBox",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 4,
-								Parent = keyframe,
-							})
-
-							local keytext = library:Create("TextLabel", {
-								Name = "KeyText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "None",
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								Parent = keyframe,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local active = false
-							picker.Value = false
-
-							local function setState(state)
-								if active == state then return end
-								active = state
-								picker.Value = state
-
-								if opts.Callback then
-									opts.Callback(state)
-								end
-							end
-
-							local function updatetexts()
-								local t
-								if waiting_for_key then
-									t = "..."
-								elseif currentkey then
-									t = keyshorts[currentkey] or currentkey.Name
-								else
-									t = "None"
-								end
-
-								keytext.Text = t
-								if winkeytext then
-									winkeytext.Text = t
-								end
-								if winmodetext then
-									winmodetext.Text = Mode
-								end
-							end
-
-							local function setKey(k)
-								currentkey = k
-								picker.Key = k
-								updatetexts()
-
-								if opts.CallbackKey then
-									opts.CallbackKey(k)
-								end
-
-								picker.OnChanged:Fire(currentkey, Mode)
-							end
-
-							local function setMode(m)
-								Mode = m
-								picker.Mode = m
-								updatetexts()
-
-								setState(m == "Always")
-
-								if opts.CallbackMode then
-									opts.CallbackMode(m)
-								end
-
-								picker.OnChanged:Fire(currentkey, Mode)
-							end
-
-							local function startbind()
-								if waiting_for_key then
-									return
-								end
-
-								waiting_for_key = true
-								updatetexts()
-
-								waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-									if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-									if ignoredset[input.KeyCode] then return end
-
-									if waitkeyconn then
-										waitkeyconn:Disconnect()
-										waitkeyconn = nil
-									end
-
-									task.defer(function()
-										waiting_for_key = false
-										updatetexts()
-									end)
-
-									if input.KeyCode == Enum.KeyCode.Backspace then
-										setKey(nil)
-									else
-										setKey(input.KeyCode)
-									end
-								end))
-							end
-
-							local function openminiwindow()
-								opened = true
-
-								local function getPos()
-									local abs = keyframe.AbsolutePosition
-									local base = screengui.AbsolutePosition
-									return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
-								end
-
-								local cursorbox = library:Create("Frame", {
-									Name = "CursorBox";
-									Size = UDim2.new(0, 15,0, 15);
-									Position = getPos();
-									BackgroundColor3 = Color3.new(1,1,1);
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = screengui;
-								})
-
-								instance = cursorbox
-
-								followConn = keyframe:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-									if instance then
-										instance.Position = getPos()
-									end
-								end)
-
-								local framewindow = library:Create("Frame", {
-									Name = "Frame";
-									Size = UDim2.new(0, 323,0, 93);
-									Position = UDim2.new(1, 0,1.4, 0);
-									BackgroundColor3 = library.MainColor;
-									ZIndex = 2;
-									Parent = cursorbox;
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local uistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									LineJoinMode = Enum.LineJoinMode.Miter;
-									Color = library.SecondaryColor;
-									Thickness = 1;
-									Parent = framewindow;
-								}, {
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local uistroke2 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									LineJoinMode = Enum.LineJoinMode.Miter;
-									Color = library.MainColor;
-									Thickness = 4;
-									Parent = framewindow;
-								}, {
-									instancep = "Color";
-									tinstance = library.MainColor;
-								})
-
-								local text = library:Create("TextLabel", {
-									Name = "TextLabel";
-									Size = UDim2.new(1, 0,0, 16);
-									Position = UDim2.new(0, 0,0, 0);
-									Text = name;
-									TextColor3 = library.FontColor;
-									Font = library.Font;
-									TextSize = 13;
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local textuistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = text;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local textuisize = library:Create("UITextSizeConstraint", {
-									Name = "UISizeConstraint";
-									MaxTextSize = 13;
-									Parent = text;
-								})
-
-								local holder = library:Create("Frame", {
-									Name = "Holder";
-									Size = UDim2.new(1, 0,-0.228, 96);
-									Position = UDim2.new(0, 0,0.195, 0);
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								})
-
-								local uill = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									Padding = UDim.new(0, 5);
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									FillDirection = Enum.FillDirection.Vertical;
-									HorizontalAlignment = Enum.HorizontalAlignment.Center;
-									VerticalAlignment = Enum.VerticalAlignment.Top;
-									Parent = holder;
-								})
-
-								local uipadd = library:Create("UIPadding", {
-									Name = "UIPadding";
-									PaddingLeft = UDim.new(0, 0);
-									PaddingRight = UDim.new(0, 0);
-									PaddingTop = UDim.new(0, 3);
-									PaddingBottom = UDim.new(0, 0);
-									Parent = holder;
-								})
-
-								local keysetbind = library:Create("Frame", {
-									Name = "KeysetBind";
-									Size = UDim2.new(.95, 0,0, 20);
-									BackgroundTransparency = 1;
-									LayoutOrder = 1;
-									Parent = holder;
-									ZIndex = 2;
-								})
-
-								local keybindsetuil = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									Padding = UDim.new(0, 0);
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									FillDirection = Enum.FillDirection.Horizontal;
-									HorizontalAlignment = Enum.HorizontalAlignment.Left;
-									VerticalAlignment = Enum.VerticalAlignment.Center;
-									Parent = keysetbind;
-								})
-
-								local keylabelset = library:Create("TextLabel", {
-									Name = "KeyLabel";
-									Size = UDim2.new(1, -55,1, 0);
-									BackgroundTransparency = 1;
-									Text = "Keybind";
-									TextColor3 = library.FontColor;
-									TextSize = 13;
-									TextXAlignment = Enum.TextXAlignment.Left;
-									TextYAlignment = Enum.TextYAlignment.Center;
-									Font = library.Font;
-									LayoutOrder = 1;
-									ZIndex = 2;
-									Parent = keysetbind;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local labeluistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = keylabelset;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local labeltsize = library:Create("UITextSizeConstraint", {
-									Name = "UITextSizeConstraint";
-									MaxTextSize = 13;
-									Parent = keylabelset;
-								})
-
-								local winkeyframe = library:Create("Frame", {
-									Name = "KeyPicker",
-									Size = UDim2.new(0, 50, 0, 15),
-									LayoutOrder = 2;
-									BackgroundColor3 = library.MainColor,
-									ZIndex = 2;
-									Parent = keysetbind,
-								},{
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local winuistrokekey = library:Create("UIStroke", {
-									Name = "UIStroke",
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-									Color = library.SecondaryColor,
-									Thickness = 1,
-									Parent = winkeyframe,
-								},{
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local winkeybox = library:Create("TextButton", {
-									Name = "KeyBox",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "",
-									ZIndex = 3,
-									Parent = winkeyframe,
-								})
-
-								winkeytext = library:Create("TextLabel", {
-									Name = "KeyText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "None",
-									TextColor3 = library.FontColor,
-									TextSize = 13,
-									Font = library.Font,
-									TextXAlignment = Enum.TextXAlignment.Center,
-									ZIndex = 2,
-									Parent = winkeyframe,
-								},{
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-
-								local modesetbind = library:Create("Frame", {
-									Name = "ModesetBind";
-									Size = UDim2.new(.95, 0,0, 20);
-									BackgroundTransparency = 1;
-									LayoutOrder = 2;
-									Parent = holder;
-									ZIndex = 2;
-								})
-
-								local modesetuil = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									Padding = UDim.new(0, 0);
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									FillDirection = Enum.FillDirection.Horizontal;
-									HorizontalAlignment = Enum.HorizontalAlignment.Left;
-									VerticalAlignment = Enum.VerticalAlignment.Center;
-									Parent = modesetbind;
-								})
-
-								local modelabelset = library:Create("TextLabel", {
-									Name = "ModeLabel";
-									Size = UDim2.new(1, -55,1, 0);
-									BackgroundTransparency = 1;
-									Text = "Mode";
-									TextColor3 = library.FontColor;
-									TextSize = 13;
-									TextXAlignment = Enum.TextXAlignment.Left;
-									TextYAlignment = Enum.TextYAlignment.Center;
-									Font = library.Font;
-									LayoutOrder = 1;
-									ZIndex = 2;
-									Parent = modesetbind;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local labelmuistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = modelabelset;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local labelmtsize = library:Create("UITextSizeConstraint", {
-									Name = "UITextSizeConstraint";
-									MaxTextSize = 13;
-									Parent = modelabelset;
-								})
-
-								local modeframe = library:Create("Frame", {
-									Name = "ModePicker",
-									Size = UDim2.new(0, 50, 0, 15),
-									LayoutOrder = 2;
-									BackgroundColor3 = library.MainColor,
-									ZIndex = 2;
-									Parent = modesetbind,
-								},{
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local uistrokemode = library:Create("UIStroke", {
-									Name = "UIStroke",
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-									Color = library.SecondaryColor,
-									Thickness = 1,
-									Parent = modeframe,
-								},{
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local Modebox = library:Create("TextButton", {
-									Name = "ModeBox",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "",
-									ZIndex = 3,
-									Parent = modeframe,
-								})
-
-								winmodetext = library:Create("TextLabel", {
-									Name = "ModeText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = Mode,
-									TextColor3 = library.FontColor,
-									TextSize = 13,
-									Font = library.Font,
-									TextXAlignment = Enum.TextXAlignment.Center,
-									ZIndex = 2,
-									Parent = modeframe,
-								},{
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local unbindbox = library:Create("Frame", {
-									Name = "UnbindBox",
-									Size = UDim2.new(0.95, 0,0, 15),
-									LayoutOrder = 3,
-									BackgroundColor3 = library.MainColor,
-									ZIndex = 2,
-									Parent = holder,
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local unbindstroke = library:Create("UIStroke", {
-									Name = "UIStroke",
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-									Color = library.SecondaryColor,
-									Thickness = 1,
-									Parent = unbindbox,
-								},{
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local unbindtext = library:Create("TextLabel", {
-									Name = "UnbindText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "Unbind",
-									TextColor3 = library.FontColor,
-									TextSize = 13,
-									Font = library.Font,
-									TextXAlignment = Enum.TextXAlignment.Center,
-									ZIndex = 2,
-									Parent = unbindbox,
-								},{
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local unbindboxt = library:Create("TextButton", {
-									Name = "UnbindBoxText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "",
-									ZIndex = 3,
-									Parent = unbindbox,
-								})
-
-								winkeybox.MouseButton1Click:Connect(startbind)
-
-								Modebox.MouseButton1Click:Connect(function()
-									local index = table.find(modes, Mode) or 1
-									setMode(modes[index % #modes + 1])
-								end)
-
-								unbindboxt.MouseButton1Click:Connect(function()
-									setKey(nil)
-								end)
-
-								updatetexts()
-
-								outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
-									if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-										return
-									end
-
-									local function isInside(gui)
-										local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
-										local m = input.Position
-										return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
-									end
-
-									if isInside(framewindow) or isInside(keyframe) then
-										return
-									end
-
-									picker:Close()
-								end))
-							end
-
-							function picker:Close()
-								if not opened then return end
-								opened = false
-
-								winkeytext = nil
-								winmodetext = nil
-
-								if followConn then
-									followConn:Disconnect()
-									followConn = nil
-								end
-
-								if outsideConn then
-									outsideConn:Disconnect()
-									outsideConn = nil
-								end
-
-								if instance then
-									instance:Destroy()
-									instance = nil
-								end
-							end
-
-							keybox.MouseButton1Click:Connect(startbind)
-
-							keybox.MouseButton2Click:Connect(function()
-								if opened then
-									picker:Close()
-								else
-									openminiwindow()
-								end
-							end)
-
-							trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if waiting_for_key then return end
-								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-								if not currentkey or input.KeyCode ~= currentkey then return end
-
-								if Mode == "Toggle" then
-									setState(not active)
-								elseif Mode == "Hold" then
-									setState(true)
-								end
-							end))
-
-							trackConnection(InputService.InputEnded:Connect(function(input)
-								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-								if not currentkey or input.KeyCode ~= currentkey then return end
-
-								if Mode == "Hold" then
-									setState(false)
-								end
-							end))
-
-							updatetexts()
-
-							if Mode == "Always" then
-								setState(true)
-							end
-
-							library.windowinstances.Keybindbox = picker
-
-							return picker
-						end
-
-						return label
-					end
-
-					function groupbox:AddToggle(name, opts)
-						local toggle = {}
-						local togglename = name
-						local toggled = opts.Default
-
-						if opts.Default == nil then
-							toggled = false
-						end
-
-						toggle.Value = toggled
-
-						local holder = library:Create("Frame", {
-							Name = "Holder";
-							Size = UDim2.new(0.95, 0,0, 20);
-							BackgroundTransparency = 1;
-							LayoutOrder = #elementsholder:GetChildren();
-							Parent = elementsholder;
-						})
-
-						local hb = library:Create("TextButton", {
-							Name = "Hitbox";
-							Size = UDim2.new(1, 0, 1, 0);
-							BackgroundTransparency = 1;
-							ZIndex = 2;
-							Text = "";
-							Parent = holder;
-						})
-
-						local elements = library:Create("Frame", {
-							Name = "Holder2";
-							Size = UDim2.new(1,0,1,0);
-							BackgroundTransparency = 1;
-							Parent = holder;
-						})
-
-						local uilistlayout = library:Create("UIListLayout", {
-							Name = "UIListLayout";
-							FillDirection = Enum.FillDirection.Horizontal;
-							HorizontalAlignment = Enum.HorizontalAlignment.Left;
-							SortOrder = Enum.SortOrder.LayoutOrder;
-							VerticalAlignment = Enum.VerticalAlignment.Center;
-							Padding = UDim.new(0, 0);
-							Parent = elements;
-						})
-
-						local boxelem = library:Create("Frame", {
-							Name = "Box";
-							Size = UDim2.new(0, 15, 0, 15);
-							BackgroundColor3 = library.AccentColor;
-							BackgroundTransparency = 1;
-							LayoutOrder = 1;
-							Parent = elements;
-						}, {
-							instancep = "BackgroundColor3";
-							tinstance = library.AccentColor;
-						})
-
-						local uis1 = library:Create("UIStroke", {
-							Name = "UIStroke";
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-							LineJoinMode = Enum.LineJoinMode.Miter;
-							Color = library.SecondaryColor;
-							Thickness = 1;
-
-							Parent = boxelem;
-						}, {
-							instancep = "Color";
-							tinstance = library.SecondaryColor;
-						})
-
-						local label = library:Create("TextLabel", {
-							Name = "Label";
-							Size = UDim2.new(0.772, 0, 1, 0);
-							BackgroundTransparency = 1;
-							Text = name;
-							TextColor3 = library.FontColor;
-							Font = library.Font;
-							TextSize = 13;
-							TextXAlignment = Enum.TextXAlignment.Left;
-							LayoutOrder = 2;
-							TextYAlignment = Enum.TextYAlignment.Center;
-							Parent = elements;
-						}, {
-							instancep = "TextColor3";
-							tinstance = library.FontColor;
-						}, {
-							instancep = "Font";
-							tinstance = library.Font;
-						})
-
-						local luip = library:Create("UIPadding", {
-							Name = "UIPadding";
-							PaddingLeft = UDim.new(0, 7);
-							PaddingRight = UDim.new(0, 0);
-							PaddingTop = UDim.new(0, 0);
-							PaddingBottom = UDim.new(0, 0);
-							Parent = label;
-						})
-
-						local luis = library:Create("UIStroke", {
-							Name = "UIStroke";
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-							Color = library.UIstroke;
-							Thickness = 1;
-
-							Parent = label;
-						}, {
-							instancep = "Color";
-							tinstance = library.UIstroke;
-						})
-
-						local luitextsize = library:Create("UITextSizeConstraint", {
-							Name = "UITextSizeConstraint";
-							MaxTextSize = 13;
-							Parent = label;
-						})
-
-						if toggled then
-							boxelem.BackgroundTransparency = 0
-						end
-
-						local function togglef()
-							toggled = not toggled
-
-							if toggled then
-								boxelem.BackgroundTransparency = 0
-							else
-								boxelem.BackgroundTransparency = 1
-							end
-
-							Toggles[togglename].value = toggled
-							toggle.Value = toggled
-
-							if opts.Callback then
-								opts.Callback(toggled)
-							end
-
-							if library.UpdateDependencyBoxes then
-								library:UpdateDependencyBoxes()
-							end
-						end
-
-						hb.MouseButton1Click:Connect(togglef)
-
-						Toggles[togglename] = {
-							value = toggled;
-							keypicker = nil;
-						}
-
-						function toggle:AddKeyPicker(name, opts)
-							if type(name) == "table" then
-								opts = name
-								name = togglename
-							end
-
-							opts = opts or {}
-
-							local keypicker = {}
-							local InputService = InputService or game:GetService("UserInputService")
-
-							local function resolvekey(k)
-								if typeof(k) == "EnumItem" then
-									return k
-								end
-
-								if type(k) == "string" then
-									local ok, res = pcall(function()
-										return Enum.KeyCode[k]
-									end)
-									if ok then
-										return res
-									end
-								end
-
-								return nil
-							end
-
-							local currentkey = resolvekey(opts.Default)
-							local Mode = opts.Mode or "Hold"
-							local modes = {"Hold", "Toggle", "Always"}
-
-							local opened = false
-							local instance
-							local followConn
-							local outsideConn
-							local waitkeyconn
-
-							local waiting_for_key = false
-
-							local winkeytext
-							local winmodetext
-
-							local ignoredkeys = {
-								library.Menukey;
-								Enum.KeyCode.Return,
-								Enum.KeyCode.End,
-								Enum.KeyCode.Home,
-								Enum.KeyCode.PageUp,
-								Enum.KeyCode.PageDown,
-							}
-
-							local ignoredset = {}
-							for _, k in next, ignoredkeys do
-								if k then
-									ignoredset[k] = true
-								end
-							end
-
-							if not Toggles[togglename].keypicker then
-								Toggles[togglename].keypicker = keypicker
-							else
-								warn("KeyPicker already exists for toggle: "..togglename)
-								return 
-							end
-
-							keypicker.Key = currentkey
-							keypicker.Mode = Mode
-							keypicker.OnChanged = newSignal()
-							Options[name] = keypicker
-
-							local keyframe = library:Create("Frame", {
-								Name = "KeyPicker",
-								Size = UDim2.new(0, 50, 0, 15),
-								LayoutOrder = 999;
-								BackgroundColor3 = library.MainColor,
-								Parent = elements;
-							},{
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local uistrokekey = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = keyframe,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local keybox = library:Create("TextButton", {
-								Name = "KeyBox",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 4,
-								Parent = keyframe,
-							})
-
-							local keytext = library:Create("TextLabel", {
-								Name = "KeyText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "None",
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								Parent = keyframe,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local function setState(state)
-								if toggled == state then return end
-								togglef()
-								Toggles[togglename].value = toggled
-							end
-
-							local function updatetexts()
-								local t
-								if waiting_for_key then
-									t = "..."
-								elseif currentkey then
-									t = keyshorts[currentkey] or currentkey.Name
-								else
-									t = "None"
-								end
-
-								keytext.Text = t
-								if winkeytext then
-									winkeytext.Text = t
-								end
-								if winmodetext then
-									winmodetext.Text = Mode
-								end
-							end
-
-							local function setKey(k)
-								currentkey = k
-								keypicker.Key = k
-								updatetexts()
-
-								if opts.CallbackKey then
-									opts.CallbackKey(k)
-								end
-
-								keypicker.OnChanged:Fire(currentkey, Mode)
-							end
-
-							local function setMode(m)
-								Mode = m
-								keypicker.Mode = m
-								updatetexts()
-
-								setState(m == "Always")
-
-								if opts.CallbackMode then
-									opts.CallbackMode(m)
-								end
-
-								keypicker.OnChanged:Fire(currentkey, Mode)
-							end
-
-							local function startbind()
-								if waiting_for_key then
-									return
-								end
-
-								waiting_for_key = true
-								updatetexts()
-
-								waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-									if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-									if ignoredset[input.KeyCode] then return end
-
-									if waitkeyconn then
-										waitkeyconn:Disconnect()
-										waitkeyconn = nil
-									end
-
-									task.defer(function()
-										waiting_for_key = false
-										updatetexts()
-									end)
-
-									if input.KeyCode == Enum.KeyCode.Backspace then
-										setKey(nil)
-									else
-										setKey(input.KeyCode)
-									end
-								end))
-							end
-
-							local function openminiwindow()
-								opened = true
-
-								local function getPos()
-									local abs = keyframe.AbsolutePosition
-									local base = screengui.AbsolutePosition
-									return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
-								end
-
-								local cursorbox = library:Create("Frame", {
-									Name = "CursorBox";
-									Size = UDim2.new(0, 15,0, 15);
-									Position = getPos();
-									BackgroundColor3 = Color3.new(1,1,1);
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = screengui;
-								})
-
-								instance = cursorbox
-
-								followConn = keyframe:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-									if instance then
-										instance.Position = getPos()
-									end
-								end)
-
-								local framewindow = library:Create("Frame", {
-									Name = "Frame";
-									Size = UDim2.new(0, 323,0, 93);
-									Position = UDim2.new(1, 0,1.4, 0);
-									BackgroundColor3 = library.MainColor;
-									ZIndex = 2;
-									Parent = cursorbox;
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local uistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									LineJoinMode = Enum.LineJoinMode.Miter;
-									Color = library.SecondaryColor;
-									Thickness = 1;
-									Parent = framewindow;
-								}, {
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local uistroke2 = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									LineJoinMode = Enum.LineJoinMode.Miter;
-									Color = library.MainColor;
-									Thickness = 4;
-									Parent = framewindow;
-								}, {
-									instancep = "Color";
-									tinstance = library.MainColor;
-								})
-
-								local text = library:Create("TextLabel", {
-									Name = "TextLabel";
-									Size = UDim2.new(1, 0,0, 16);
-									Position = UDim2.new(0, 0,0, 0);
-									Text = name;
-									TextColor3 = library.FontColor;
-									Font = library.Font;
-									TextSize = 13;
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local textuistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = text;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local textuisize = library:Create("UITextSizeConstraint", {
-									Name = "UISizeConstraint";
-									MaxTextSize = 13;
-									Parent = text;
-								})
-
-								local holder = library:Create("Frame", {
-									Name = "Holder";
-									Size = UDim2.new(1, 0,-0.228, 96);
-									Position = UDim2.new(0, 0,0.195, 0);
-									BackgroundTransparency = 1;
-									ZIndex = 2;
-									Parent = framewindow;
-								})
-
-								local uill = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									Padding = UDim.new(0, 5);
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									FillDirection = Enum.FillDirection.Vertical;
-									HorizontalAlignment = Enum.HorizontalAlignment.Center;
-									VerticalAlignment = Enum.VerticalAlignment.Top;
-									Parent = holder;
-								})
-
-								local uipadd = library:Create("UIPadding", {
-									Name = "UIPadding";
-									PaddingLeft = UDim.new(0, 0);
-									PaddingRight = UDim.new(0, 0);
-									PaddingTop = UDim.new(0, 3);
-									PaddingBottom = UDim.new(0, 0);
-									Parent = holder;
-								})
-
-								local keysetbind = library:Create("Frame", {
-									Name = "KeysetBind";
-									Size = UDim2.new(.95, 0,0, 20);
-									BackgroundTransparency = 1;
-									LayoutOrder = 1;
-									Parent = holder;
-									ZIndex = 2;
-								})
-
-								local keybindsetuil = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									Padding = UDim.new(0, 0);
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									FillDirection = Enum.FillDirection.Horizontal;
-									HorizontalAlignment = Enum.HorizontalAlignment.Left;
-									VerticalAlignment = Enum.VerticalAlignment.Center;
-									Parent = keysetbind;
-								})
-
-								local keylabelset = library:Create("TextLabel", {
-									Name = "KeyLabel";
-									Size = UDim2.new(1, -55,1, 0);
-									BackgroundTransparency = 1;
-									Text = "Keybind";
-									TextColor3 = library.FontColor;
-									TextSize = 13;
-									TextXAlignment = Enum.TextXAlignment.Left;
-									TextYAlignment = Enum.TextYAlignment.Center;
-									Font = library.Font;
-									LayoutOrder = 1;
-									ZIndex = 2;
-									Parent = keysetbind;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local labeluistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = keylabelset;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local labeltsize = library:Create("UITextSizeConstraint", {
-									Name = "UITextSizeConstraint";
-									MaxTextSize = 13;
-									Parent = keylabelset;
-								})
-
-								local winkeyframe = library:Create("Frame", {
-									Name = "KeyPicker",
-									Size = UDim2.new(0, 50, 0, 15),
-									LayoutOrder = 2;
-									BackgroundColor3 = library.MainColor,
-									ZIndex = 2;
-									Parent = keysetbind,
-								},{
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local winuistrokekey = library:Create("UIStroke", {
-									Name = "UIStroke",
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-									Color = library.SecondaryColor,
-									Thickness = 1,
-									Parent = winkeyframe,
-								},{
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local winkeybox = library:Create("TextButton", {
-									Name = "KeyBox",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "",
-									ZIndex = 3,
-									Parent = winkeyframe,
-								})
-
-								winkeytext = library:Create("TextLabel", {
-									Name = "KeyText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "None",
-									TextColor3 = library.FontColor,
-									TextSize = 13,
-									Font = library.Font,
-									TextXAlignment = Enum.TextXAlignment.Center,
-									ZIndex = 2,
-									Parent = winkeyframe,
-								},{
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-
-								local modesetbind = library:Create("Frame", {
-									Name = "ModesetBind";
-									Size = UDim2.new(.95, 0,0, 20);
-									BackgroundTransparency = 1;
-									LayoutOrder = 2;
-									Parent = holder;
-									ZIndex = 2;
-								})
-
-								local modesetuil = library:Create("UIListLayout", {
-									Name = "UIListLayout";
-									Padding = UDim.new(0, 0);
-									SortOrder = Enum.SortOrder.LayoutOrder;
-									FillDirection = Enum.FillDirection.Horizontal;
-									HorizontalAlignment = Enum.HorizontalAlignment.Left;
-									VerticalAlignment = Enum.VerticalAlignment.Center;
-									Parent = modesetbind;
-								})
-
-								local modelabelset = library:Create("TextLabel", {
-									Name = "ModeLabel";
-									Size = UDim2.new(1, -55,1, 0);
-									BackgroundTransparency = 1;
-									Text = "Mode";
-									TextColor3 = library.FontColor;
-									TextSize = 13;
-									TextXAlignment = Enum.TextXAlignment.Left;
-									TextYAlignment = Enum.TextYAlignment.Center;
-									Font = library.Font;
-									LayoutOrder = 1;
-									ZIndex = 2;
-									Parent = modesetbind;
-								}, {
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local labelmuistroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-									Color = library.UIstroke;
-									Thickness = 1;
-									Parent = modelabelset;
-								}, {
-									instancep = "Color";
-									tinstance = library.UIstroke;
-								})
-
-								local labelmtsize = library:Create("UITextSizeConstraint", {
-									Name = "UITextSizeConstraint";
-									MaxTextSize = 13;
-									Parent = modelabelset;
-								})
-
-								local modeframe = library:Create("Frame", {
-									Name = "ModePicker",
-									Size = UDim2.new(0, 50, 0, 15),
-									LayoutOrder = 2;
-									BackgroundColor3 = library.MainColor,
-									ZIndex = 2;
-									Parent = modesetbind,
-								},{
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local uistrokemode = library:Create("UIStroke", {
-									Name = "UIStroke",
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-									Color = library.SecondaryColor,
-									Thickness = 1,
-									Parent = modeframe,
-								},{
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local Modebox = library:Create("TextButton", {
-									Name = "ModeBox",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "",
-									ZIndex = 3,
-									Parent = modeframe,
-								})
-
-								winmodetext = library:Create("TextLabel", {
-									Name = "ModeText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = Mode,
-									TextColor3 = library.FontColor,
-									TextSize = 13,
-									Font = library.Font,
-									TextXAlignment = Enum.TextXAlignment.Center,
-									ZIndex = 2,
-									Parent = modeframe,
-								},{
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local unbindbox = library:Create("Frame", {
-									Name = "UnbindBox",
-									Size = UDim2.new(0.95, 0,0, 15),
-									LayoutOrder = 3,
-									BackgroundColor3 = library.MainColor,
-									ZIndex = 2,
-									Parent = holder,
-								}, {
-									instancep = "BackgroundColor3";
-									tinstance = library.MainColor;
-								})
-
-								local unbindstroke = library:Create("UIStroke", {
-									Name = "UIStroke",
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-									Color = library.SecondaryColor,
-									Thickness = 1,
-									Parent = unbindbox,
-								},{
-									instancep = "Color";
-									tinstance = library.SecondaryColor;
-								})
-
-								local unbindtext = library:Create("TextLabel", {
-									Name = "UnbindText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "Unbind",
-									TextColor3 = library.FontColor,
-									TextSize = 13,
-									Font = library.Font,
-									TextXAlignment = Enum.TextXAlignment.Center,
-									ZIndex = 2,
-									Parent = unbindbox,
-								},{
-									instancep = "TextColor3";
-									tinstance = library.FontColor;
-								}, {
-									instancep = "Font";
-									tinstance = library.Font;
-								})
-
-								local unbindboxt = library:Create("TextButton", {
-									Name = "UnbindBoxText",
-									Size = UDim2.new(1, 0, 1, 0),
-									BackgroundTransparency = 1,
-									Text = "",
-									ZIndex = 3,
-									Parent = unbindbox,
-								})
-
-								winkeybox.MouseButton1Click:Connect(startbind)
-
-								Modebox.MouseButton1Click:Connect(function()
-									local index = table.find(modes, Mode) or 1
-									setMode(modes[index % #modes + 1])
-								end)
-
-								unbindboxt.MouseButton1Click:Connect(function()
-									setKey(nil)
-								end)
-
-								updatetexts()
-
-								outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
-									if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-										return
-									end
-
-									local function isInside(gui)
-										local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
-										local m = input.Position
-										return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
-									end
-
-									if isInside(framewindow) or isInside(keyframe) then
-										return
-									end
-
-									keypicker:Close()
-								end))
-							end
-
-							function keypicker:Close()
-								if not opened then return end
-								opened = false
-
-								winkeytext = nil
-								winmodetext = nil
-
-								if followConn then
-									followConn:Disconnect()
-									followConn = nil
-								end
-
-								if outsideConn then
-									outsideConn:Disconnect()
-									outsideConn = nil
-								end
-
-								if instance then
-									instance:Destroy()
-									instance = nil
-								end
-							end
-
-							keybox.MouseButton1Click:Connect(startbind)
-
-							keybox.MouseButton2Click:Connect(function()
-								if opened then
-									keypicker:Close()
-								else
-									openminiwindow()
-								end
-							end)
-
-							trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-								if not currentkey or input.KeyCode ~= currentkey then return end
-
-								if Mode == "Toggle" then
-									setState(not toggled)
-								elseif Mode == "Hold" then
-									setState(true)
-								end
-							end))
-
-							trackConnection(InputService.InputEnded:Connect(function(input)
-								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-								if not currentkey or input.KeyCode ~= currentkey then return end
-
-								if Mode == "Hold" then
-									setState(false)
-								end
-							end))
-
-							updatetexts()
-
-							if Mode == "Always" then
-								setState(true)
-							end
-
-							library.windowinstances.Keybindbox = keypicker
-
-							return keypicker
-						end
-
-						return toggle
-					end
-
-					function groupbox:AddSlider(name, opts)
-						opts = opts or {}
-
-						local slider = {}
-						local UIS = InputService
-
-						local config = {
-							Minimum = opts.Minimum;
-							Maximum = opts.Maximum;
-							DefaultValue = opts.Default;
-							Step = opts.Step;
-							Format = opts.Format;
-						}
-
-						local range = config.Maximum - config.Minimum
-						if range <= 0 then
-							range = 1
-						end
-
-						local stepsize = config.Step > 0 and config.Step
-
-						local function decimalsof(n)
-							local d = tostring(n):match("%.(%d+)")
-							return d and #d or 0
-						end
-
-						local decimals = opts.Rounding or math.max(decimalsof(stepsize), decimalsof(config.Minimum))
-
-						local currentvalue = config.Minimum
-						local dragging = false
-
-						local mainframe = library:Create("Frame", {
-							Name = "Slider",
-							Size = UDim2.new(0.95, 0, 0, 15),
-							BackgroundTransparency = 1,
-							LayoutOrder = #elementsholder:GetChildren(),
-							Parent = elementsholder,
-						})
-
-						if opts.Smaller then
-							mainframe.Size = UDim2.new(0.465, 0, 0, 15)
-						end
-
-						local uistroke = library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							LineJoinMode = Enum.LineJoinMode.Miter,
-							Parent = mainframe,
-						}, {
-							instancep = "Color";
-							tinstance = library.SecondaryColor;
-						})
-
-						local frame = library:Create("Frame", {
-							Name = "Frame",
-							Size = UDim2.new(0, 0, 1, 0),
-							BackgroundColor3 = library.AccentColor,
-							Parent = mainframe,
-						}, {
-							instancep = "BackgroundColor3";
-							tinstance = library.AccentColor;
-						})
-
-						local hitbox = library:Create("TextButton", {
-							Name = "Hitbox",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = "",
-							ZIndex = 3,
-							Parent = mainframe,
-						})
-
-						local text = library:Create("TextLabel", {
-							Name = "Text",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = name,
-							TextColor3 = library.FontColor,
-							Font = library.Font,
-							TextSize = 13,
-							TextXAlignment = Enum.TextXAlignment.Center,
-							TextYAlignment = Enum.TextYAlignment.Center,
-							ZIndex = 2,
-							Parent = mainframe,
-						}, {
-							instancep = "TextColor3";
-							tinstance = library.FontColor;
-						}, {
-							instancep = "Font";
-							tinstance = library.Font;
-						})
-
-						local uistoke2 = library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-							Color = library.UIstroke,
-							Thickness = 1,
-							LineJoinMode = Enum.LineJoinMode.Round,
-							Parent = text,
-						}, {
-							instancep = "Color";
-							tinstance = library.UIstroke;
-						})
-
-						local textuisize = library:Create("UITextSizeConstraint", {
-							Name = "UITextSizeConstraint",
-							MaxTextSize = 13,
-							Parent = text,
-						})
-
-						local function fmt(n)
-							return tostring(n)
-						end
-
-						local function refreshui()
-							local alpha = (currentvalue - config.Minimum) / range
-							frame.Size = UDim2.new(math.clamp(alpha, 0, 1), 0, 1, 0)
-
-							local suffix = ""
-							if config.Format ~= "" then
-								suffix = " " .. config.Format
-							end
-
-							text.Text = name .. ": " .. fmt(currentvalue) .. "/" .. fmt(config.Maximum) .. suffix
-						end
-
-						local function setvalue(v, silent)
-							v = math.clamp(v, config.Minimum, config.Maximum)
-							v = config.Minimum + math.floor((v - config.Minimum) / stepsize + 0.5) * stepsize
-							v = math.clamp(v, config.Minimum, config.Maximum)
-							v = tonumber(string.format("%." .. decimals .. "f", v))
-
-							local changed = v ~= currentvalue
-							currentvalue = v
-							slider.Value = v
-							refreshui()
-
-							if changed and not silent then
-								if opts.Callback then
-									opts.Callback(v)
-								end
-
-								slider.OnChanged:Fire(v)
-							end
-						end
-
-						slider.Value = currentvalue
-						slider.OnChanged = newSignal()
-						Options[name] = slider
-
-						function slider:SetValue(v)
-							setvalue(v)
-						end
-
-						function slider:GetValue()
-							return currentvalue
-						end
-
-						setvalue(config.DefaultValue, true)
-
-						local moveConn
-						local endConn
-
-						local function stop()
-							dragging = false
-
-							if moveConn then
-								moveConn:Disconnect()
-								moveConn = nil
-							end
-
-							if endConn then
-								endConn:Disconnect()
-								endConn = nil
-							end
-						end
-
-						local function drag(input)
-							local pos, size = mainframe.AbsolutePosition, mainframe.AbsoluteSize
-							local alpha = math.clamp((input.Position.X - pos.X) / size.X, 0, 1)
-							setvalue(config.Minimum + alpha * range)
-						end
-
-						trackConnection(hitbox.InputBegan:Connect(function(input)
-							if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-								stop()
-								dragging = true
-								drag(input)
-
-								moveConn = trackConnection(UIS.InputChanged:Connect(function(i)
-									if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-										drag(i)
-									end
-								end))
-
-								endConn = trackConnection(UIS.InputEnded:Connect(function(i)
-									if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-										stop()
-									end
-								end))
-							end
-						end))
-
-						return slider
-					end
-
-					function groupbox:AddButton(name , opts)
-						opts = opts or {}
-
-						local button = {}
-
-						local warnclick = opts.WarnClick or opts.Warn or false
-						local smaller = opts.Smaller or false
-						local armed = false
-						local armtoken = 0
-
-						local Holder = library:Create("Frame", {
-							Name = "Button",
-							Size = smaller and UDim2.new(0.465, 0, 0, 15) or UDim2.new(0.95, 0,0, 15),
-							LayoutOrder = #elementsholder:GetChildren(),
-							BackgroundColor3 = library.MainColor,
-							Parent = elementsholder,
-						}, {
-							instancep = "BackgroundColor3";
-							tinstance = library.MainColor;
-						})
-
-						local stroketext = library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							Parent = Holder,
-						},{
-							instancep = "Color";
-							tinstance = library.SecondaryColor;
-						})
-
-						local text = library:Create("TextLabel", {
-							Name = "text",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = name,
-							TextColor3 = library.FontColor,
-							TextSize = 13,
-							Font = library.Font,
-							TextXAlignment = Enum.TextXAlignment.Center,
-							ZIndex = 2,
-							Parent = Holder,
-						},{
-							instancep = "TextColor3";
-							tinstance = library.FontColor;
-						}, {
-							instancep = "Font";
-							tinstance = library.Font;
-						})
-
-						local uistroke = library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-							Color = library.UIstroke,
-							Thickness = 1,
-							Parent = text,
-						},{
-							instancep = "Color";
-							tinstance = library.UIstroke;
-						})
-
-						local textsizecon = library:Create("UITextSizeConstraint", {
-							Name = "UITextSizeConstraint",
-							MaxTextSize = 13,
-							Parent = text,
-						})
-
-						local Textbutton = library:Create("TextButton", {
-							Name = "Boxhit",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = "",
-							ZIndex = 3,
-							Parent = Holder,
-						})
-
-						local function disarm()
-							armed = false
-							armtoken += 1
-							text.Text = name
-							text.TextColor3 = library.FontColor
-						end
-
-						Textbutton.MouseButton1Click:Connect(function()
-							if warnclick and not armed then
-								armed = true
-								text.Text = "Are you sure?"
-								text.TextColor3 = Color3.fromRGB(255, 0, 0)
-
-								armtoken += 1
-								local mytoken = armtoken
-
-								task.delay(2, function()
-									if armed and armtoken == mytoken then
-										disarm()
-									end
-								end)
-
-								return
-							end
-
-							if armed then
-								disarm()
-							end
-
-							if opts.Callback then
-								opts.Callback()
-							end
-						end)
-
-						return button
-					end
-
-					function groupbox:AddDependencyBox()
-						local dependencybox = {}
-						dependencybox.Dependencies = {}
-
-						local groupbox = self
-						local Container = elementsholder
-
-						local Holder = library:Create("Frame", {
-							Name = "DependencyBox";
-							BackgroundTransparency = 1;
-							Size = UDim2.new(1, 0, 0, 0);
-							AutomaticSize = Enum.AutomaticSize.Y;
-							LayoutOrder = #Container:GetChildren();
-							Visible = false;
-							Parent = Container;
-						})
-
-						local Frame = library:Create("Frame", {
-							Name = "Elements";
-							BackgroundTransparency = 1;
-							Size = UDim2.new(1, 0, 0, 0);
-							AutomaticSize = Enum.AutomaticSize.Y;
-							Parent = Holder;
-						})
-
-						local Layout = library:Create("UIListLayout", {
-							Name = "UIListLayout";
-							FillDirection = Enum.FillDirection.Horizontal;
-							Wraps = true;
-							HorizontalAlignment = Enum.HorizontalAlignment.Center;
-							VerticalAlignment = Enum.VerticalAlignment.Top;
-							SortOrder = Enum.SortOrder.LayoutOrder;
-							Padding = UDim.new(0, 5);
-							Parent = Frame;
-						})
-
-						local order = 0
-
-						local function wrap(fname)
-							if typeof(groupbox[fname]) ~= "function" then
-								return
-							end
-
-							dependencybox[fname] = function(_, ...)
-								local before = {}
-
-								for _, child in ipairs(Container:GetChildren()) do
-									before[child] = true
-								end
-
-								local result = groupbox[fname](groupbox, ...)
-
-								for _, child in ipairs(Container:GetChildren()) do
-									if not before[child] then
-										order += 1
-										child.LayoutOrder = order
-										child.Parent = Frame
-									end
-								end
-
-								return result
-							end
-						end
-
-						for _, fname in ipairs({"AddLabel", "AddToggle", "AddSlider", "AddButton", "AddTextbox", "AddDropdown", "AddDependencyBox", "Divider"}) do
-							wrap(fname)
-						end
-
-						function dependencybox:Update()
-							for _, Dependency in next, dependencybox.Dependencies do
-								local Element = Dependency[1]
-								local Value = Dependency[2]
-
-								local current = Element.Value
-								if current == nil then
-									current = Element.value
-								end
-
-								if current ~= Value then
-									Holder.Visible = false
-									return
-								end
-							end
-
-							Holder.Visible = true
-						end
-
-						function dependencybox:SetupDependencies(Dependencies)
-							for _, Dependency in next, Dependencies do
-								assert(typeof(Dependency) == "table", "SetupDependencies: Dependency is not of type `table`.")
-								assert(Dependency[1], "SetupDependencies: Dependency is missing element argument.")
-								assert(Dependency[2] ~= nil, "SetupDependencies: Dependency is missing value argument.")
-							end
-
-							dependencybox.Dependencies = Dependencies
-							dependencybox:Update()
-						end
-
-						table.insert(groupbox.elements, dependencybox)
-						table.insert(library.DependencyBoxes, dependencybox)
-
-						return dependencybox
-					end
-
-					function groupbox:Divider()
-						local divider = {}
-
-						local frame = library:Create("Frame", {
-							Name = "Divider",
-							Size = UDim2.new(0.95, 0, 0, 3),
-							BackgroundColor3 = library.MainColor,
-							LayoutOrder = #elementsholder:GetChildren(),
-							Parent = elementsholder,
-						}, {
-							instancep = "BackgroundColor3";
-							tinstance = library.MainColor;
-						})
-
-						local uistroke1 = library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							ZIndex = 2,
-							Parent = frame,
-						}, {
-							instancep = "Color";
-							tinstance = library.SecondaryColor;
-						})
-
-						return divider
-					end
-
-					function groupbox:AddDropdown(name, opts)
-						opts = opts or {}
-
-						library.Options = library.Options or {}
-
-						--==========================================================
-						-- REUSE AN EXISTING DROPDOWN
-						--==========================================================
-
-						local existing = library.Options[name]
-
-						if existing then
-							if existing.Type == "Dropdown"
-								and existing.Controller
-								and type(existing.Controller.Refresh) == "function" then
-
-								local controller = existing.Controller
-
-								if opts.Text ~= nil then
-									controller:SetText(opts.Text)
-								end
-
-								if opts.Callback ~= nil then
-									controller:SetCallback(opts.Callback)
-								end
-
-								if opts.Values ~= nil then
-									controller:Refresh(opts.Values, opts.Default)
-								elseif opts.Default ~= nil then
-									controller:SetValue(opts.Default, true)
-								end
-
-								return controller
-							end
-
-							warn("An option named '" .. tostring(name) .. "' already exists.")
-							return nil
-						end
-
-						--==========================================================
-						-- STATE
-						--==========================================================
-
-						local Dropdown = {}
-
-						local values = {}
-						local elements = {}
-						local selectedIndices = {}
-						local connections = {}
-
-						local picked = nil
-						local isOpen = false
-						local destroyed = false
-
-						local multi = opts.Multipick == true
-						local callback = opts.Callback
-
-						local rowHeight = 20
-						local rowGap = 3
-						local padding = 4
-
-						local requestedVisible = tonumber(opts.MaxVisibleItems) or 10
-
-						if requestedVisible ~= requestedVisible then
-							requestedVisible = 10
-						end
-
-						local maxVisibleItems = math.clamp(
-							math.floor(requestedVisible),
-							1,
-							30
-						)
-
-						local changedEvent = Instance.new("BindableEvent")
-
-						local option = {
-							Type = "Dropdown",
-							Name = name,
-							Value = multi and {} or nil,
-							Values = values,
-							OnChanged = changedEvent.Event,
-							Controller = Dropdown,
-						}
-
-						library.Options[name] = option
-
-						local function connect(signal, fn)
-							local connection = signal:Connect(fn)
-							table.insert(connections, connection)
-							return connection
-						end
-
-						local function copyUnique(source)
-							local result = {}
-							local seen = {}
-
-							if type(source) ~= "table" then
-								return result
-							end
-
-							for _, value in ipairs(source) do
-								local supported = type(value) == "string"
-									or (
-										type(value) == "number"
-										and value == value
-										and value > -math.huge
-										and value < math.huge
-									)
-
-								if supported and not seen[value] then
-									seen[value] = true
-									table.insert(result, value)
-								end
-							end
-
-							return result
-						end
-
-						local function findIndex(value)
-							if type(value) == "number" then
-								if value % 1 == 0 and value >= 1 and value <= #values then
-									return value
-								end
-
-								return nil
-							end
-
-							return table.find(values, value)
-						end
-
-						local function getValue()
-							if not multi then
-								return picked
-							end
-
-							local selected = {}
-
-							for index, value in ipairs(values) do
-								if selectedIndices[index] then
-									table.insert(selected, value)
-								end
-							end
-
-							return selected
-						end
-
-						local function equalValues(a, b)
-							if type(a) ~= type(b) then
-								return false
-							end
-
-							if type(a) ~= "table" then
-								return a == b
-							end
-
-							if #a ~= #b then
-								return false
-							end
-
-							for index, value in ipairs(a) do
-								if b[index] ~= value then
-									return false
-								end
-							end
-
-							return true
-						end
-
-						--==========================================================
-						-- MAIN UI
-						--==========================================================
-
-						local main = library:Create("Frame", {
-							Name = "Dropdown",
-							ZIndex = 10,
-							Size = UDim2.new(0.95, 0, 0, 0),
-							AutomaticSize = Enum.AutomaticSize.Y,
-							LayoutOrder = #elementsholder:GetChildren(),
-							BackgroundTransparency = 1,
-							Parent = elementsholder,
-						})
-
-						library:Create("UIListLayout", {
-							FillDirection = Enum.FillDirection.Vertical,
-							HorizontalAlignment = Enum.HorizontalAlignment.Center,
-							VerticalAlignment = Enum.VerticalAlignment.Top,
-							Padding = UDim.new(0, 5),
-							SortOrder = Enum.SortOrder.LayoutOrder,
-							Parent = main,
-						})
-
-						local header = library:Create("TextLabel", {
-							Name = "Header",
-							ZIndex = 11,
-							Size = UDim2.new(1, 0, 0, 15),
-							LayoutOrder = 1,
-							BackgroundTransparency = 1,
-							Text = tostring(opts.Text or name),
-							Font = library.Font,
-							TextColor3 = library.FontColor,
-							TextSize = 13,
-							TextXAlignment = Enum.TextXAlignment.Left,
-							Parent = main,
-						}, {
-							instancep = "TextColor3",
-							tinstance = library.FontColor,
-						}, {
-							instancep = "Font",
-							tinstance = library.Font,
-						})
-
-						library:Create("UIStroke", {
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-							Color = library.UIstroke,
-							Thickness = 1,
-							Parent = header,
-						}, {
-							instancep = "Color",
-							tinstance = library.UIstroke,
-						})
-
-						local dropdownFrame = library:Create("Frame", {
-							Name = "DropdownFrame",
-							ZIndex = 10,
-							Size = UDim2.new(1, 0, 0, 0),
-							AutomaticSize = Enum.AutomaticSize.Y,
-							LayoutOrder = 2,
-							BackgroundTransparency = 1,
-							ClipsDescendants = false,
-							Parent = main,
-						})
-
-						library:Create("UIListLayout", {
-							FillDirection = Enum.FillDirection.Vertical,
-							HorizontalAlignment = Enum.HorizontalAlignment.Center,
-							VerticalAlignment = Enum.VerticalAlignment.Top,
-							SortOrder = Enum.SortOrder.LayoutOrder,
-							Padding = UDim.new(0, 3),
-							Parent = dropdownFrame,
-						})
-
-						local selectionRow = library:Create("Frame", {
-							Name = "SelectionRow",
-							ZIndex = 11,
-							Size = UDim2.new(1, 0, 0, 22),
-							LayoutOrder = 1,
-							BackgroundTransparency = 1,
-							Parent = dropdownFrame,
-						})
-
-						library:Create("UIStroke", {
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							Parent = selectionRow,
-						}, {
-							instancep = "Color",
-							tinstance = library.SecondaryColor,
-						})
-
-						local selectedLabel = library:Create("TextLabel", {
-							Name = "Selected",
-							ZIndex = 12,
-							Size = UDim2.new(1, -25, 1, 0),
-							BackgroundTransparency = 1,
-							Text = "-",
-							Font = library.Font,
-							TextColor3 = library.FontColor,
-							TextSize = 12,
-							TextXAlignment = Enum.TextXAlignment.Left,
-							TextTruncate = Enum.TextTruncate.AtEnd,
-							Parent = selectionRow,
-						}, {
-							instancep = "Font",
-							tinstance = library.Font,
-						}, {
-							instancep = "TextColor3",
-							tinstance = library.FontColor,
-						})
-
-						library:Create("UIPadding", {
-							PaddingLeft = UDim.new(0, 6),
-							PaddingRight = UDim.new(0, 3),
-							Parent = selectedLabel,
-						})
-
-						library:Create("UIStroke", {
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-							Color = library.UIstroke,
-							Thickness = 1,
-							Parent = selectedLabel,
-						}, {
-							instancep = "Color",
-							tinstance = library.UIstroke,
-						})
-
-						local arrow = library:Create("ImageLabel", {
-							Name = "DropdownImage",
-							ZIndex = 13,
-							Size = UDim2.fromOffset(15, 15),
-							Position = UDim2.new(1, -19, 0.5, -7),
-							BackgroundTransparency = 1,
-							Image = "rbxassetid://10709767827",
-							ScaleType = Enum.ScaleType.Crop,
-							Parent = selectionRow,
-						})
-
-						local button = library:Create("TextButton", {
-							Name = "DropdownButton",
-							ZIndex = 14,
-							Size = UDim2.fromScale(1, 1),
-							BackgroundTransparency = 1,
-							Text = "",
-							AutoButtonColor = false,
-							Parent = selectionRow,
-						})
-
-						-- Fixed viewport height; canvas grows to fit every item.
-						local holder = library:Create("ScrollingFrame", {
-							Name = "Holder",
-							ZIndex = 20,
-							Size = UDim2.new(1, 0, 0, 0),
-							AutomaticSize = Enum.AutomaticSize.None,
-							AutomaticCanvasSize = Enum.AutomaticSize.None,
-							CanvasSize = UDim2.fromOffset(0, 0),
-							CanvasPosition = Vector2.zero,
-							LayoutOrder = 2,
-							BackgroundColor3 = library.MainColor,
-							BorderSizePixel = 0,
-							ScrollBarThickness = 3,
-							ScrollBarImageColor3 = library.AccentColor,
-							ScrollingDirection = Enum.ScrollingDirection.Y,
-							Visible = false,
-							ClipsDescendants = true,
-							Parent = dropdownFrame,
-						}, {
-							instancep = "BackgroundColor3",
-							tinstance = library.MainColor,
-						}, {
-							instancep = "ScrollBarImageColor3",
-							tinstance = library.AccentColor,
-						})
-
-						library:Create("UIStroke", {
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							Parent = holder,
-						}, {
-							instancep = "Color",
-							tinstance = library.SecondaryColor,
-						})
-
-						library:Create("UIListLayout", {
-							FillDirection = Enum.FillDirection.Vertical,
-							HorizontalAlignment = Enum.HorizontalAlignment.Center,
-							VerticalAlignment = Enum.VerticalAlignment.Top,
-							Padding = UDim.new(0, rowGap),
-							SortOrder = Enum.SortOrder.LayoutOrder,
-							Parent = holder,
-						})
-
-						library:Create("UIPadding", {
-							PaddingLeft = UDim.new(0, padding),
-							PaddingRight = UDim.new(0, padding),
-							PaddingTop = UDim.new(0, padding),
-							PaddingBottom = UDim.new(0, padding),
-							Parent = holder,
-						})
-
-						--==========================================================
-						-- TOP-LEVEL DROPDOWN OVERLAY
-						--==========================================================
-
-						local overlayRoot
-
-						local sourceScreenGui = main:FindFirstAncestorOfClass("ScreenGui")
-						local player = LocalPlayer
-						local playerGui = (sourceScreenGui and sourceScreenGui.Parent)
-							or (player and player:FindFirstChildOfClass("PlayerGui"))
-
-						if playerGui then
-							local highestDisplayOrder = 0
-
-							for _, child in ipairs(playerGui:GetChildren()) do
-								if child:IsA("ScreenGui") then
-									highestDisplayOrder = math.max(highestDisplayOrder, child.DisplayOrder)
-								end
-							end
-
-							overlayRoot = Instance.new("Frame")
-							overlayRoot.Name = "OverlayRoot"
-							overlayRoot.BackgroundTransparency = 1
-							overlayRoot.BorderSizePixel = 0
-							overlayRoot.Size = UDim2.fromScale(1, 1)
-							overlayRoot.Position = UDim2.fromScale(0, 0)
-							overlayRoot.Parent = Overlaygui
-
-							holder.Parent = overlayRoot
-						end
-
-						local function positionHolder()
-							if not overlayRoot or not holder or not holder.Parent then
-								return
-							end
-
-							local rootPosition = overlayRoot.AbsolutePosition
-							local rootSize = overlayRoot.AbsoluteSize
-							local rowPosition = selectionRow.AbsolutePosition
-							local rowSize = selectionRow.AbsoluteSize
-							local width = math.max(0, rowSize.X)
-							local height = holder.Size.Y.Offset
-							local x = rowPosition.X - rootPosition.X
-							local y = rowPosition.Y - rootPosition.Y + rowSize.Y + 3
-
-							if y + height > rootSize.Y then
-								y = rowPosition.Y - rootPosition.Y - height - 3
-							end
-
-							x = math.clamp(x, 0, math.max(0, rootSize.X - width))
-							y = math.clamp(y, 0, math.max(0, rootSize.Y - height))
-
-							holder.Position = UDim2.fromOffset(x, y)
-							holder.Size = UDim2.fromOffset(width, height)
-						end
-
-						--==========================================================
-						-- UI UPDATES
-						--==========================================================
-
-						local function updateHolderSize()
-							local count = #values
-							local visibleRows = math.min(count, maxVisibleItems)
-
-							local function heightFor(rows)
-								if rows == 0 then
-									return 0
-								end
-
-								return padding * 2
-									+ rows * rowHeight
-									+ math.max(0, rows - 1) * rowGap
-							end
-
-							local holderHeight = heightFor(visibleRows)
-
-							if overlayRoot then
-								holder.Size = UDim2.fromOffset(selectionRow.AbsoluteSize.X, holderHeight)
-							else
-								holder.Size = UDim2.new(1, 0, 0, holderHeight)
-							end
-
-							holder.CanvasSize = UDim2.fromOffset(0, heightFor(count))
-							holder.ScrollingEnabled = count > maxVisibleItems
-
-							if count == 0 then
-								isOpen = false
-							end
-
-							holder.Visible = isOpen and count > 0
-							arrow.Rotation = holder.Visible and 180 or 0
-							positionHolder()
-						end
-
-						local function updateSelectedText()
-							local current = getValue()
-							local hasSelection
-
-							if multi then
-								local display = {}
-
-								for _, value in ipairs(current) do
-									table.insert(display, tostring(value))
-								end
-
-								hasSelection = #display > 0
-								selectedLabel.Text = hasSelection
-									and table.concat(display, ", ")
-									or "-"
-							else
-								hasSelection = current ~= nil
-								selectedLabel.Text = hasSelection and tostring(current) or "-"
-							end
-
-							selectedLabel.TextColor3 = hasSelection
-								and library.AccentColor
-								or library.FontColor
-
-							option.Value = current
-						end
-
-						local function updateItems()
-							for index, item in ipairs(elements) do
-								local selected = multi
-									and selectedIndices[index] == true
-									or (not multi and picked == item.name)
-
-								item.button.Text = selected
-									and ("✓  " .. tostring(item.name))
-									or tostring(item.name)
-
-								item.button.TextColor3 = selected
-									and library.AccentColor
-									or library.FontColor
-							end
-						end
-
-						local function updateUI()
-							updateSelectedText()
-							updateItems()
-							updateHolderSize()
-						end
-
-						-- Reapply current theme values to already-created instances.
-						local function refreshTheme()
-							if destroyed then
-								return
-							end
-
-							local strokeColor = library.UIstroke or library.UIStroke or library.SecondaryColor
-
-							header.TextColor3 = library.FontColor
-							header.Font = library.Font
-							selectedLabel.Font = library.Font
-							holder.BackgroundColor3 = library.MainColor
-							holder.ScrollBarImageColor3 = library.AccentColor
-
-							if typeof(library.FontFace) == "Font" then
-								header.FontFace = library.FontFace
-								selectedLabel.FontFace = library.FontFace
-							end
-
-							for _, root in ipairs({ main, holder }) do
-								for _, descendant in ipairs(root:GetDescendants()) do
-									if descendant:IsA("UIStroke") then
-										if descendant.Parent == selectionRow or descendant.Parent == holder then
-											descendant.Color = library.SecondaryColor
-										else
-											descendant.Color = strokeColor
-										end
-									elseif descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
-										descendant.Font = library.Font
-
-										if typeof(library.FontFace) == "Font" then
-											descendant.FontFace = library.FontFace
-										end
-									end
-								end
-							end
-
-							updateSelectedText()
-							updateItems()
-						end
-
-						local function readThemeSnapshot()
-							return {
-								MainColor = library.MainColor,
-								SecondaryColor = library.SecondaryColor,
-								AccentColor = library.AccentColor,
-								FontColor = library.FontColor,
-								UIstroke = library.UIstroke,
-								UIStroke = library.UIStroke,
-								Font = library.Font,
-								FontFace = library.FontFace,
-							}
-						end
-
-						local function themeSnapshotChanged(previous, current)
-							for key, value in pairs(previous) do
-								if current[key] ~= value then
-									return true
-								end
-							end
-
-							return false
-						end
-
-						local function notifyChanged()
-							local value = getValue()
-
-							option.Value = value
-
-							changedEvent:Fire(
-								type(value) == "table" and table.clone(value) or value
-							)
-
-							if type(callback) == "function" then
-								local ok, err = pcall(
-									callback,
-									type(value) == "table" and table.clone(value) or value
-								)
-
-								if not ok then
-									warn(
-										"[Dropdown:" .. tostring(name) .. "] Callback failed:",
-										err
-									)
-								end
-							end
-						end
-
-						local function setValue(value, silent)
-							if destroyed then
-								return false
-							end
-
-							local previous = getValue()
-
-							if multi then
-								table.clear(selectedIndices)
-
-								local selections
-
-								if type(value) == "table" then
-									selections = value
-								elseif value ~= nil then
-									selections = { value }
-								else
-									selections = {}
-								end
-
-								for _, selection in ipairs(selections) do
-									local index = findIndex(selection)
-
-									if index then
-										selectedIndices[index] = true
-									end
-								end
-							else
-								local index = findIndex(value)
-								picked = index and values[index] or nil
-							end
-
-							updateUI()
-
-							local changed = not equalValues(previous, getValue())
-
-							if changed and not silent then
-								notifyChanged()
-							end
-
-							return changed
-						end
-
-						--==========================================================
-						-- ITEM CREATION / DELETION
-						--==========================================================
-
-						local function destroyItems()
-							for _, item in ipairs(elements) do
-								if item.connection then
-									item.connection:Disconnect()
-								end
-
-								item.button:Destroy()
-							end
-
-							table.clear(elements)
-						end
-
-						local function buildItems()
-							for index, itemName in ipairs(values) do
-								local item = {
-									name = itemName,
-									index = index,
-								}
-
-								local itemButton = library:Create("TextButton", {
-									Name = "Item_" .. tostring(index),
-									ZIndex = 21,
-									Size = UDim2.new(1, -4, 0, rowHeight),
-									BackgroundTransparency = 1,
-									Text = tostring(itemName),
-									TextSize = 13,
-									TextColor3 = library.FontColor,
-									Font = library.Font,
-									TextXAlignment = Enum.TextXAlignment.Left,
-									TextTruncate = Enum.TextTruncate.AtEnd,
-									LayoutOrder = index,
-									AutoButtonColor = false,
-									Parent = holder,
-								}, {
-									instancep = "Font",
-									tinstance = library.Font,
-								}, {
-									instancep = "TextColor3",
-									tinstance = library.FontColor,
-								})
-
-								library:Create("UIStroke", {
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-									Color = library.UIstroke or library.UIStroke or library.SecondaryColor,
-									Thickness = 1,
-									Parent = itemButton,
-								}, {
-									instancep = "Color",
-									tinstance = library.UIstroke or library.UIStroke or library.SecondaryColor,
-								})
-
-								if typeof(library.FontFace) == "Font" then
-									itemButton.FontFace = library.FontFace
-								end
-
-								item.button = itemButton
-								elements[index] = item
-
-								item.connection = itemButton.MouseButton1Click:Connect(function()
-									if destroyed then
-										return
-									end
-
-									local previous = getValue()
-
-									if multi then
-										if selectedIndices[index] then
-											selectedIndices[index] = nil
-										else
-											selectedIndices[index] = true
-										end
-									else
-										picked = itemName
-										isOpen = false
-									end
-
-									updateUI()
-
-									if not equalValues(previous, getValue()) then
-										notifyChanged()
-									end
-								end)
-							end
-						end
-
-						--==========================================================
-						-- PUBLIC VALUE METHODS
-						--==========================================================
-
-						function Dropdown:GetValue()
-							return getValue()
-						end
-
-						function Dropdown:GetIndex()
-							if multi then
-								local indices = {}
-
-								for index in ipairs(values) do
-									if selectedIndices[index] then
-										table.insert(indices, index)
-									end
-								end
-
-								return indices
-							end
-
-							return picked ~= nil and table.find(values, picked) or nil
-						end
-
-						function Dropdown:GetValues()
-							return table.clone(values)
-						end
-
-						function Dropdown:SetValue(value, silent)
-							return setValue(value, silent == true)
-						end
-
-						function Dropdown:GetInstance()
-							return selectedLabel
-						end
-
-						function Dropdown:SetText(text)
-							if not destroyed then
-								header.Text = tostring(text or name)
-							end
-
-							return self
-						end
-
-						function Dropdown:SetCallback(fn)
-							assert(
-								fn == nil or type(fn) == "function",
-								"Dropdown:SetCallback expects a function or nil"
-							)
-
-							callback = fn
-							return self
-						end
-
-						--==========================================================
-						-- REFRESH / CLEAR / REMOVE
-						--==========================================================
-
-						function Dropdown:Refresh(newValues, defaultValue, silent)
-							if destroyed then
-								return self
-							end
-
-							local refreshed = copyUnique(newValues)
-							local previous = getValue()
-
-							destroyItems()
-							table.clear(values)
-							table.clear(selectedIndices)
-							picked = nil
-
-							for _, value in ipairs(refreshed) do
-								table.insert(values, value)
-							end
-
-							buildItems()
-
-							if defaultValue ~= nil then
-								setValue(defaultValue, true)
-							else
-								if multi then
-									for _, oldValue in ipairs(previous) do
-										local index = table.find(values, oldValue)
-
-										if index then
-											selectedIndices[index] = true
-										end
-									end
-								elseif previous ~= nil and table.find(values, previous) then
-									picked = previous
-								end
-
-								updateUI()
-							end
-
-							holder.CanvasPosition = Vector2.zero
-
-							if silent == false and not equalValues(previous, getValue()) then
-								notifyChanged()
-							end
-
-							refreshTheme()
-
-							return self
-						end
-
-						function Dropdown:SetValues(newValues, defaultValue, silent)
-							return self:Refresh(newValues, defaultValue, silent)
-						end
-
-						function Dropdown:Clear(silent)
-							return self:Refresh({}, nil, silent)
-						end
-
-						function Dropdown:AddItem(itemName)
-							if destroyed then
-								return nil
-							end
-
-							local existingIndex = table.find(values, itemName)
-
-							if existingIndex then
-								return elements[existingIndex]
-							end
-
-							local updated = table.clone(values)
-							table.insert(updated, itemName)
-
-							self:Refresh(updated)
-
-							local index = table.find(values, itemName)
-							return index and elements[index] or nil
-						end
-
-						function Dropdown:RemoveItem(itemName, silent)
-							if destroyed then
-								return false
-							end
-
-							local index = table.find(values, itemName)
-
-							if not index then
-								return false
-							end
-
-							local updated = table.clone(values)
-							table.remove(updated, index)
-
-							self:Refresh(updated, nil, silent)
-
-							return true
-						end
-
-						function Dropdown:Open()
-							if not destroyed and #values > 0 then
-								isOpen = true
-								updateHolderSize()
-							end
-
-							return self
-						end
-
-						function Dropdown:Close()
-							if not destroyed then
-								isOpen = false
-								updateHolderSize()
-							end
-
-							return self
-						end
-
-						--==========================================================
-						-- OVERLAY TRACKING + LIVE THEME WATCHER
-						--==========================================================
-
-						if overlayRoot then
-							connect(selectionRow:GetPropertyChangedSignal("AbsolutePosition"), positionHolder)
-							connect(selectionRow:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
-							connect(overlayRoot:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
-						end
-
-						local themeSnapshot = readThemeSnapshot()
-
-						connect(game:GetService("RunService").Heartbeat, function()
-							if destroyed then
-								return
-							end
-
-							local currentSnapshot = readThemeSnapshot()
-
-							if themeSnapshotChanged(themeSnapshot, currentSnapshot) then
-								themeSnapshot = currentSnapshot
-								refreshTheme()
-							end
-						end)
-
-						--==========================================================
-						-- CLEANUP
-						--==========================================================
-
-						local function cleanup()
-							if destroyed then
-								return
-							end
-
-							destroyed = true
-
-							destroyItems()
-
-							for _, connection in ipairs(connections) do
-								connection:Disconnect()
-							end
-
-							table.clear(connections)
-
-							if overlayGui then
-								overlayGui:Destroy()
-								overlayGui = nil
-								overlayRoot = nil
-							end
-
-							if library.Options[name] == option then
-								library.Options[name] = nil
-							end
-
-							option.Controller = nil
-							changedEvent:Destroy()
-						end
-
-						function Dropdown:Destroy()
-							if destroyed then
-								return
-							end
-
-							cleanup()
-							main:Destroy()
-						end
-
-						connect(main.Destroying, cleanup)
-
-						connect(button.MouseButton1Click, function()
-							if destroyed then
-								return
-							end
-
-							isOpen = not isOpen
-							updateHolderSize()
-						end)
-
-						--==========================================================
-						-- OPTION API
-						--==========================================================
-
-						local forwardedMethods = {
-							"GetValue",
-							"GetIndex",
-							"GetValues",
-							"SetValue",
-							"SetValues",
-							"Refresh",
-							"Clear",
-							"AddItem",
-							"RemoveItem",
-							"GetInstance",
-							"SetText",
-							"SetCallback",
-							"Open",
-							"Close",
-							"Destroy",
-						}
-
-						for _, methodName in ipairs(forwardedMethods) do
-							local method = Dropdown[methodName]
-
-							option[methodName] = function(_, ...)
-								return method(Dropdown, ...)
-							end
-						end
-
-						--==========================================================
-						-- INITIALIZATION
-						--==========================================================
-
-						Dropdown.Instance = selectedLabel
-						Dropdown.Main = main
-						Dropdown.Header = header
-						Dropdown.Holder = holder
-						Dropdown.Option = option
-						Dropdown.OnChanged = changedEvent.Event
-
-						if typeof(library.FontFace) == "Font" then
-							header.FontFace = library.FontFace
-							selectedLabel.FontFace = library.FontFace
-						end
-
-						Dropdown:Refresh(opts.Values or {}, opts.Default, true)
-						refreshTheme()
-						positionHolder()
-
-						return Dropdown
-					end
-
-					function groupbox:AddInput(name, opts)
-						opts = opts or {}
-
-						local input = {}
-
-						local initialValue = tostring(opts.Default or "")
-						local changedEvent = Instance.new("BindableEvent")
-
-						local option = {
-							Type = "Input",
-							Name = name,
-							Value = initialValue,
-							OnChanged = changedEvent.Event,
-						}
-
-						library.Options = library.Options or {}
-						library.Options[name] = option
-
-						local Holder = library:Create("Frame", {
-							Name = "Input",
-							Size = UDim2.new(0.95, 0, 0, 20),
-							LayoutOrder = #elementsholder:GetChildren(),
-							BackgroundColor3 = library.MainColor,
-							Parent = elementsholder,
-						}, {
-							instancep = "BackgroundColor3",
-							tinstance = library.MainColor,
-						})
-
-						library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							Parent = Holder,
-						}, {
-							instancep = "Color",
-							tinstance = library.SecondaryColor,
-						})
-
-						local text = library:Create("TextBox", {
-							Name = "Text",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							ClearTextOnFocus = false,
-							MultiLine = false,
-							PlaceholderText = name .. "..",
-							Text = initialValue,
-							TextColor3 = library.FontColor,
-							TextSize = 13,
-							Font = library.Font,
-							TextXAlignment = Enum.TextXAlignment.Center,
-							ZIndex = 2,
-							Parent = Holder,
-						}, {
-							instancep = "TextColor3",
-							tinstance = library.FontColor,
-						}, {
-							instancep = "Font",
-							tinstance = library.Font,
-						})
-
-						library:Create("UIStroke", {
-							Name = "TextStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-							Color = library.UIstroke,
-							Thickness = 1,
-							Parent = text,
-						}, {
-							instancep = "Color",
-							tinstance = library.UIstroke,
-						})
-
-						library:Create("UITextSizeConstraint", {
-							Name = "UITextSizeConstraint",
-							MaxTextSize = 13,
-							Parent = text,
-						})
-
-						local updating = false
-
-						local function setValue(value, silent)
-							value = tostring(value or "")
-
-							option.Value = value
-
-							if text.Text ~= value then
-								updating = true
-								text.Text = value
-								updating = false
-							end
-
-							if not silent then
-								changedEvent:Fire(value)
-
-								if opts.Callback then
-									opts.Callback(value)
-								end
-							end
-						end
-
-						function option:GetValue()
-							return option.Value
-						end
-
-						function option:SetValue(value)
-							setValue(value, false)
-						end
-
-						function input:GetValue()
-							return option.Value
-						end
-
-						function input:SetValue(value)
-							option:SetValue(value)
-						end
-
-						function input:GetInstance()
-							return text
-						end
-
-						text:GetPropertyChangedSignal("Text"):Connect(function()
-							if updating then
-								return
-							end
-
-							local value = text.Text
-
-							if option.Value == value then
-								return
-							end
-
-							option.Value = value
-							changedEvent:Fire(value)
-
-							if opts.Callback then
-								opts.Callback(value)
-							end
-						end)
-
-						input.Instance = text
-						input.Holder = Holder
-						input.Option = option
-
-						return input
-					end	
-					
-					
-function groupbox:AddLineGraph(text, opts)
-	opts = opts or {}
-
-	local linegraph = {}
-	local graphsets = {}
-	local curvePoints = 0
-	local opened = false
-	local destroyed = false
-
-	local instance
-	local followConn
-	local outsideConn
-	local buttonConnection
-	local openConnections = {}
-	local pointFrames = {}
-	local pointConnections = {}
-	local curveFrames = {}
-
-	local UIS = game:GetService("UserInputService")
-
-	local selectedPreset = opts.Preset or "Linear"
-	local draggingPoint
-	local dragMoveConn
-	local dragEndConn
-
-	local presets = {
-		"Linear",
-		"Smooth",
-		"Exponential",
-		"Ease In",
-		"Ease Out",
-		"Ease In Out"
-	}
-
-	local function addConnection(signal, callback)
-		local connection = signal:Connect(callback)
-
-		if trackConnection then
-			trackConnection(connection)
-		end
-
-		table.insert(openConnections, connection)
-		return connection
-	end
-
-	local function disconnectConnection(connection)
-		if connection then
-			connection:Disconnect()
-		end
-	end
-
-	local function clearPointConnections()
-		for _, connection in ipairs(pointConnections) do
-			disconnectConnection(connection)
-		end
-
-		table.clear(pointConnections)
-	end
-
-	local function clearOpenConnections()
-		for _, connection in ipairs(openConnections) do
-			disconnectConnection(connection)
-		end
-
-		table.clear(openConnections)
-		clearPointConnections()
-
-		disconnectConnection(followConn)
-		disconnectConnection(outsideConn)
-		disconnectConnection(dragMoveConn)
-		disconnectConnection(dragEndConn)
-
-		followConn = nil
-		outsideConn = nil
-		dragMoveConn = nil
-		dragEndConn = nil
-		draggingPoint = nil
-	end
-
-	local function clearList(list)
-		for _, object in ipairs(list) do
-			if object then
-				object:Destroy()
-			end
-		end
-
-		table.clear(list)
-	end
-
-	local function copyPoints(values)
-		local result = {}
-
-		for _, point in ipairs(values or {}) do
-			local x = tonumber(point.X or point.x or point[1]) or 0
-			local y = tonumber(point.Y or point.y or point[2]) or 0
-
-			table.insert(result, {
-				X = math.clamp(x, 0, 1),
-				Y = math.clamp(y, 0, 1)
-			})
-		end
-
-		table.sort(result, function(a, b)
-			return a.X < b.X
-		end)
-
-		return result
-	end
-
-	graphsets = copyPoints(opts.default or opts.Default or {})
-	curvePoints = #graphsets
-
-	local function getData()
-		local result = {}
-
-		for i, point in ipairs(graphsets) do
-			result[i] = {
-				X = point.X,
-				Y = point.Y
-			}
-		end
-
-		return result
-	end
-
-	local function notifyChanged()
-		curvePoints = #graphsets
-
-		if type(opts.Callback) == "function" then
-			opts.Callback(getData())
-		end
-	end
-
-	local holder = library:Create("Frame", {
-		Name = "Holder";
-		Size = UDim2.new(0.95, 0, 0, 20);
-		BackgroundTransparency = 1;
-		LayoutOrder = #elementsholder:GetChildren();
-		Parent = elementsholder;
-	})
-
-	local uitext = library:Create("TextLabel", {
-		Name = "TextLabel";
-		Size = UDim2.new(0.937, 0, 1, 0);
-		BackgroundTransparency = 1;
-		Text = text;
-		TextSize = 13;
-		TextColor3 = library.FontColor;
-		Font = library.Font;
-		LayoutOrder = 1;
-		TextXAlignment = Enum.TextXAlignment.Left;
-		TextYAlignment = Enum.TextYAlignment.Center;
-		Parent = holder;
-	}, {
-		instancep = "TextColor3";
-		tinstance = library.FontColor;
-	}, {
-		instancep = "Font";
-		tinstance = library.Font;
-	})
-
-	library:Create("UITextSizeConstraint", {
-		Name = "UITextSizeConstraint";
-		MaxTextSize = 13;
-		Parent = uitext;
-	})
-
-	library:Create("UIStroke", {
-		Name = "UIStroke";
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-		Color = Color3.fromRGB(0, 0, 0);
-		Thickness = 1;
-		Parent = uitext;
-	}, {
-		instancep = "Color";
-		tinstance = library.UIstroke;
-	})
-
-	library:Create("UIListLayout", {
-		Name = "UIListLayout";
-		FillDirection = Enum.FillDirection.Horizontal;
-		HorizontalAlignment = Enum.HorizontalAlignment.Left;
-		SortOrder = Enum.SortOrder.LayoutOrder;
-		Parent = holder;
-	})
-
-	local buttonopen = library:Create("ImageButton", {
-		Name = "ButtonOpen";
-		Size = UDim2.new(0, 19, 0, 19);
-		LayoutOrder = 2;
-		BackgroundTransparency = 1;
-		Image = "rbxassetid://10734950309";
-		ImageColor3 = library.AccentColor;
-		Parent = holder;
-	}, {
-		instancep = "ImageColor3";
-		tinstance = library.AccentColor;
-	})
-
-	local function getPopupPosition()
-		local absolute = buttonopen.AbsolutePosition
-		local base = screengui.AbsolutePosition
-
-		return UDim2.fromOffset(
-			absolute.X - base.X,
-			absolute.Y - base.Y
-		)
-	end
-
-	local closeGraph
-
-	local function openGraph()
-		if opened or destroyed then
-			return
-		end
-
-		opened = true
-
-		-- Use the existing library ScreenGui; don't create another one.
-		local lineG = library:Create("Frame", {
-			Name = "CursorBox";
-			Size = UDim2.fromOffset(15, 15);
-			Position = getPopupPosition();
-			BackgroundTransparency = 1;
-			ZIndex = 2;
-			Parent = screengui;
-		})
-
-		instance = lineG
-
-		followConn = buttonopen:GetPropertyChangedSignal(
-			"AbsolutePosition"
-		):Connect(function()
-			if opened and instance and instance.Parent then
-				instance.Position = getPopupPosition()
-			end
-		end)
-
-		if trackConnection then
-			trackConnection(followConn)
-		end
-
-		local framewindow = library:Create("Frame", {
-			Name = "Frame";
-			Size = UDim2.fromOffset(323, 246);
-			Position = UDim2.new(1, 0, 1.4, 0);
-			BackgroundColor3 = library.MainColor;
-			BorderSizePixel = 0;
-			ZIndex = 2;
-			Parent = lineG;
-		}, {
-			instancep = "BackgroundColor3";
-			tinstance = library.MainColor;
-		})
-
-		library:Create("UIStroke", {
-			Name = "UIStroke";
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-			LineJoinMode = Enum.LineJoinMode.Miter;
-			Color = library.SecondaryColor;
-			Thickness = 1;
-			ZIndex = 2;
-			Parent = framewindow;
-		}, {
-			instancep = "Color";
-			tinstance = library.SecondaryColor;
-		})
-
-		library:Create("UIStroke", {
-			Name = "OuterStroke";
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-			LineJoinMode = Enum.LineJoinMode.Miter;
-			Color = library.MainColor;
-			Thickness = 4;
-			ZIndex = 2;
-			Parent = framewindow;
-		}, {
-			instancep = "Color";
-			tinstance = library.MainColor;
-		})
-
-		local title = library:Create("TextLabel", {
-			Name = "TextLabel";
-			Size = UDim2.new(1, 0, 0, 18);
-			Position = UDim2.fromOffset(0, 0);
-			BackgroundTransparency = 1;
-			Text = text or "Line Graph";
-			TextColor3 = library.FontColor;
-			Font = library.Font;
-			TextSize = 13;
-			TextXAlignment = Enum.TextXAlignment.Left;
-			ZIndex = 3;
-			Parent = framewindow;
-		}, {
-			instancep = "TextColor3";
-			tinstance = library.FontColor;
-		}, {
-			instancep = "Font";
-			tinstance = library.Font;
-		})
-
-		library:Create("UIPadding", {
-			PaddingLeft = UDim.new(0, 6);
-			Parent = title;
-		})
-
-		library:Create("UIStroke", {
-			Name = "UIStroke";
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-			Color = library.UIstroke;
-			Thickness = 1;
-			Parent = title;
-		}, {
-			instancep = "Color";
-			tinstance = library.UIstroke;
-		})
-
-		local GraphHolder = library:Create("Frame", {
-			Name = "GraphHolder";
-			Position = UDim2.fromOffset(4, 24);
-			Size = UDim2.fromOffset(315, 168);
-			BackgroundTransparency = 1;
-			BorderSizePixel = 0;
-			ClipsDescendants = false;
-			Active = true;
-			ZIndex = 2;
-			Parent = framewindow;
-		})
-
-		library:Create("UIStroke", {
-			Color = library.SecondaryColor;
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-			Parent = GraphHolder;
-		}, {
-			instancep = "Color";
-			tinstance = library.SecondaryColor;
-		})
-
-		local grid = library:Create("Frame", {
-			Name = "Grid";
-			Size = UDim2.fromScale(1, 1);
-			BackgroundTransparency = 1;
-			ZIndex = 2;
-			Parent = GraphHolder;
-		})
-
-		local curveLayer = library:Create("Frame", {
-			Name = "CurveLines";
-			Size = UDim2.fromScale(1, 1);
-			BackgroundTransparency = 1;
-			ZIndex = 3;
-			Parent = GraphHolder;
-		})
-
-		local pointLayer = library:Create("Frame", {
-			Name = "Points";
-			Size = UDim2.fromScale(1, 1);
-			BackgroundTransparency = 1;
-			ZIndex = 5;
-			Parent = GraphHolder;
-		})
-
-		for i = 1, 4 do
-			library:Create("Frame", {
-				Name = "HorizontalLine";
-				Position = UDim2.fromScale(0, i / 5);
-				Size = UDim2.new(1, 0, 0, 1);
-				BorderSizePixel = 0;
-				BackgroundColor3 = library.SecondaryColor;
-				ZIndex = 2;
-				Parent = grid;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.SecondaryColor;
-			})
-		end
-
-		for i = 1, 7 do
-			library:Create("Frame", {
-				Name = "VerticalLine";
-				Position = UDim2.fromScale(i / 8, 0);
-				Size = UDim2.new(0, 1, 1, 0);
-				BorderSizePixel = 0;
-				BackgroundColor3 = library.SecondaryColor;
-				ZIndex = 2;
-				Parent = grid;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.SecondaryColor;
-			})
-		end
-
-		local function toPixels(point)
-			local size = GraphHolder.AbsoluteSize
-
-			return Vector2.new(
-				point.X * size.X,
-				(1 - point.Y) * size.Y
-			)
-		end
-
-		local function createSegment(a, b)
-			local delta = b - a
-			local length = delta.Magnitude
-
-			if length < 0.5 then
-				return
-			end
-
-			local segment = library:Create("Frame", {
-				Name = "CurveSegment";
-				AnchorPoint = Vector2.new(0, 0.5);
-				Position = UDim2.fromOffset(a.X, a.Y);
-				Size = UDim2.fromOffset(length, 2);
-				Rotation = math.deg(math.atan2(delta.Y, delta.X));
-				BorderSizePixel = 0;
-				BackgroundColor3 = library.AccentColor;
-				ZIndex = 3;
-				Parent = curveLayer;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.AccentColor;
-			})
-
-			table.insert(curveFrames, segment)
-		end
-
-		local function catmullRom(p0, p1, p2, p3, t)
-			local t2 = t * t
-			local t3 = t2 * t
-
-			return Vector2.new(
-				0.5 * (
-					2 * p1.X
-					+ (-p0.X + p2.X) * t
-					+ (2*p0.X - 5*p1.X + 4*p2.X - p3.X) * t2
-					+ (-p0.X + 3*p1.X - 3*p2.X + p3.X) * t3
-				),
-				0.5 * (
-					2 * p1.Y
-					+ (-p0.Y + p2.Y) * t
-					+ (2*p0.Y - 5*p1.Y + 4*p2.Y - p3.Y) * t2
-					+ (-p0.Y + 3*p1.Y - 3*p2.Y + p3.Y) * t3
-				)
-			)
-		end
-
-		local function interpolateY(a, b, t)
-			if selectedPreset == "Exponential"
-				or selectedPreset == "Ease In" then
-				t = t * t
-			elseif selectedPreset == "Ease Out" then
-				t = 1 - (1 - t) * (1 - t)
-			elseif selectedPreset == "Ease In Out" then
-				if t < 0.5 then
-					t = 2 * t * t
-				else
-					t = 1 - ((-2 * t + 2) ^ 2) / 2
-				end
-			end
-
-			return a + (b - a) * t
-		end
-
-		local renderGraph
-
-		local function drawCurve()
-			clearList(curveFrames)
-
-			if #graphsets < 2 then
-				return
-			end
-
-			local points = {}
-
-			for i, point in ipairs(graphsets) do
-				points[i] = toPixels(point)
-			end
-
-			for i = 1, #points - 1 do
-				local p1 = points[i]
-				local p2 = points[i + 1]
-
-				if selectedPreset == "Smooth" then
-					local p0 = points[math.max(1, i - 1)]
-					local p3 = points[math.min(#points, i + 2)]
-					local previous = p1
-
-					for step = 1, 20 do
-						local nextPoint = catmullRom(
-							p0, p1, p2, p3, step / 20
-						)
-
-						createSegment(previous, nextPoint)
-						previous = nextPoint
-					end
-				else
-					local previous = p1
-
-					for step = 1, 20 do
-						local t = step / 20
-
-						local nextPoint = Vector2.new(
-							p1.X + (p2.X - p1.X) * t,
-							interpolateY(p1.Y, p2.Y, t)
-						)
-
-						createSegment(previous, nextPoint)
-						previous = nextPoint
-					end
-				end
-			end
-		end
-
-		local function endDrag()
-			draggingPoint = nil
-
-			disconnectConnection(dragMoveConn)
-			disconnectConnection(dragEndConn)
-
-			dragMoveConn = nil
-			dragEndConn = nil
-
-			table.sort(graphsets, function(a, b)
-				return a.X < b.X
-			end)
-
-			if opened then
-				renderGraph()
-				notifyChanged()
-			end
-		end
-
-		local function startDrag(point)
-			disconnectConnection(dragMoveConn)
-			disconnectConnection(dragEndConn)
-
-			draggingPoint = point
-
-			dragMoveConn = UIS.InputChanged:Connect(function(input)
-				if not draggingPoint or not opened or destroyed then
-					return
-				end
-
-				if input.UserInputType ~= Enum.UserInputType.MouseMovement
-					and input.UserInputType ~= Enum.UserInputType.Touch then
-					return
-				end
-
-				local position = input.Position
-				local origin = GraphHolder.AbsolutePosition
-				local size = GraphHolder.AbsoluteSize
-
-				if size.X <= 0 or size.Y <= 0 then
-					return
-				end
-
-				draggingPoint.X = math.clamp(
-					(position.X - origin.X) / size.X, 0, 1
-				)
-
-				draggingPoint.Y = math.clamp(
-					1 - (position.Y - origin.Y) / size.Y, 0, 1
-				)
-
-				renderGraph()
-				notifyChanged()
-			end)
-
-			dragEndConn = UIS.InputEnded:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1
-					or input.UserInputType == Enum.UserInputType.Touch then
-					endDrag()
-				end
-			end)
-
-			if trackConnection then
-				trackConnection(dragMoveConn)
-				trackConnection(dragEndConn)
-			end
-		end
-
-		renderGraph = function()
-			clearPointConnections()
-			clearList(pointFrames)
-
-			for _, point in ipairs(graphsets) do
-				local pixel = toPixels(point)
-
-				local dot = library:Create("TextButton", {
-					Name = "CurveDot";
-					AnchorPoint = Vector2.new(0.5, 0.5);
-					Position = UDim2.fromOffset(pixel.X, pixel.Y);
-					Size = UDim2.fromOffset(10, 10);
-					BackgroundColor3 = library.AccentColor;
-					BorderSizePixel = 0;
-					Text = "";
-					AutoButtonColor = false;
-					Active = true;
-					ZIndex = 5;
-					Parent = pointLayer;
-				}, {
-					instancep = "BackgroundColor3";
-					tinstance = library.AccentColor;
-				})
-
-				library:Create("UICorner", {
-					CornerRadius = UDim.new(1, 0);
-					Parent = dot;
-				})
-
-				library:Create("TextLabel", {
-					Name = "PointValue";
-					AnchorPoint = Vector2.new(0.5, 1);
-					Position = UDim2.new(0.5, 0, 0, -3);
-					Size = UDim2.fromOffset(90, 14);
-					BackgroundTransparency = 1;
-					Text = string.format("%.2f, %.2f", point.X, point.Y);
-					TextColor3 = library.FontColor;
-					Font = library.Font;
-					TextSize = 10;
-					ZIndex = 6;
-					Parent = dot;
-				}, {
-					instancep = "TextColor3";
-					tinstance = library.FontColor;
-				}, {
-					instancep = "Font";
-					tinstance = library.Font;
-				})
-
-				table.insert(pointFrames, dot)
-
-				local connection = dot.InputBegan:Connect(function(input)
-					if not opened or destroyed then
-						return
-					end
-
-					if input.UserInputType == Enum.UserInputType.MouseButton1
-						or input.UserInputType == Enum.UserInputType.Touch then
-						startDrag(point)
-					end
-				end)
-
-				table.insert(pointConnections, connection)
-
-				if trackConnection then
-					trackConnection(connection)
-				end
-			end
-
-			drawCurve()
-		end
-
-		addConnection(GraphHolder.InputBegan, function(input)
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then
-				return
-			end
-
-			if not opened or destroyed then
-				return
-			end
-
-			local position = input.Position
-			local origin = GraphHolder.AbsolutePosition
-			local size = GraphHolder.AbsoluteSize
-
-			if size.X <= 0 or size.Y <= 0 then
-				return
-			end
-
-			local x = math.clamp(
-				(position.X - origin.X) / size.X, 0, 1
-			)
-
-			local y = math.clamp(
-				1 - (position.Y - origin.Y) / size.Y, 0, 1
-			)
-
-			table.insert(graphsets, {
-				X = x;
-				Y = y;
-			})
-
-			table.sort(graphsets, function(a, b)
-				return a.X < b.X
-			end)
-
-			renderGraph()
-			notifyChanged()
-		end)
-
-		if opts.Presets == true then
-			local presetButton = library:Create("TextButton", {
-				Name = "PresetButton";
-				Position = UDim2.fromOffset(6, 197);
-				Size = UDim2.new(1, -12, 0, 20);
-				BackgroundColor3 = library.MainColor;
-				Text = "Curve: " .. selectedPreset .. "  v";
-				TextColor3 = library.FontColor;
-				Font = library.Font;
-				TextSize = 12;
-				BorderSizePixel = 0;
-				ZIndex = 10;
-				Parent = framewindow;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.MainColor;
-			}, {
-				instancep = "TextColor3";
-				tinstance = library.FontColor;
-			}, {
-				instancep = "Font";
-				tinstance = library.Font;
-			})
-
-			local menu = library:Create("Frame", {
-				Name = "PresetMenu";
-				Position = UDim2.new(0, 6, 1, -48 - (#presets * 20));
-				Size = UDim2.new(1, -12, 0, #presets * 20);
-				BackgroundColor3 = library.MainColor;
-				BorderSizePixel = 0;
-				Visible = false;
-				ZIndex = 20;
-				Parent = framewindow;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.MainColor;
-			})
-
-			library:Create("UIListLayout", {
-				SortOrder = Enum.SortOrder.LayoutOrder;
-				Parent = menu;
-			})
-
-			for i, preset in ipairs(presets) do
-				local option = library:Create("TextButton", {
-					Name = preset;
-					Size = UDim2.new(1, 0, 0, 20);
-					BackgroundColor3 = library.MainColor;
-					BorderSizePixel = 0;
-					Text = preset;
-					TextColor3 = library.FontColor;
-					Font = library.Font;
-					TextSize = 12;
-					LayoutOrder = i;
-					ZIndex = 21;
-					Parent = menu;
-				}, {
-					instancep = "BackgroundColor3";
-					tinstance = library.MainColor;
-				}, {
-					instancep = "TextColor3";
-					tinstance = library.FontColor;
-				}, {
-					instancep = "Font";
-					tinstance = library.Font;
-				})
-
-				addConnection(option.Activated, function()
-					selectedPreset = preset
-					presetButton.Text = "Curve: " .. preset .. "  v"
-					menu.Visible = false
-
-					renderGraph()
-					notifyChanged()
-				end)
-			end
-
-			addConnection(presetButton.Activated, function()
-				menu.Visible = not menu.Visible
-			end)
-		end
-
-		local resetButton = library:Create("TextButton", {
-			Name = "ResetGraph";
-			Position = UDim2.new(0, 6, 1, -25);
-			Size = UDim2.new(1, -12, 0, 20);
-			BackgroundColor3 = library.MainColor;
-			Text = "Reset Graph";
-			TextColor3 = library.FontColor;
-			Font = library.Font;
-			TextSize = 12;
-			BorderSizePixel = 0;
-			ZIndex = 10;
-			Parent = framewindow;
-		}, {
-			instancep = "BackgroundColor3";
-			tinstance = library.MainColor;
-		}, {
-			instancep = "TextColor3";
-			tinstance = library.FontColor;
-		}, {
-			instancep = "Font";
-			tinstance = library.Font;
-		})
-
-		addConnection(resetButton.Activated, function()
-			table.clear(graphsets)
-			renderGraph()
-			notifyChanged()
-		end)
-
-		addConnection(
-			GraphHolder:GetPropertyChangedSignal("AbsoluteSize"),
-			function()
-				if opened then
-					renderGraph()
-				end
-			end
-		)
-
-		-- Defer the outside-click check so the opening click cannot close it.
-		outsideConn = UIS.InputBegan:Connect(function(input)
-			if not opened or not instance or not instance.Parent then
-				return
-			end
-
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then
-				return
-			end
-
-			local position = input.Position
-			local topLeft = framewindow.AbsolutePosition
-			local bottomRight = topLeft + framewindow.AbsoluteSize
-
-			local inWindow =
-				position.X >= topLeft.X
-				and position.X <= bottomRight.X
-				and position.Y >= topLeft.Y
-				and position.Y <= bottomRight.Y
-
-			local buttonPos = buttonopen.AbsolutePosition
-			local buttonSize = buttonopen.AbsoluteSize
-
-			local inButton =
-				position.X >= buttonPos.X
-				and position.X <= buttonPos.X + buttonSize.X
-				and position.Y >= buttonPos.Y
-				and position.Y <= buttonPos.Y + buttonSize.Y
-
-			if not inWindow and not inButton then
-				closeGraph()
-			end
-		end)
-
-		if trackConnection then
-			trackConnection(outsideConn)
-		end
-
-		task.defer(function()
-			if opened and GraphHolder.Parent then
-				renderGraph()
-			end
-		end)
-	end
-
-	closeGraph = function()
-		if not opened then
-			return
-		end
-
-		-- Set this first so callbacks stop acting while the popup closes.
-		opened = false
-
-		clearOpenConnections()
-
-		if instance then
-			instance:Destroy()
-			instance = nil
-		end
-	end
-
-	-- IMPORTANT: This connection is deliberately NOT added to
-	-- openConnections, so closing the popup won't kill the reopen button.
-	buttonConnection = buttonopen.Activated:Connect(function()
-		if destroyed then
-			return
-		end
-
-		if opened then
-			closeGraph()
-		else
-			openGraph()
-		end
-	end)
-
-	if trackConnection then
-		trackConnection(buttonConnection)
-	end
-
-	function linegraph:Get()
-		return getData()
-	end
-
-	function linegraph:Set(values)
-		if destroyed then
-			return
-		end
-
-		graphsets = copyPoints(values)
-		curvePoints = #graphsets
-
-		if opened then
-			closeGraph()
-			openGraph()
-		end
-
-		notifyChanged()
-	end
-
-	function linegraph:Reset()
-		if destroyed then
-			return
-		end
-
-		graphsets = {}
-		curvePoints = 0
-
-		if opened then
-			closeGraph()
-			openGraph()
-		end
-
-		notifyChanged()
-	end
-
-	function linegraph:SetPreset(preset)
-		if destroyed then
-			return false
-		end
-
-		for _, name in ipairs(presets) do
-			if name == preset then
-				selectedPreset = name
-
-				if opened then
-					closeGraph()
-					openGraph()
-				end
-
-				notifyChanged()
-				return true
-			end
-		end
-
-		return false
-	end
-
-	function linegraph:Destroy()
-		if destroyed then
-			return
-		end
-
-		destroyed = true
-		closeGraph()
-
-		disconnectConnection(buttonConnection)
-		buttonConnection = nil
-
-		clearOpenConnections()
-		clearPointConnections()
-
-		if holder then
-			holder:Destroy()
-			holder = nil
-		end
-	end
-
-	return linegraph
+ return MakeGroupbox(Rightin, title)
 end
-
-					
-					return groupbox
-				end
 
 				intabbutton.Activated:Connect(function()
 					if currentintab == Intab then return end
@@ -11566,10143 +6597,12 @@ end
 
 			-- Mainintab creation
 			function tab:AddLeftGroupbox(title)
-				local groupbox = {
-					elements = {};
-				}
-
-				local groupboxf = library:Create("Frame", {
-					Name = "Groupbox";
-					Size = UDim2.new(0.95, 0,0, 0);
-					Position = UDim2.new(0, 0,0, 0);
-					BackgroundColor3 = library.MainColor;
-					AutomaticSize = Enum.AutomaticSize.Y;
-					LayoutOrder = #Left:GetChildren();
-					Parent = Left;
-				}, {
-					instancep = "BackgroundColor3";
-					tinstance = library.MainColor;
-				})
-
-				local uistroke = library:Create("UIStroke", {
-					Name = "UIStroke";
-					Parent = groupboxf;
-					Thickness = 1;
-					Color = library.SecondaryColor;
-					ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-				}, {
-					instancep = "Color";
-					tinstance = library.SecondaryColor;
-				})
-
-				local uilay = library:Create("UIListLayout", {
-					Name = "uil";
-					FillDirection = Enum.FillDirection.Vertical;
-					Padding = UDim.new(0, 1);
-					SortOrder = Enum.SortOrder.LayoutOrder;
-					HorizontalAlignment = Enum.HorizontalAlignment.Center;
-					VerticalAlignment = Enum.VerticalAlignment.Top;
-
-					Parent = groupboxf;
-				})
-
-				local uipad = library:Create("UIPadding", {
-					Name = "uip";
-					PaddingRight = UDim.new(0, 0);
-					PaddingLeft = UDim.new(0, 0);
-					PaddingTop = UDim.new(0, 0);
-					PaddingBottom = UDim.new(0, 4);
-					Parent = groupboxf;
-				})
-
-				local accent = library:Create("Frame", {
-					Name = "Accent";
-					Size = UDim2.new(1, 0,0, 1);
-					Position = UDim2.new(0, 0,0, 0);
-					BackgroundColor3 = library.AccentColor;
-					LayoutOrder = -1000;
-					Parent = groupboxf;
-				}, {
-					instancep = "BackgroundColor3";
-					tinstance = library.AccentColor;
-				})
-
-				local titlegroupbox = library:Create("TextLabel", {
-					Name = "Title";
-					Size = UDim2.new(1, 0,0, 20);
-					LayoutOrder = -1;
-
-					BackgroundTransparency = 1;
-					Text = title;
-					Font = library.Font;
-					TextColor3 = library.FontColor;
-					TextSize = 14;
-
-					Parent = groupboxf;
-				}, {
-					instancep = "TextColor3";
-					tinstance = library.FontColor;
-				}, {
-					instancep = "Font";
-					tinstance = library.Font;
-				})
-
-				local titleuis = library:Create("UIStroke", {
-					Name = "UIStroke";
-					Parent = titlegroupbox;
-					Thickness = 1;
-					Color = library.UIstroke;
-				}, {
-					instancep = "Color";
-					tinstance = library.UIstroke;
-				})
-
-				local titleuits = library:Create("UITextSizeConstraint", {
-					Name = "uit";
-					MaxTextSize = 14;
-					Parent = titlegroupbox;
-				})
-
-				local titleuip = library:Create("UIPadding", {
-					Name = "uip";
-					PaddingRight = UDim.new(0, 0);
-					PaddingLeft = UDim.new(0, 0);
-					PaddingTop = UDim.new(0, 3);
-					PaddingBottom = UDim.new(0, 0);
-					Parent = titlegroupbox;
-				})
-
-				local elementsholder = library:Create("Frame", {
-					Name = "elem";
-					Size = UDim2.new(1, 0,0, 0);
-					BackgroundTransparency = 1;
-					LayoutOrder = 1;
-					AutomaticSize = Enum.AutomaticSize.Y;
-					Parent = groupboxf;
-				})
-
-				local elemsuill = library:Create("UIListLayout", {
-					Name = "UIListLayout";
-					FillDirection = Enum.FillDirection.Horizontal;
-					Wraps = true;
-					HorizontalAlignment = Enum.HorizontalAlignment.Center;
-					VerticalAlignment = Enum.VerticalAlignment.Top;
-					SortOrder = Enum.SortOrder.LayoutOrder;
-					Padding = UDim.new(0, 5);
-					Parent = elementsholder;
-				})
-
-				local elemsuip = library:Create("UIPadding", {
-					Name = "UIPadding";
-					PaddingBottom = UDim.new(0, 0);
-					PaddingLeft = UDim.new(0, 0);
-					PaddingRight = UDim.new(0, 0);
-					PaddingTop = UDim.new(0, 3);
-					Parent = elementsholder;
-				})
-
-				-- api	
-				function groupbox:AddLabel(text, opts)
-				--[[
-				    MAX 3 COLOR PICKERS (cant use key picker if u do this)
-				    MAX 1 KEY PICKER (cant use color pickers if u do this)
-				]]
-
-					local label = {}
-					local colorpickers = {}
-					local keypicker = nil
-
-					local RestrictedKeypicker = false
-					local RestrictedColorpicker = false
-
-					local holder = library:Create("Frame", {
-						Name = "Holder";
-						Size = UDim2.new(0.95, 0,0, 20);
-						BackgroundTransparency = 1;
-						LayoutOrder = #elementsholder:GetChildren();
-						Parent = elementsholder;
-					})
-
-					local uitext = library:Create("TextLabel", {
-						Name = "TextLabel";
-						Size = UDim2.new(.795, 0,1, 0);
-						BackgroundTransparency = 1;
-						Text = text;
-						TextSize = 13;
-						TextColor3 = library.FontColor;
-						Font = library.Font;
-						LayoutOrder = 1;
-						TextXAlignment = Enum.TextXAlignment.Left;
-						TextYAlignment = Enum.TextYAlignment.Center;
-						Parent = holder;
-					}, {
-						instancep = "TextColor3";
-						tinstance = library.FontColor;
-					})
-
-					local uitextsui = library:Create("UITextSizeConstraint", {
-						Name = "UITextSizeConstraint";
-						MaxTextSize = 13;
-						Parent = uitext;
-					})
-
-					local uistroke = library:Create("UIStroke", {
-						Name = "UIStroke";
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-						Color = Color3.fromRGB(0, 0, 0);
-						Thickness = 1;
-						Parent = uitext;
-					}, {
-						instancep = "Color";
-						tinstance = library.UIstroke;
-					})
-
-					local uill = library:Create("UIListLayout", {
-						Name = "UIListLayout";
-						FillDirection = Enum.FillDirection.Horizontal;
-						HorizontalAlignment = Enum.HorizontalAlignment.Left;
-						SortOrder = Enum.SortOrder.LayoutOrder;
-						Parent = holder;
-					})
-
-					local holder2 = library:Create("Frame", {
-						Name = "Holder";
-						Size = UDim2.new(0.043, 50,1, 0);
-						BackgroundTransparency = 1;
-						LayoutOrder = 2;
-						Parent = holder;
-					})
-
-					local uillh = library:Create("UIListLayout", {
-						Name = "UIListLayout";
-						FillDirection = Enum.FillDirection.Horizontal;
-						HorizontalAlignment = Enum.HorizontalAlignment.Right;
-						VerticalAlignment = Enum.VerticalAlignment.Center;
-						SortOrder = Enum.SortOrder.LayoutOrder;
-						Padding = UDim.new(0, 6);
-						Parent = holder2;
-					})
-
-					function label:AddColorPicker(name, opts)
-						if RestrictedColorpicker then
-							error("Restricted your using a keypicker!")
-							return
-						end
-
-						if #colorpickers >= 3 then
-							error("Max number of colorpickers reached")
-							return
-						end
-
-						local colorpicker = {}
-						table.insert(colorpickers, colorpicker)
-						RestrictedKeypicker = true
-						local color = opts.Startcolor or Color3.new(1, 1, 1)
-						local transparency = opts.Transparency or 0
-						local pointPosition
-
-						colorpicker.Color = color
-						colorpicker.Transparency = transparency
-						colorpicker.OnChanged = newSignal()
-						Options[name] = colorpicker
-						local opened = false
-						local instance 
-						local followConn
-						local outsideConn
-
-						local colorbox = library:Create("Frame", {
-							Name = "ColorBox";
-							Size = UDim2.new(0, 15,0, 15);
-							BackgroundColor3 = color;
-							LayoutOrder = #holder2:GetChildren();
-							Parent = holder2;
-						})
-
-						local uistroke = library:Create("UIStroke", {
-							Name = "UIStroke";
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-							LineJoinMode = Enum.LineJoinMode.Miter;
-							Color = library.SecondaryColor;
-							Thickness = 1;
-							Parent = colorbox;
-						}, {
-							instancep = "Color";
-							tinstance = library.SecondaryColor;
-						})
-
-						local hitbox = library:Create("TextButton", {
-							Name = "Hitbox";
-							Size = UDim2.new(1,0,1,0);
-							BackgroundTransparency = 1;
-							Active = true;
-							ZIndex = 10;
-							Selectable = true;
-							Text = "";
-							Parent = colorbox;
-						})
-
-						local function OnChange(newcolor, newtransparency)
-							colorpicker.Color = newcolor
-							colorpicker.Transparency = newtransparency
-
-							if opts.Callback then
-								opts.Callback(newcolor, newtransparency)
-							end
-
-							colorpicker.OnChanged:Fire(newcolor, newtransparency)
-						end
-
-						local function Createcolorpickerbox()
-							opened = true
-
-							local function getPos()
-								local abs = colorbox.AbsolutePosition
-								local base = screengui.AbsolutePosition
-								return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
-							end
-
-							local cursorbox = library:Create("Frame", {
-								Name = "CursorBox";
-								Size = UDim2.new(0, 15,0, 15);
-								Position = getPos();
-								BackgroundColor3 = Color3.new(1,1,1);
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = screengui;
-							})
-
-							instance = cursorbox
-
-							followConn = colorbox:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-								if instance then
-									instance.Position = getPos()
-								end
-							end)
-
-							local framewindow = library:Create("Frame", {
-								Name = "Frame";
-								Size = UDim2.new(0, 323,0, 198);
-								Position = UDim2.new(1, 0,1.4, 0);
-								BackgroundColor3 = library.MainColor;
-								ZIndex = 2;
-								Parent = cursorbox;
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local uistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								LineJoinMode = Enum.LineJoinMode.Miter;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local uistroke2 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								LineJoinMode = Enum.LineJoinMode.Miter;
-								Color = library.MainColor;
-								Thickness = 4;
-								Parent = framewindow;
-							}, {
-								instancep = "Color";
-								tinstance = library.MainColor;
-							})
-
-							local text = library:Create("TextLabel", {
-								Name = "TextLabel";
-								Size = UDim2.new(1, 0,0, 16);
-								Position = UDim2.new(0, 0,0, 0);
-								Text = name;
-								TextColor3 = library.FontColor;
-								Font = library.Font;
-								TextSize = 13;
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local textuistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = text;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local textuisize = library:Create("UITextSizeConstraint", {
-								Name = "UISizeConstraint";
-								MaxTextSize = 13;
-								Parent = text;
-							})
-
-							local colors = library:Create("Frame", {
-								Name = "Colors";
-								Size = UDim2.new(1, 0,0, 23);
-								Position = UDim2.new(0, 0,0.879, 0);
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							})
-
-							local colorsUIl = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								FillDirection = Enum.FillDirection.Horizontal;
-								HorizontalAlignment = Enum.HorizontalAlignment.Center;
-								Padding = UDim.new(0, 8);
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								VerticalAlignment = Enum.VerticalAlignment.Center;
-								Parent = colors;
-							})
-
-							local colorsboxcolor = library:Create("Frame", {
-								Name = "Color";
-								Size = UDim2.new(0, 20,0, 20);
-								BackgroundColor3 = color;
-								ZIndex = 2;
-								LayoutOrder = 1;
-								Parent = colors;
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = color;
-							})
-
-							local colorsboxcoloruistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								Parent = colorsboxcolor;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local function rgbText(c)
-								return math.floor(c.R * 255 + 0.5) .. "," .. math.floor(c.G * 255 + 0.5) .. "," .. math.floor(c.B * 255 + 0.5)
-							end
-
-							local huecoloreditbox = library:Create("TextBox", {
-								Name = "Hue";
-								Size = UDim2.new(0, 71,0, 20);
-								BackgroundColor3 = library.MainColor;
-								TextColor3 = library.FontColor;
-								Text = rgbText(color);
-								TextSize = 13;
-								Font = Enum.Font.SourceSans;
-								MultiLine = false;
-								ZIndex = 2;
-								LayoutOrder = 2;
-								Parent = colors;
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							})
-
-							local huecolorboxuis1 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								Parent = huecoloreditbox;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local huecolorboxuis2 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = huecoloreditbox;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local transditbox = library:Create("TextBox", {
-								Name = "trans";
-								Size = UDim2.new(0, 71,0, 20);
-								BackgroundColor3 = library.MainColor;
-								TextColor3 = library.FontColor;
-								Text = transparency;
-								TextSize = 13;
-								Font = Enum.Font.SourceSans;
-								MultiLine = false;
-								ZIndex = 2;
-								LayoutOrder = 2;
-								Parent = colors;
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							})
-
-							local transboxuis1 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								Parent = transditbox;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local transboxuis2 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = transditbox;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local hexditbox = library:Create("TextBox", {
-								Name = "trans";
-								Size = UDim2.new(0, 71,0, 20);
-								BackgroundColor3 = library.MainColor;
-								TextColor3 = library.FontColor;
-								Text = color:ToHex();
-								TextSize = 13;
-								Font = Enum.Font.SourceSans;
-								MultiLine = false;
-								ZIndex = 2; 
-								LayoutOrder = 2;
-								Parent = colors;
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							})
-
-							local hexboxuis1 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								Parent = hexditbox;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local hexboxuis2 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = hexditbox;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local main = library:Create("Frame", {
-								Name = "Main";
-								Size = UDim2.new(1, 0,0, 158);
-								Position = UDim2.new(0, 0,0.081, 0);
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							})
-
-							local uillmain = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								FillDirection = Enum.FillDirection.Horizontal;
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								HorizontalAlignment = Enum.HorizontalAlignment.Center;
-								VerticalAlignment = Enum.VerticalAlignment.Center;
-								Padding = UDim.new(0, 5);
-								Parent = main;
-							})
-
-							local h, s, v = color:ToHSV()
-							local UIS = game:GetService("UserInputService")
-
-							local huebox = library:Create("Frame", {
-								Name = "HueBox";
-								Size = UDim2.new(0.576, 50,0.94, 0);
-								BackgroundColor3 = Color3.fromHSV(h, 1, 1);
-								ZIndex = 2;
-								Parent = main;
-							})
-
-							local helight = library:Create("Frame", {
-								Name = "HueBox2";
-								Size = UDim2.new(1,0,1,0);
-								BackgroundColor3 = Color3.new(1, 1, 1);
-								ZIndex = 3;
-								Parent = huebox;
-							})
-
-							local huelightgrad = library:Create("UIGradient", {
-								Name = "grad";
-								Parent = helight;
-
-								Transparency = NumberSequence.new({
-									NumberSequenceKeypoint.new(0, 0),
-									NumberSequenceKeypoint.new(1, 1),
-								})
-							})
-
-							local huedark = library:Create("Frame", {
-								Name = "HueBox3";
-								Size = UDim2.new(1,0,1,0);
-								BackgroundColor3 = Color3.new(0, 0, 0);
-								ZIndex = 3;
-								Parent = huebox;
-							})
-
-							local huedarkgrad = library:Create("UIGradient", {
-								Name = "grad";
-								Parent = huedark;
-
-								Rotation = 90,
-								Transparency = NumberSequence.new({
-									NumberSequenceKeypoint.new(0, 1),
-									NumberSequenceKeypoint.new(1, 0),
-								}),
-							})
-
-							local shiftbox = library:Create("Frame", {
-								Name = "shiftbox";
-								Size = UDim2.new(-0.057, 50,0.94, 0);
-								BackgroundColor3 = Color3.new(1,1,1);
-								ZIndex = 2;
-								LayoutOrder = 2;
-								Parent = main;
-							})
-
-							local rainbow = {}
-							for i = 0, 6 do
-								table.insert(rainbow, ColorSequenceKeypoint.new(i / 6, Color3.fromHSV(i / 6, 1, 1)))
-							end
-
-							local shiftgrad = library:Create("UIGradient", {
-								Name = "grad";
-								Rotation = 90;
-								Color = ColorSequence.new(rainbow);
-								Parent = shiftbox;
-							})
-
-							local transparencybox = library:Create("Frame", {
-								Name = "TransparencyBox";
-								Size = UDim2.new(-0.057, 50,0.94, 0);
-								BackgroundColor3 = Color3.new(1,1,1);
-								ZIndex = 2;
-								LayoutOrder = 3;
-								Parent = main;
-							})
-
-							local imagetrans = library:Create("ImageLabel", {
-								Name = "ImageLabel";
-								Size = UDim2.new(1,0,1,0);
-								BackgroundColor3 = Color3.new(1,1,1);
-								Parent = transparencybox;
-								Image = "rbxassetid://155451930";
-								ScaleType = Enum.ScaleType.Tile;
-								TileSize = UDim2.new(1, 0,0.3, 0);
-							})
-
-							local transfade = library:Create("Frame", {
-								Name = "Fade";
-								Size = UDim2.new(1,0,1,0);
-								BackgroundColor3 = color;
-								ZIndex = 3;
-								Parent = transparencybox;
-							})
-
-							local transfadegrad = library:Create("UIGradient", {
-								Name = "grad";
-								Rotation = 90;
-								Transparency = NumberSequence.new({
-									NumberSequenceKeypoint.new(0, 0),
-									NumberSequenceKeypoint.new(1, 1),
-								});
-								Parent = transfade;
-							})
-
-							local function refresh()
-								color = Color3.fromHSV(h, s, v)
-								colorbox.BackgroundColor3 = color
-								colorsboxcolor.BackgroundColor3 = color
-								huebox.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
-								transfade.BackgroundColor3 = color
-								huecoloreditbox.Text = rgbText(color)
-								hexditbox.Text = color:ToHex()
-								transditbox.Text = tostring(math.floor(transparency * 100 + 0.5) / 100)
-								OnChange(color, transparency, pointPosition)
-							end
-
-							local function makeSlider(box, start, onChange)
-								box.Active = true
-
-								local bar = library:Create("Frame", {
-									Name = "Bar";
-									Size = UDim2.new(1, 4,0, 3);
-									AnchorPoint = Vector2.new(0.5, 0.5);
-									Position = UDim2.new(0.5, 0,start, 0);
-									BackgroundColor3 = Color3.new(1, 1, 1);
-									ZIndex = 5;
-									Parent = box;
-								})
-
-								local barstroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									Color = Color3.new(0, 0, 0);
-									Thickness = 1;
-									Parent = bar;
-								})
-
-								local moveConn, endConn
-
-								local function stop()
-									if moveConn then moveConn:Disconnect() moveConn = nil end
-									if endConn then endConn:Disconnect() endConn = nil end
-								end
-
-								local function update(input)
-									local a = math.clamp((input.Position.Y - box.AbsolutePosition.Y) / box.AbsoluteSize.Y, 0, 1)
-									bar.Position = UDim2.new(0.5, 0,a, 0)
-									onChange(a)
-								end
-
-								trackConnection(box.InputBegan:Connect(function(input)
-									if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-										stop()
-										update(input)
-
-										moveConn = trackConnection(UIS.InputChanged:Connect(function(i)
-											if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-												update(i)
-											end
-										end))
-
-										endConn = trackConnection(UIS.InputEnded:Connect(function(i)
-											if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-												stop()
-											end
-										end))
-									end
-								end))
-
-								return function(a)
-									bar.Position = UDim2.new(0.5, 0,a, 0)
-								end
-							end
-
-							local setHueBar = makeSlider(shiftbox, h, function(a)
-								h = a
-								refresh()
-							end)
-
-							local setTransBar = makeSlider(transparencybox, transparency, function(a)
-								transparency = a
-								refresh()
-							end)
-
-							local cursor = library:Create("Frame", {
-								Name = "Cursor";
-								Size = UDim2.new(0, 8,0, 8);
-								AnchorPoint = Vector2.new(0.5, 0.5);
-								Position = UDim2.new(s, 0,1 - v, 0);
-								BackgroundColor3 = Color3.new(1, 1, 1);
-								ZIndex = 6;
-								Parent = huebox;
-							})
-
-							local cursorcorner = library:Create("UICorner", {
-								CornerRadius = UDim.new(1, 0);
-								Parent = cursor;
-							})
-
-							local cursorstroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								Color = Color3.new(0, 0, 0);
-								Thickness = 1;
-								Parent = cursor;
-							})
-
-							local function setCursor(ns, nv)
-								cursor.Position = UDim2.new(ns, 0,1 - nv, 0)
-							end
-
-							do
-								huedark.Active = true
-								local moveConn, endConn
-
-								local function stop()
-									if moveConn then moveConn:Disconnect() moveConn = nil end
-									if endConn then endConn:Disconnect() endConn = nil end
-								end
-
-								local function update(input)
-									local pos, size = huebox.AbsolutePosition, huebox.AbsoluteSize
-									s = math.clamp((input.Position.X - pos.X) / size.X, 0, 1)
-									v = 1 - math.clamp((input.Position.Y - pos.Y) / size.Y, 0, 1)
-									setCursor(s, v)
-									refresh()
-								end
-
-								trackConnection(huedark.InputBegan:Connect(function(input)
-									if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-										stop()
-										update(input)
-
-										moveConn = trackConnection(UIS.InputChanged:Connect(function(i)
-											if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-												update(i)
-											end
-										end))
-
-										endConn = trackConnection(UIS.InputEnded:Connect(function(i)
-											if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-												stop()
-											end
-										end))
-									end
-								end))
-							end
-
-							huecoloreditbox.FocusLost:Connect(function()
-								local r, g, b = huecoloreditbox.Text:match("^%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*$")
-								r, g, b = tonumber(r), tonumber(g), tonumber(b)
-
-								if r and g and b then
-									local c = Color3.fromRGB(math.clamp(r, 0, 255), math.clamp(g, 0, 255), math.clamp(b, 0, 255))
-									h, s, v = c:ToHSV()
-									setHueBar(h)
-									setCursor(s, v)
-									refresh()
-								else
-									huecoloreditbox.Text = rgbText(color)
-								end
-							end)
-
-							outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
-								if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-									return
-								end
-
-								local function isInside(gui)
-									local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
-									local m = input.Position
-									return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
-								end
-
-								if isInside(framewindow) or isInside(colorbox) then
-									return
-								end
-
-								colorpicker:Close()
-							end))
-
-						end
-
-						function colorpicker:Close()
-							if not opened then return end
-							opened = false
-
-							if followConn then
-								followConn:Disconnect()
-								followConn = nil
-							end
-
-							if outsideConn then
-								outsideConn:Disconnect()
-								outsideConn = nil
-							end
-
-							if instance then
-								instance:Destroy()
-								instance = nil
-							end
-						end
-
-						hitbox.Activated:Connect(function()
-							if opened then
-								colorpicker:Close()
-							else
-								Createcolorpickerbox()
-							end
-						end)
-
-						function colorpicker:AddColorPicker(name, opts)
-							return label:AddColorPicker(name, opts)
-						end
-
-						library.windowinstances.Colorbox = colorpicker
-
-						return colorpicker
-					end
-
-					function label:AddKeyPicker(name, opts)
-						if type(name) == "table" then
-							opts = name
-							name = uitext.Text
-						end
-
-						opts = opts or {}
-
-						local picker = {}
-						local InputService = InputService or game:GetService("UserInputService")
-
-						local function resolvekey(k)
-							if typeof(k) == "EnumItem" then
-								return k
-							end
-
-							if type(k) == "string" then
-								local ok, res = pcall(function()
-									return Enum.KeyCode[k]
-								end)
-								if ok then
-									return res
-								end
-							end
-
-							return nil
-						end
-
-						local currentkey = resolvekey(opts.Default)
-						local Mode = opts.Mode or "Hold"
-						local modes = {"Hold", "Toggle", "Always"}
-
-						local opened = false
-						local instance
-						local followConn
-						local outsideConn
-						local waitkeyconn
-
-						local waiting_for_key = false
-
-						local winkeytext
-						local winmodetext
-
-						local ignoredkeys = {
-							library.Menukey;
-							Enum.KeyCode.Return,
-							Enum.KeyCode.End,
-							Enum.KeyCode.Home,
-							Enum.KeyCode.PageUp,
-							Enum.KeyCode.PageDown,
-						}
-
-						local ignoredset = {}
-						for _, k in next, ignoredkeys do
-							if k then
-								ignoredset[k] = true
-							end
-						end
-
-						if RestrictedKeypicker then
-							error("Restricted your using a colorpicker!")
-							return
-						end
-
-						if keypicker then
-							warn("KeyPicker already exists for this label")
-							return
-						end
-
-						keypicker = picker
-						RestrictedColorpicker = true
-
-						picker.Key = currentkey
-						picker.Mode = Mode
-						picker.OnChanged = newSignal()
-						Options[name] = picker
-
-						local keyframe = library:Create("Frame", {
-							Name = "KeyPicker",
-							Size = UDim2.new(0, 50, 0, 15),
-							LayoutOrder = #holder2:GetChildren();
-							BackgroundColor3 = library.MainColor,
-							Parent = holder2;
-						},{
-							instancep = "BackgroundColor3";
-							tinstance = library.MainColor;
-						})
-
-						local uistrokekey = library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							Parent = keyframe,
-						},{
-							instancep = "Color";
-							tinstance = library.SecondaryColor;
-						})
-
-						local keybox = library:Create("TextButton", {
-							Name = "KeyBox",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = "",
-							ZIndex = 4,
-							Parent = keyframe,
-						})
-
-						local keytext = library:Create("TextLabel", {
-							Name = "KeyText",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = "None",
-							TextColor3 = library.FontColor,
-							TextSize = 13,
-							Font = library.Font,
-							TextXAlignment = Enum.TextXAlignment.Center,
-							Parent = keyframe,
-						},{
-							instancep = "TextColor3";
-							tinstance = library.FontColor;
-						}, {
-							instancep = "Font";
-							tinstance = library.Font;
-						})
-
-						local active = false
-						picker.Value = false
-
-						local function setState(state)
-							if active == state then return end
-							active = state
-							picker.Value = state
-
-							if opts.Callback then
-								opts.Callback(state)
-							end
-						end
-
-						local function updatetexts()
-							local t
-							if waiting_for_key then
-								t = "..."
-							elseif currentkey then
-								t = keyshorts[currentkey] or currentkey.Name
-							else
-								t = "None"
-							end
-
-							keytext.Text = t
-							if winkeytext then
-								winkeytext.Text = t
-							end
-							if winmodetext then
-								winmodetext.Text = Mode
-							end
-						end
-
-						local function setKey(k)
-							currentkey = k
-							picker.Key = k
-							updatetexts()
-
-							if opts.CallbackKey then
-								opts.CallbackKey(k)
-							end
-
-							picker.OnChanged:Fire(currentkey, Mode)
-						end
-
-						local function setMode(m)
-							Mode = m
-							picker.Mode = m
-							updatetexts()
-
-							setState(m == "Always")
-
-							if opts.CallbackMode then
-								opts.CallbackMode(m)
-							end
-
-							picker.OnChanged:Fire(currentkey, Mode)
-						end
-
-						local function startbind()
-							if waiting_for_key then
-								return
-							end
-
-							waiting_for_key = true
-							updatetexts()
-
-							waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-								if ignoredset[input.KeyCode] then return end
-
-								if waitkeyconn then
-									waitkeyconn:Disconnect()
-									waitkeyconn = nil
-								end
-
-								task.defer(function()
-									waiting_for_key = false
-									updatetexts()
-								end)
-
-								if input.KeyCode == Enum.KeyCode.Backspace then
-									setKey(nil)
-								else
-									setKey(input.KeyCode)
-								end
-							end))
-						end
-
-						local function openminiwindow()
-							opened = true
-
-							local function getPos()
-								local abs = keyframe.AbsolutePosition
-								local base = screengui.AbsolutePosition
-								return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
-							end
-
-							local cursorbox = library:Create("Frame", {
-								Name = "CursorBox";
-								Size = UDim2.new(0, 15,0, 15);
-								Position = getPos();
-								BackgroundColor3 = Color3.new(1,1,1);
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = screengui;
-							})
-
-							instance = cursorbox
-
-							followConn = keyframe:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-								if instance then
-									instance.Position = getPos()
-								end
-							end)
-
-							local framewindow = library:Create("Frame", {
-								Name = "Frame";
-								Size = UDim2.new(0, 323,0, 93);
-								Position = UDim2.new(1, 0,1.4, 0);
-								BackgroundColor3 = library.MainColor;
-								ZIndex = 2;
-								Parent = cursorbox;
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local uistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								LineJoinMode = Enum.LineJoinMode.Miter;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								Parent = framewindow;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local uistroke2 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								LineJoinMode = Enum.LineJoinMode.Miter;
-								Color = library.MainColor;
-								Thickness = 4;
-								Parent = framewindow;
-							}, {
-								instancep = "Color";
-								tinstance = library.MainColor;
-							})
-
-							local text = library:Create("TextLabel", {
-								Name = "TextLabel";
-								Size = UDim2.new(1, 0,0, 16);
-								Position = UDim2.new(0, 0,0, 0);
-								Text = name;
-								TextColor3 = library.FontColor;
-								Font = library.Font;
-								TextSize = 13;
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local textuistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = text;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local textuisize = library:Create("UITextSizeConstraint", {
-								Name = "UISizeConstraint";
-								MaxTextSize = 13;
-								Parent = text;
-							})
-
-							local holder = library:Create("Frame", {
-								Name = "Holder";
-								Size = UDim2.new(1, 0,-0.228, 96);
-								Position = UDim2.new(0, 0,0.195, 0);
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							})
-
-							local uill = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								Padding = UDim.new(0, 5);
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								FillDirection = Enum.FillDirection.Vertical;
-								HorizontalAlignment = Enum.HorizontalAlignment.Center;
-								VerticalAlignment = Enum.VerticalAlignment.Top;
-								Parent = holder;
-							})
-
-							local uipadd = library:Create("UIPadding", {
-								Name = "UIPadding";
-								PaddingLeft = UDim.new(0, 0);
-								PaddingRight = UDim.new(0, 0);
-								PaddingTop = UDim.new(0, 3);
-								PaddingBottom = UDim.new(0, 0);
-								Parent = holder;
-							})
-
-							local keysetbind = library:Create("Frame", {
-								Name = "KeysetBind";
-								Size = UDim2.new(.95, 0,0, 20);
-								BackgroundTransparency = 1;
-								LayoutOrder = 1;
-								Parent = holder;
-								ZIndex = 2;
-							})
-
-							local keybindsetuil = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								Padding = UDim.new(0, 0);
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								FillDirection = Enum.FillDirection.Horizontal;
-								HorizontalAlignment = Enum.HorizontalAlignment.Left;
-								VerticalAlignment = Enum.VerticalAlignment.Center;
-								Parent = keysetbind;
-							})
-
-							local keylabelset = library:Create("TextLabel", {
-								Name = "KeyLabel";
-								Size = UDim2.new(1, -55,1, 0);
-								BackgroundTransparency = 1;
-								Text = "Keybind";
-								TextColor3 = library.FontColor;
-								TextSize = 13;
-								TextXAlignment = Enum.TextXAlignment.Left;
-								TextYAlignment = Enum.TextYAlignment.Center;
-								Font = library.Font;
-								LayoutOrder = 1;
-								ZIndex = 2;
-								Parent = keysetbind;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local labeluistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = keylabelset;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local labeltsize = library:Create("UITextSizeConstraint", {
-								Name = "UITextSizeConstraint";
-								MaxTextSize = 13;
-								Parent = keylabelset;
-							})
-
-							local winkeyframe = library:Create("Frame", {
-								Name = "KeyPicker",
-								Size = UDim2.new(0, 50, 0, 15),
-								LayoutOrder = 2;
-								BackgroundColor3 = library.MainColor,
-								ZIndex = 2;
-								Parent = keysetbind,
-							},{
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local winuistrokekey = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = winkeyframe,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local winkeybox = library:Create("TextButton", {
-								Name = "KeyBox",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 3,
-								Parent = winkeyframe,
-							})
-
-							winkeytext = library:Create("TextLabel", {
-								Name = "KeyText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "None",
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								ZIndex = 2,
-								Parent = winkeyframe,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-
-							local modesetbind = library:Create("Frame", {
-								Name = "ModesetBind";
-								Size = UDim2.new(.95, 0,0, 20);
-								BackgroundTransparency = 1;
-								LayoutOrder = 2;
-								Parent = holder;
-								ZIndex = 2;
-							})
-
-							local modesetuil = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								Padding = UDim.new(0, 0);
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								FillDirection = Enum.FillDirection.Horizontal;
-								HorizontalAlignment = Enum.HorizontalAlignment.Left;
-								VerticalAlignment = Enum.VerticalAlignment.Center;
-								Parent = modesetbind;
-							})
-
-							local modelabelset = library:Create("TextLabel", {
-								Name = "ModeLabel";
-								Size = UDim2.new(1, -55,1, 0);
-								BackgroundTransparency = 1;
-								Text = "Mode";
-								TextColor3 = library.FontColor;
-								TextSize = 13;
-								TextXAlignment = Enum.TextXAlignment.Left;
-								TextYAlignment = Enum.TextYAlignment.Center;
-								Font = library.Font;
-								LayoutOrder = 1;
-								ZIndex = 2;
-								Parent = modesetbind;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local labelmuistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = modelabelset;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local labelmtsize = library:Create("UITextSizeConstraint", {
-								Name = "UITextSizeConstraint";
-								MaxTextSize = 13;
-								Parent = modelabelset;
-							})
-
-							local modeframe = library:Create("Frame", {
-								Name = "ModePicker",
-								Size = UDim2.new(0, 50, 0, 15),
-								LayoutOrder = 2;
-								BackgroundColor3 = library.MainColor,
-								ZIndex = 2;
-								Parent = modesetbind,
-							},{
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local uistrokemode = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = modeframe,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local Modebox = library:Create("TextButton", {
-								Name = "ModeBox",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 3,
-								Parent = modeframe,
-							})
-
-							winmodetext = library:Create("TextLabel", {
-								Name = "ModeText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = Mode,
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								ZIndex = 2,
-								Parent = modeframe,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local unbindbox = library:Create("Frame", {
-								Name = "UnbindBox",
-								Size = UDim2.new(0.95, 0,0, 15),
-								LayoutOrder = 3,
-								BackgroundColor3 = library.MainColor,
-								ZIndex = 2,
-								Parent = holder,
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local unbindstroke = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = unbindbox,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local unbindtext = library:Create("TextLabel", {
-								Name = "UnbindText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "Unbind",
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								ZIndex = 2,
-								Parent = unbindbox,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local unbindboxt = library:Create("TextButton", {
-								Name = "UnbindBoxText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 3,
-								Parent = unbindbox,
-							})
-
-							winkeybox.MouseButton1Click:Connect(startbind)
-
-							Modebox.MouseButton1Click:Connect(function()
-								local index = table.find(modes, Mode) or 1
-								setMode(modes[index % #modes + 1])
-							end)
-
-							unbindboxt.MouseButton1Click:Connect(function()
-								setKey(nil)
-							end)
-
-							updatetexts()
-
-							outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
-								if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-									return
-								end
-
-								local function isInside(gui)
-									local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
-									local m = input.Position
-									return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
-								end
-
-								if isInside(framewindow) or isInside(keyframe) then
-									return
-								end
-
-								picker:Close()
-							end))
-						end
-
-						function picker:Close()
-							if not opened then return end
-							opened = false
-
-							winkeytext = nil
-							winmodetext = nil
-
-							if followConn then
-								followConn:Disconnect()
-								followConn = nil
-							end
-
-							if outsideConn then
-								outsideConn:Disconnect()
-								outsideConn = nil
-							end
-
-							if instance then
-								instance:Destroy()
-								instance = nil
-							end
-						end
-
-						keybox.MouseButton1Click:Connect(startbind)
-
-						keybox.MouseButton2Click:Connect(function()
-							if opened then
-								picker:Close()
-							else
-								openminiwindow()
-							end
-						end)
-
-						trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-							if waiting_for_key then return end
-							if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-							if not currentkey or input.KeyCode ~= currentkey then return end
-
-							if Mode == "Toggle" then
-								setState(not active)
-							elseif Mode == "Hold" then
-								setState(true)
-							end
-						end))
-
-						trackConnection(InputService.InputEnded:Connect(function(input)
-							if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-							if not currentkey or input.KeyCode ~= currentkey then return end
-
-							if Mode == "Hold" then
-								setState(false)
-							end
-						end))
-
-						updatetexts()
-
-						if Mode == "Always" then
-							setState(true)
-						end
-
-						library.windowinstances.Keybindbox = picker
-
-						return picker
-					end
-
-					return label
-				end
-
-				function groupbox:AddToggle(name, opts)
-					local toggle = {}
-					local togglename = name
-					local toggled = opts.Default
-
-					if opts.Default == nil then
-						toggled = false
-					end
-
-					toggle.Value = toggled
-
-					local holder = library:Create("Frame", {
-						Name = "Holder";
-						Size = UDim2.new(0.95, 0,0, 20);
-						BackgroundTransparency = 1;
-						LayoutOrder = #elementsholder:GetChildren();
-						Parent = elementsholder;
-					})
-
-					local hb = library:Create("TextButton", {
-						Name = "Hitbox";
-						Size = UDim2.new(1, 0, 1, 0);
-						BackgroundTransparency = 1;
-						ZIndex = 2;
-						Text = "";
-						Parent = holder;
-					})
-
-					local elements = library:Create("Frame", {
-						Name = "Holder2";
-						Size = UDim2.new(1,0,1,0);
-						BackgroundTransparency = 1;
-						Parent = holder;
-					})
-
-					local uilistlayout = library:Create("UIListLayout", {
-						Name = "UIListLayout";
-						FillDirection = Enum.FillDirection.Horizontal;
-						HorizontalAlignment = Enum.HorizontalAlignment.Left;
-						SortOrder = Enum.SortOrder.LayoutOrder;
-						VerticalAlignment = Enum.VerticalAlignment.Center;
-						Padding = UDim.new(0, 0);
-						Parent = elements;
-					})
-
-					local boxelem = library:Create("Frame", {
-						Name = "Box";
-						Size = UDim2.new(0, 15, 0, 15);
-						BackgroundColor3 = library.AccentColor;
-						BackgroundTransparency = 1;
-						LayoutOrder = 1;
-						Parent = elements;
-					}, {
-						instancep = "BackgroundColor3";
-						tinstance = library.AccentColor;
-					})
-
-					local uis1 = library:Create("UIStroke", {
-						Name = "UIStroke";
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-						LineJoinMode = Enum.LineJoinMode.Miter;
-						Color = library.SecondaryColor;
-						Thickness = 1;
-
-						Parent = boxelem;
-					}, {
-						instancep = "Color";
-						tinstance = library.SecondaryColor;
-					})
-
-					local label = library:Create("TextLabel", {
-						Name = "Label";
-						Size = UDim2.new(0.772, 0, 1, 0);
-						BackgroundTransparency = 1;
-						Text = name;
-						TextColor3 = library.FontColor;
-						Font = library.Font;
-						TextSize = 13;
-						TextXAlignment = Enum.TextXAlignment.Left;
-						LayoutOrder = 2;
-						TextYAlignment = Enum.TextYAlignment.Center;
-						Parent = elements;
-					}, {
-						instancep = "TextColor3";
-						tinstance = library.FontColor;
-					}, {
-						instancep = "Font";
-						tinstance = library.Font;
-					})
-
-					local luip = library:Create("UIPadding", {
-						Name = "UIPadding";
-						PaddingLeft = UDim.new(0, 7);
-						PaddingRight = UDim.new(0, 0);
-						PaddingTop = UDim.new(0, 0);
-						PaddingBottom = UDim.new(0, 0);
-						Parent = label;
-					})
-
-					local luis = library:Create("UIStroke", {
-						Name = "UIStroke";
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-						Color = library.UIstroke;
-						Thickness = 1;
-
-						Parent = label;
-					}, {
-						instancep = "Color";
-						tinstance = library.UIstroke;
-					})
-
-					local luitextsize = library:Create("UITextSizeConstraint", {
-						Name = "UITextSizeConstraint";
-						MaxTextSize = 13;
-						Parent = label;
-					})
-
-					if toggled then
-						boxelem.BackgroundTransparency = 0
-					end
-
-					local function togglef()
-						toggled = not toggled
-
-						if toggled then
-							boxelem.BackgroundTransparency = 0
-						else
-							boxelem.BackgroundTransparency = 1
-						end
-
-						Toggles[togglename].value = toggled
-						toggle.Value = toggled
-
-						if opts.Callback then
-							opts.Callback(toggled)
-						end
-
-						if library.UpdateDependencyBoxes then
-							library:UpdateDependencyBoxes()
-						end
-					end
-
-					hb.MouseButton1Click:Connect(togglef)
-
-					Toggles[togglename] = {
-						value = toggled;
-						keypicker = nil;
-					}
-
-					function toggle:AddKeyPicker(name, opts)
-						if type(name) == "table" then
-							opts = name
-							name = togglename
-						end
-
-						opts = opts or {}
-
-						local keypicker = {}
-						local InputService = InputService or game:GetService("UserInputService")
-
-						local function resolvekey(k)
-							if typeof(k) == "EnumItem" then
-								return k
-							end
-
-							if type(k) == "string" then
-								local ok, res = pcall(function()
-									return Enum.KeyCode[k]
-								end)
-								if ok then
-									return res
-								end
-							end
-
-							return nil
-						end
-
-						local currentkey = resolvekey(opts.Default)
-						local Mode = opts.Mode or "Hold"
-						local modes = {"Hold", "Toggle", "Always"}
-
-						local opened = false
-						local instance
-						local followConn
-						local outsideConn
-						local waitkeyconn
-
-						local waiting_for_key = false
-
-						local winkeytext
-						local winmodetext
-
-						local ignoredkeys = {
-							library.Menukey;
-							Enum.KeyCode.Return,
-							Enum.KeyCode.End,
-							Enum.KeyCode.Home,
-							Enum.KeyCode.PageUp,
-							Enum.KeyCode.PageDown,
-						}
-
-						local ignoredset = {}
-						for _, k in next, ignoredkeys do
-							if k then
-								ignoredset[k] = true
-							end
-						end
-
-						if not Toggles[togglename].keypicker then
-							Toggles[togglename].keypicker = keypicker
-						else
-							warn("KeyPicker already exists for toggle: "..togglename)
-							return 
-						end
-
-						keypicker.Key = currentkey
-						keypicker.Mode = Mode
-						keypicker.OnChanged = newSignal()
-						Options[name] = keypicker
-
-						local keyframe = library:Create("Frame", {
-							Name = "KeyPicker",
-							Size = UDim2.new(0, 50, 0, 15),
-							LayoutOrder = 999;
-							BackgroundColor3 = library.MainColor,
-							Parent = elements;
-						},{
-							instancep = "BackgroundColor3";
-							tinstance = library.MainColor;
-						})
-
-						local uistrokekey = library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							Parent = keyframe,
-						},{
-							instancep = "Color";
-							tinstance = library.SecondaryColor;
-						})
-
-						local keybox = library:Create("TextButton", {
-							Name = "KeyBox",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = "",
-							ZIndex = 4,
-							Parent = keyframe,
-						})
-
-						local keytext = library:Create("TextLabel", {
-							Name = "KeyText",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = "None",
-							TextColor3 = library.FontColor,
-							TextSize = 13,
-							Font = library.Font,
-							TextXAlignment = Enum.TextXAlignment.Center,
-							Parent = keyframe,
-						},{
-							instancep = "TextColor3";
-							tinstance = library.FontColor;
-						}, {
-							instancep = "Font";
-							tinstance = library.Font;
-						})
-
-						local function setState(state)
-							if toggled == state then return end
-							togglef()
-							Toggles[togglename].value = toggled
-						end
-
-						local function updatetexts()
-							local t
-							if waiting_for_key then
-								t = "..."
-							elseif currentkey then
-								t = keyshorts[currentkey] or currentkey.Name
-							else
-								t = "None"
-							end
-
-							keytext.Text = t
-							if winkeytext then
-								winkeytext.Text = t
-							end
-							if winmodetext then
-								winmodetext.Text = Mode
-							end
-						end
-
-						local function setKey(k)
-							currentkey = k
-							keypicker.Key = k
-							updatetexts()
-
-							if opts.CallbackKey then
-								opts.CallbackKey(k)
-							end
-
-							keypicker.OnChanged:Fire(currentkey, Mode)
-						end
-
-						local function setMode(m)
-							Mode = m
-							keypicker.Mode = m
-							updatetexts()
-
-							setState(m == "Always")
-
-							if opts.CallbackMode then
-								opts.CallbackMode(m)
-							end
-
-							keypicker.OnChanged:Fire(currentkey, Mode)
-						end
-
-						local function startbind()
-							if waiting_for_key then
-								return
-							end
-
-							waiting_for_key = true
-							updatetexts()
-
-							waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-								if ignoredset[input.KeyCode] then return end
-
-								if waitkeyconn then
-									waitkeyconn:Disconnect()
-									waitkeyconn = nil
-								end
-
-								task.defer(function()
-									waiting_for_key = false
-									updatetexts()
-								end)
-
-								if input.KeyCode == Enum.KeyCode.Backspace then
-									setKey(nil)
-								else
-									setKey(input.KeyCode)
-								end
-							end))
-						end
-
-						local function openminiwindow()
-							opened = true
-
-							local function getPos()
-								local abs = keyframe.AbsolutePosition
-								local base = screengui.AbsolutePosition
-								return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
-							end
-
-							local cursorbox = library:Create("Frame", {
-								Name = "CursorBox";
-								Size = UDim2.new(0, 15,0, 15);
-								Position = getPos();
-								BackgroundColor3 = Color3.new(1,1,1);
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = screengui;
-							})
-
-							instance = cursorbox
-
-							followConn = keyframe:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-								if instance then
-									instance.Position = getPos()
-								end
-							end)
-
-							local framewindow = library:Create("Frame", {
-								Name = "Frame";
-								Size = UDim2.new(0, 323,0, 93);
-								Position = UDim2.new(1, 0,1.4, 0);
-								BackgroundColor3 = library.MainColor;
-								ZIndex = 2;
-								Parent = cursorbox;
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local uistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								LineJoinMode = Enum.LineJoinMode.Miter;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								Parent = framewindow;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local uistroke2 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								LineJoinMode = Enum.LineJoinMode.Miter;
-								Color = library.MainColor;
-								Thickness = 4;
-								Parent = framewindow;
-							}, {
-								instancep = "Color";
-								tinstance = library.MainColor;
-							})
-
-							local text = library:Create("TextLabel", {
-								Name = "TextLabel";
-								Size = UDim2.new(1, 0,0, 16);
-								Position = UDim2.new(0, 0,0, 0);
-								Text = name;
-								TextColor3 = library.FontColor;
-								Font = library.Font;
-								TextSize = 13;
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local textuistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = text;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local textuisize = library:Create("UITextSizeConstraint", {
-								Name = "UISizeConstraint";
-								MaxTextSize = 13;
-								Parent = text;
-							})
-
-							local holder = library:Create("Frame", {
-								Name = "Holder";
-								Size = UDim2.new(1, 0,-0.228, 96);
-								Position = UDim2.new(0, 0,0.195, 0);
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							})
-
-							local uill = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								Padding = UDim.new(0, 5);
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								FillDirection = Enum.FillDirection.Vertical;
-								HorizontalAlignment = Enum.HorizontalAlignment.Center;
-								VerticalAlignment = Enum.VerticalAlignment.Top;
-								Parent = holder;
-							})
-
-							local uipadd = library:Create("UIPadding", {
-								Name = "UIPadding";
-								PaddingLeft = UDim.new(0, 0);
-								PaddingRight = UDim.new(0, 0);
-								PaddingTop = UDim.new(0, 3);
-								PaddingBottom = UDim.new(0, 0);
-								Parent = holder;
-							})
-
-							local keysetbind = library:Create("Frame", {
-								Name = "KeysetBind";
-								Size = UDim2.new(.95, 0,0, 20);
-								BackgroundTransparency = 1;
-								LayoutOrder = 1;
-								Parent = holder;
-								ZIndex = 2;
-							})
-
-							local keybindsetuil = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								Padding = UDim.new(0, 0);
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								FillDirection = Enum.FillDirection.Horizontal;
-								HorizontalAlignment = Enum.HorizontalAlignment.Left;
-								VerticalAlignment = Enum.VerticalAlignment.Center;
-								Parent = keysetbind;
-							})
-
-							local keylabelset = library:Create("TextLabel", {
-								Name = "KeyLabel";
-								Size = UDim2.new(1, -55,1, 0);
-								BackgroundTransparency = 1;
-								Text = "Keybind";
-								TextColor3 = library.FontColor;
-								TextSize = 13;
-								TextXAlignment = Enum.TextXAlignment.Left;
-								TextYAlignment = Enum.TextYAlignment.Center;
-								Font = library.Font;
-								LayoutOrder = 1;
-								ZIndex = 2;
-								Parent = keysetbind;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local labeluistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = keylabelset;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local labeltsize = library:Create("UITextSizeConstraint", {
-								Name = "UITextSizeConstraint";
-								MaxTextSize = 13;
-								Parent = keylabelset;
-							})
-
-							local winkeyframe = library:Create("Frame", {
-								Name = "KeyPicker",
-								Size = UDim2.new(0, 50, 0, 15),
-								LayoutOrder = 2;
-								BackgroundColor3 = library.MainColor,
-								ZIndex = 2;
-								Parent = keysetbind,
-							},{
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local winuistrokekey = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = winkeyframe,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local winkeybox = library:Create("TextButton", {
-								Name = "KeyBox",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 3,
-								Parent = winkeyframe,
-							})
-
-							winkeytext = library:Create("TextLabel", {
-								Name = "KeyText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "None",
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								ZIndex = 2,
-								Parent = winkeyframe,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-
-							local modesetbind = library:Create("Frame", {
-								Name = "ModesetBind";
-								Size = UDim2.new(.95, 0,0, 20);
-								BackgroundTransparency = 1;
-								LayoutOrder = 2;
-								Parent = holder;
-								ZIndex = 2;
-							})
-
-							local modesetuil = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								Padding = UDim.new(0, 0);
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								FillDirection = Enum.FillDirection.Horizontal;
-								HorizontalAlignment = Enum.HorizontalAlignment.Left;
-								VerticalAlignment = Enum.VerticalAlignment.Center;
-								Parent = modesetbind;
-							})
-
-							local modelabelset = library:Create("TextLabel", {
-								Name = "ModeLabel";
-								Size = UDim2.new(1, -55,1, 0);
-								BackgroundTransparency = 1;
-								Text = "Mode";
-								TextColor3 = library.FontColor;
-								TextSize = 13;
-								TextXAlignment = Enum.TextXAlignment.Left;
-								TextYAlignment = Enum.TextYAlignment.Center;
-								Font = library.Font;
-								LayoutOrder = 1;
-								ZIndex = 2;
-								Parent = modesetbind;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local labelmuistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = modelabelset;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local labelmtsize = library:Create("UITextSizeConstraint", {
-								Name = "UITextSizeConstraint";
-								MaxTextSize = 13;
-								Parent = modelabelset;
-							})
-
-							local modeframe = library:Create("Frame", {
-								Name = "ModePicker",
-								Size = UDim2.new(0, 50, 0, 15),
-								LayoutOrder = 2;
-								BackgroundColor3 = library.MainColor,
-								ZIndex = 2;
-								Parent = modesetbind,
-							},{
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local uistrokemode = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = modeframe,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local Modebox = library:Create("TextButton", {
-								Name = "ModeBox",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 3,
-								Parent = modeframe,
-							})
-
-							winmodetext = library:Create("TextLabel", {
-								Name = "ModeText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = Mode,
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								ZIndex = 2,
-								Parent = modeframe,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local unbindbox = library:Create("Frame", {
-								Name = "UnbindBox",
-								Size = UDim2.new(0.95, 0,0, 15),
-								LayoutOrder = 3,
-								BackgroundColor3 = library.MainColor,
-								ZIndex = 2,
-								Parent = holder,
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local unbindstroke = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = unbindbox,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local unbindtext = library:Create("TextLabel", {
-								Name = "UnbindText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "Unbind",
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								ZIndex = 2,
-								Parent = unbindbox,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local unbindboxt = library:Create("TextButton", {
-								Name = "UnbindBoxText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 3,
-								Parent = unbindbox,
-							})
-
-							winkeybox.MouseButton1Click:Connect(startbind)
-
-							Modebox.MouseButton1Click:Connect(function()
-								local index = table.find(modes, Mode) or 1
-								setMode(modes[index % #modes + 1])
-							end)
-
-							unbindboxt.MouseButton1Click:Connect(function()
-								setKey(nil)
-							end)
-
-							updatetexts()
-
-							outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
-								if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-									return
-								end
-
-								local function isInside(gui)
-									local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
-									local m = input.Position
-									return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
-								end
-
-								if isInside(framewindow) or isInside(keyframe) then
-									return
-								end
-
-								keypicker:Close()
-							end))
-						end
-
-						function keypicker:Close()
-							if not opened then return end
-							opened = false
-
-							winkeytext = nil
-							winmodetext = nil
-
-							if followConn then
-								followConn:Disconnect()
-								followConn = nil
-							end
-
-							if outsideConn then
-								outsideConn:Disconnect()
-								outsideConn = nil
-							end
-
-							if instance then
-								instance:Destroy()
-								instance = nil
-							end
-						end
-
-						keybox.MouseButton1Click:Connect(startbind)
-
-						keybox.MouseButton2Click:Connect(function()
-							if opened then
-								keypicker:Close()
-							else
-								openminiwindow()
-							end
-						end)
-
-						trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-							if waiting_for_key then return end
-							if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-							if not currentkey or input.KeyCode ~= currentkey then return end
-
-							if Mode == "Toggle" then
-								setState(not toggled)
-							elseif Mode == "Hold" then
-								setState(true)
-							end
-						end))
-
-						trackConnection(InputService.InputEnded:Connect(function(input)
-							if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-							if not currentkey or input.KeyCode ~= currentkey then return end
-
-							if Mode == "Hold" then
-								setState(false)
-							end
-						end))
-
-						updatetexts()
-
-						if Mode == "Always" then
-							setState(true)
-						end
-
-						library.windowinstances.Keybindbox = keypicker
-
-						return keypicker
-					end
-
-					return toggle
-				end
-
-				function groupbox:AddSlider(name, opts)
-					opts = opts or {}
-
-					local slider = {}
-					local UIS = InputService
-
-					local config = {
-						Minimum = opts.Minimum;
-						Maximum = opts.Maximum;
-						DefaultValue = opts.Default;
-						Step = opts.Step;
-						Format = opts.Format;
-					}
-
-					local range = config.Maximum - config.Minimum
-					if range <= 0 then
-						range = 1
-					end
-
-					local stepsize = config.Step > 0 and config.Step
-
-					local function decimalsof(n)
-						local d = tostring(n):match("%.(%d+)")
-						return d and #d or 0
-					end
-
-					local decimals = opts.Rounding or math.max(decimalsof(stepsize), decimalsof(config.Minimum))
-
-					local currentvalue = config.Minimum
-					local dragging = false
-
-					local mainframe = library:Create("Frame", {
-						Name = "Slider",
-						Size = UDim2.new(0.95, 0, 0, 15),
-						BackgroundTransparency = 1,
-						LayoutOrder = #elementsholder:GetChildren(),
-						Parent = elementsholder,
-					})
-
-					if opts.Smaller then
-						mainframe.Size = UDim2.new(0.465, 0, 0, 15)
-					end
-
-					local uistroke = library:Create("UIStroke", {
-						Name = "UIStroke",
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-						Color = library.SecondaryColor,
-						Thickness = 1,
-						LineJoinMode = Enum.LineJoinMode.Miter,
-						Parent = mainframe,
-					}, {
-						instancep = "Color";
-						tinstance = library.SecondaryColor;
-					})
-
-					local frame = library:Create("Frame", {
-						Name = "Frame",
-						Size = UDim2.new(0, 0, 1, 0),
-						BackgroundColor3 = library.AccentColor,
-						Parent = mainframe,
-					}, {
-						instancep = "BackgroundColor3";
-						tinstance = library.AccentColor;
-					})
-
-					local hitbox = library:Create("TextButton", {
-						Name = "Hitbox",
-						Size = UDim2.new(1, 0, 1, 0),
-						BackgroundTransparency = 1,
-						Text = "",
-						ZIndex = 3,
-						Parent = mainframe,
-					})
-
-					local text = library:Create("TextLabel", {
-						Name = "Text",
-						Size = UDim2.new(1, 0, 1, 0),
-						BackgroundTransparency = 1,
-						Text = name,
-						TextColor3 = library.FontColor,
-						Font = library.Font,
-						TextSize = 13,
-						TextXAlignment = Enum.TextXAlignment.Center,
-						TextYAlignment = Enum.TextYAlignment.Center,
-						ZIndex = 2,
-						Parent = mainframe,
-					}, {
-						instancep = "TextColor3";
-						tinstance = library.FontColor;
-					}, {
-						instancep = "Font";
-						tinstance = library.Font;
-					})
-
-					local uistoke2 = library:Create("UIStroke", {
-						Name = "UIStroke",
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-						Color = library.UIstroke,
-						Thickness = 1,
-						LineJoinMode = Enum.LineJoinMode.Round,
-						Parent = text,
-					}, {
-						instancep = "Color";
-						tinstance = library.UIstroke;
-					})
-
-					local textuisize = library:Create("UITextSizeConstraint", {
-						Name = "UITextSizeConstraint",
-						MaxTextSize = 13,
-						Parent = text,
-					})
-
-					local function fmt(n)
-						return tostring(n)
-					end
-
-					local function refreshui()
-						local alpha = (currentvalue - config.Minimum) / range
-						frame.Size = UDim2.new(math.clamp(alpha, 0, 1), 0, 1, 0)
-
-						local suffix = ""
-						if config.Format ~= "" then
-							suffix = " " .. config.Format
-						end
-
-						text.Text = name .. ": " .. fmt(currentvalue) .. "/" .. fmt(config.Maximum) .. suffix
-					end
-
-					local function setvalue(v, silent)
-						v = math.clamp(v, config.Minimum, config.Maximum)
-						v = config.Minimum + math.floor((v - config.Minimum) / stepsize + 0.5) * stepsize
-						v = math.clamp(v, config.Minimum, config.Maximum)
-						v = tonumber(string.format("%." .. decimals .. "f", v))
-
-						local changed = v ~= currentvalue
-						currentvalue = v
-						slider.Value = v
-						refreshui()
-
-						if changed and not silent then
-							if opts.Callback then
-								opts.Callback(v)
-							end
-
-							slider.OnChanged:Fire(v)
-						end
-					end
-
-					slider.Value = currentvalue
-					slider.OnChanged = newSignal()
-					Options[name] = slider
-
-					function slider:SetValue(v)
-						setvalue(v)
-					end
-
-					function slider:GetValue()
-						return currentvalue
-					end
-
-					setvalue(config.DefaultValue, true)
-
-					local moveConn
-					local endConn
-
-					local function stop()
-						dragging = false
-
-						if moveConn then
-							moveConn:Disconnect()
-							moveConn = nil
-						end
-
-						if endConn then
-							endConn:Disconnect()
-							endConn = nil
-						end
-					end
-
-					local function drag(input)
-						local pos, size = mainframe.AbsolutePosition, mainframe.AbsoluteSize
-						local alpha = math.clamp((input.Position.X - pos.X) / size.X, 0, 1)
-						setvalue(config.Minimum + alpha * range)
-					end
-
-					trackConnection(hitbox.InputBegan:Connect(function(input)
-						if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-							stop()
-							dragging = true
-							drag(input)
-
-							moveConn = trackConnection(UIS.InputChanged:Connect(function(i)
-								if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-									drag(i)
-								end
-							end))
-
-							endConn = trackConnection(UIS.InputEnded:Connect(function(i)
-								if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-									stop()
-								end
-							end))
-						end
-					end))
-
-					return slider
-				end
-
-				function groupbox:AddButton(name , opts)
-					opts = opts or {}
-
-					local button = {}
-
-					local warnclick = opts.WarnClick or opts.Warn or false
-					local smaller = opts.Smaller or false
-					local armed = false
-					local armtoken = 0
-
-					local Holder = library:Create("Frame", {
-						Name = "Button",
-						Size = smaller and UDim2.new(0.465, 0, 0, 15) or UDim2.new(0.95, 0,0, 15),
-						LayoutOrder = #elementsholder:GetChildren(),
-						BackgroundColor3 = library.MainColor,
-						Parent = elementsholder,
-					}, {
-						instancep = "BackgroundColor3";
-						tinstance = library.MainColor;
-					})
-
-					local stroketext = library:Create("UIStroke", {
-						Name = "UIStroke",
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-						Color = library.SecondaryColor,
-						Thickness = 1,
-						Parent = Holder,
-					},{
-						instancep = "Color";
-						tinstance = library.SecondaryColor;
-					})
-
-					local text = library:Create("TextLabel", {
-						Name = "text",
-						Size = UDim2.new(1, 0, 1, 0),
-						BackgroundTransparency = 1,
-						Text = name,
-						TextColor3 = library.FontColor,
-						TextSize = 13,
-						Font = library.Font,
-						TextXAlignment = Enum.TextXAlignment.Center,
-						ZIndex = 2,
-						Parent = Holder,
-					},{
-						instancep = "TextColor3";
-						tinstance = library.FontColor;
-					}, {
-						instancep = "Font";
-						tinstance = library.Font;
-					})
-
-					local uistroke = library:Create("UIStroke", {
-						Name = "UIStroke",
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-						Color = library.UIstroke,
-						Thickness = 1,
-						Parent = text,
-					},{
-						instancep = "Color";
-						tinstance = library.UIstroke;
-					})
-
-					local textsizecon = library:Create("UITextSizeConstraint", {
-						Name = "UITextSizeConstraint",
-						MaxTextSize = 13,
-						Parent = text,
-					})
-
-					local Textbutton = library:Create("TextButton", {
-						Name = "Boxhit",
-						Size = UDim2.new(1, 0, 1, 0),
-						BackgroundTransparency = 1,
-						Text = "",
-						ZIndex = 3,
-						Parent = Holder,
-					})
-
-					local function disarm()
-						armed = false
-						armtoken += 1
-						text.Text = name
-						text.TextColor3 = library.FontColor
-					end
-
-					Textbutton.MouseButton1Click:Connect(function()
-						if warnclick and not armed then
-							armed = true
-							text.Text = "Are you sure?"
-							text.TextColor3 = Color3.fromRGB(255, 0, 0)
-
-							armtoken += 1
-							local mytoken = armtoken
-
-							task.delay(2, function()
-								if armed and armtoken == mytoken then
-									disarm()
-								end
-							end)
-
-							return
-						end
-
-						if armed then
-							disarm()
-						end
-
-						if opts.Callback then
-							opts.Callback()
-						end
-					end)
-
-					return button
-				end
-
-				function groupbox:AddDependencyBox()
-					local dependencybox = {}
-					dependencybox.Dependencies = {}
-
-					local groupbox = self
-					local Container = elementsholder
-
-					local Holder = library:Create("Frame", {
-						Name = "DependencyBox";
-						BackgroundTransparency = 1;
-						Size = UDim2.new(1, 0, 0, 0);
-						AutomaticSize = Enum.AutomaticSize.Y;
-						LayoutOrder = #Container:GetChildren();
-						Visible = false;
-						Parent = Container;
-					})
-
-					local Frame = library:Create("Frame", {
-						Name = "Elements";
-						BackgroundTransparency = 1;
-						Size = UDim2.new(1, 0, 0, 0);
-						AutomaticSize = Enum.AutomaticSize.Y;
-						Parent = Holder;
-					})
-
-					local Layout = library:Create("UIListLayout", {
-						Name = "UIListLayout";
-						FillDirection = Enum.FillDirection.Horizontal;
-						Wraps = true;
-						HorizontalAlignment = Enum.HorizontalAlignment.Center;
-						VerticalAlignment = Enum.VerticalAlignment.Top;
-						SortOrder = Enum.SortOrder.LayoutOrder;
-						Padding = UDim.new(0, 5);
-						Parent = Frame;
-					})
-
-					local order = 0
-
-					local function wrap(fname)
-						if typeof(groupbox[fname]) ~= "function" then
-							return
-						end
-
-						dependencybox[fname] = function(_, ...)
-							local before = {}
-
-							for _, child in ipairs(Container:GetChildren()) do
-								before[child] = true
-							end
-
-							local result = groupbox[fname](groupbox, ...)
-
-							for _, child in ipairs(Container:GetChildren()) do
-								if not before[child] then
-									order += 1
-									child.LayoutOrder = order
-									child.Parent = Frame
-								end
-							end
-
-							return result
-						end
-					end
-
-					for _, fname in ipairs({"AddLabel", "AddToggle", "AddSlider", "AddButton", "AddTextbox", "AddDropdown", "AddDependencyBox", "Divider"}) do
-						wrap(fname)
-					end
-
-					function dependencybox:Update()
-						for _, Dependency in next, dependencybox.Dependencies do
-							local Element = Dependency[1]
-							local Value = Dependency[2]
-
-							local current = Element.Value
-							if current == nil then
-								current = Element.value
-							end
-
-							if current ~= Value then
-								Holder.Visible = false
-								return
-							end
-						end
-
-						Holder.Visible = true
-					end
-
-					function dependencybox:SetupDependencies(Dependencies)
-						for _, Dependency in next, Dependencies do
-							assert(typeof(Dependency) == "table", "SetupDependencies: Dependency is not of type `table`.")
-							assert(Dependency[1], "SetupDependencies: Dependency is missing element argument.")
-							assert(Dependency[2] ~= nil, "SetupDependencies: Dependency is missing value argument.")
-						end
-
-						dependencybox.Dependencies = Dependencies
-						dependencybox:Update()
-					end
-
-					table.insert(groupbox.elements, dependencybox)
-					table.insert(library.DependencyBoxes, dependencybox)
-
-					return dependencybox
-				end
-
-				function groupbox:Divider()
-					local divider = {}
-
-					local frame = library:Create("Frame", {
-						Name = "Divider",
-						Size = UDim2.new(0.95, 0, 0, 3),
-						BackgroundColor3 = library.MainColor,
-						LayoutOrder = #elementsholder:GetChildren(),
-						Parent = elementsholder,
-					}, {
-						instancep = "BackgroundColor3";
-						tinstance = library.MainColor;
-					})
-
-					local uistroke1 = library:Create("UIStroke", {
-						Name = "UIStroke",
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-						Color = library.SecondaryColor,
-						Thickness = 1,
-						ZIndex = 2,
-						Parent = frame,
-					}, {
-						instancep = "Color";
-						tinstance = library.SecondaryColor;
-					})
-
-					return divider
-				end
-
-				function groupbox:AddDropdown(name, opts)
-					opts = opts or {}
-
-					library.Options = library.Options or {}
-
-					--==========================================================
-					-- REUSE AN EXISTING DROPDOWN
-					--==========================================================
-
-					local existing = library.Options[name]
-
-					if existing then
-						if existing.Type == "Dropdown"
-							and existing.Controller
-							and type(existing.Controller.Refresh) == "function" then
-
-							local controller = existing.Controller
-
-							if opts.Text ~= nil then
-								controller:SetText(opts.Text)
-							end
-
-							if opts.Callback ~= nil then
-								controller:SetCallback(opts.Callback)
-							end
-
-							if opts.Values ~= nil then
-								controller:Refresh(opts.Values, opts.Default)
-							elseif opts.Default ~= nil then
-								controller:SetValue(opts.Default, true)
-							end
-
-							return controller
-						end
-
-						warn("An option named '" .. tostring(name) .. "' already exists.")
-						return nil
-					end
-
-					--==========================================================
-					-- STATE
-					--==========================================================
-
-					local Dropdown = {}
-
-					local values = {}
-					local elements = {}
-					local selectedIndices = {}
-					local connections = {}
-
-					local picked = nil
-					local isOpen = false
-					local destroyed = false
-
-					local multi = opts.Multipick == true
-					local callback = opts.Callback
-
-					local rowHeight = 20
-					local rowGap = 3
-					local padding = 4
-
-					local requestedVisible = tonumber(opts.MaxVisibleItems) or 10
-
-					if requestedVisible ~= requestedVisible then
-						requestedVisible = 10
-					end
-
-					local maxVisibleItems = math.clamp(
-						math.floor(requestedVisible),
-						1,
-						30
-					)
-
-					local changedEvent = Instance.new("BindableEvent")
-
-					local option = {
-						Type = "Dropdown",
-						Name = name,
-						Value = multi and {} or nil,
-						Values = values,
-						OnChanged = changedEvent.Event,
-						Controller = Dropdown,
-					}
-
-					library.Options[name] = option
-
-					local function connect(signal, fn)
-						local connection = signal:Connect(fn)
-						table.insert(connections, connection)
-						return connection
-					end
-
-					local function copyUnique(source)
-						local result = {}
-						local seen = {}
-
-						if type(source) ~= "table" then
-							return result
-						end
-
-						for _, value in ipairs(source) do
-							local supported = type(value) == "string"
-								or (
-									type(value) == "number"
-									and value == value
-									and value > -math.huge
-									and value < math.huge
-								)
-
-							if supported and not seen[value] then
-								seen[value] = true
-								table.insert(result, value)
-							end
-						end
-
-						return result
-					end
-
-					local function findIndex(value)
-						if type(value) == "number" then
-							if value % 1 == 0 and value >= 1 and value <= #values then
-								return value
-							end
-
-							return nil
-						end
-
-						return table.find(values, value)
-					end
-
-					local function getValue()
-						if not multi then
-							return picked
-						end
-
-						local selected = {}
-
-						for index, value in ipairs(values) do
-							if selectedIndices[index] then
-								table.insert(selected, value)
-							end
-						end
-
-						return selected
-					end
-
-					local function equalValues(a, b)
-						if type(a) ~= type(b) then
-							return false
-						end
-
-						if type(a) ~= "table" then
-							return a == b
-						end
-
-						if #a ~= #b then
-							return false
-						end
-
-						for index, value in ipairs(a) do
-							if b[index] ~= value then
-								return false
-							end
-						end
-
-						return true
-					end
-
-					--==========================================================
-					-- MAIN UI
-					--==========================================================
-
-					local main = library:Create("Frame", {
-						Name = "Dropdown",
-						ZIndex = 10,
-						Size = UDim2.new(0.95, 0, 0, 0),
-						AutomaticSize = Enum.AutomaticSize.Y,
-						LayoutOrder = #elementsholder:GetChildren(),
-						BackgroundTransparency = 1,
-						Parent = elementsholder,
-					})
-
-					library:Create("UIListLayout", {
-						FillDirection = Enum.FillDirection.Vertical,
-						HorizontalAlignment = Enum.HorizontalAlignment.Center,
-						VerticalAlignment = Enum.VerticalAlignment.Top,
-						Padding = UDim.new(0, 5),
-						SortOrder = Enum.SortOrder.LayoutOrder,
-						Parent = main,
-					})
-
-					local header = library:Create("TextLabel", {
-						Name = "Header",
-						ZIndex = 11,
-						Size = UDim2.new(1, 0, 0, 15),
-						LayoutOrder = 1,
-						BackgroundTransparency = 1,
-						Text = tostring(opts.Text or name),
-						Font = library.Font,
-						TextColor3 = library.FontColor,
-						TextSize = 13,
-						TextXAlignment = Enum.TextXAlignment.Left,
-						Parent = main,
-					}, {
-						instancep = "TextColor3",
-						tinstance = library.FontColor,
-					}, {
-						instancep = "Font",
-						tinstance = library.Font,
-					})
-
-					library:Create("UIStroke", {
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-						Color = library.UIstroke,
-						Thickness = 1,
-						Parent = header,
-					}, {
-						instancep = "Color",
-						tinstance = library.UIstroke,
-					})
-
-					local dropdownFrame = library:Create("Frame", {
-						Name = "DropdownFrame",
-						ZIndex = 10,
-						Size = UDim2.new(1, 0, 0, 0),
-						AutomaticSize = Enum.AutomaticSize.Y,
-						LayoutOrder = 2,
-						BackgroundTransparency = 1,
-						ClipsDescendants = false,
-						Parent = main,
-					})
-
-					library:Create("UIListLayout", {
-						FillDirection = Enum.FillDirection.Vertical,
-						HorizontalAlignment = Enum.HorizontalAlignment.Center,
-						VerticalAlignment = Enum.VerticalAlignment.Top,
-						SortOrder = Enum.SortOrder.LayoutOrder,
-						Padding = UDim.new(0, 3),
-						Parent = dropdownFrame,
-					})
-
-					local selectionRow = library:Create("Frame", {
-						Name = "SelectionRow",
-						ZIndex = 11,
-						Size = UDim2.new(1, 0, 0, 22),
-						LayoutOrder = 1,
-						BackgroundTransparency = 1,
-						Parent = dropdownFrame,
-					})
-
-					library:Create("UIStroke", {
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-						Color = library.SecondaryColor,
-						Thickness = 1,
-						Parent = selectionRow,
-					}, {
-						instancep = "Color",
-						tinstance = library.SecondaryColor,
-					})
-
-					local selectedLabel = library:Create("TextLabel", {
-						Name = "Selected",
-						ZIndex = 12,
-						Size = UDim2.new(1, -25, 1, 0),
-						BackgroundTransparency = 1,
-						Text = "-",
-						Font = library.Font,
-						TextColor3 = library.FontColor,
-						TextSize = 12,
-						TextXAlignment = Enum.TextXAlignment.Left,
-						TextTruncate = Enum.TextTruncate.AtEnd,
-						Parent = selectionRow,
-					}, {
-						instancep = "Font",
-						tinstance = library.Font,
-					}, {
-						instancep = "TextColor3",
-						tinstance = library.FontColor,
-					})
-
-					library:Create("UIPadding", {
-						PaddingLeft = UDim.new(0, 6),
-						PaddingRight = UDim.new(0, 3),
-						Parent = selectedLabel,
-					})
-
-					library:Create("UIStroke", {
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-						Color = library.UIstroke,
-						Thickness = 1,
-						Parent = selectedLabel,
-					}, {
-						instancep = "Color",
-						tinstance = library.UIstroke,
-					})
-
-					local arrow = library:Create("ImageLabel", {
-						Name = "DropdownImage",
-						ZIndex = 13,
-						Size = UDim2.fromOffset(15, 15),
-						Position = UDim2.new(1, -19, 0.5, -7),
-						BackgroundTransparency = 1,
-						Image = "rbxassetid://10709767827",
-						ScaleType = Enum.ScaleType.Crop,
-						Parent = selectionRow,
-					})
-
-					local button = library:Create("TextButton", {
-						Name = "DropdownButton",
-						ZIndex = 14,
-						Size = UDim2.fromScale(1, 1),
-						BackgroundTransparency = 1,
-						Text = "",
-						AutoButtonColor = false,
-						Parent = selectionRow,
-					})
-
-					-- Fixed viewport height; canvas grows to fit every item.
-					local holder = library:Create("ScrollingFrame", {
-						Name = "Holder",
-						ZIndex = 20,
-						Size = UDim2.new(1, 0, 0, 0),
-						AutomaticSize = Enum.AutomaticSize.None,
-						AutomaticCanvasSize = Enum.AutomaticSize.None,
-						CanvasSize = UDim2.fromOffset(0, 0),
-						CanvasPosition = Vector2.zero,
-						LayoutOrder = 2,
-						BackgroundColor3 = library.MainColor,
-						BorderSizePixel = 0,
-						ScrollBarThickness = 3,
-						ScrollBarImageColor3 = library.AccentColor,
-						ScrollingDirection = Enum.ScrollingDirection.Y,
-						Visible = false,
-						ClipsDescendants = true,
-						Parent = dropdownFrame,
-					}, {
-						instancep = "BackgroundColor3",
-						tinstance = library.MainColor,
-					}, {
-						instancep = "ScrollBarImageColor3",
-						tinstance = library.AccentColor,
-					})
-
-					library:Create("UIStroke", {
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-						Color = library.SecondaryColor,
-						Thickness = 1,
-						Parent = holder,
-					}, {
-						instancep = "Color",
-						tinstance = library.SecondaryColor,
-					})
-
-					library:Create("UIListLayout", {
-						FillDirection = Enum.FillDirection.Vertical,
-						HorizontalAlignment = Enum.HorizontalAlignment.Center,
-						VerticalAlignment = Enum.VerticalAlignment.Top,
-						Padding = UDim.new(0, rowGap),
-						SortOrder = Enum.SortOrder.LayoutOrder,
-						Parent = holder,
-					})
-
-					library:Create("UIPadding", {
-						PaddingLeft = UDim.new(0, padding),
-						PaddingRight = UDim.new(0, padding),
-						PaddingTop = UDim.new(0, padding),
-						PaddingBottom = UDim.new(0, padding),
-						Parent = holder,
-					})
-
-					--==========================================================
-					-- TOP-LEVEL DROPDOWN OVERLAY
-					--==========================================================
-
-					local overlayRoot
-
-					local sourceScreenGui = main:FindFirstAncestorOfClass("ScreenGui")
-					local player = LocalPlayer
-					local playerGui = (sourceScreenGui and sourceScreenGui.Parent)
-						or (player and player:FindFirstChildOfClass("PlayerGui"))
-
-					if playerGui then
-						local highestDisplayOrder = 0
-
-						for _, child in ipairs(playerGui:GetChildren()) do
-							if child:IsA("ScreenGui") then
-								highestDisplayOrder = math.max(highestDisplayOrder, child.DisplayOrder)
-							end
-						end
-
-						overlayRoot = Instance.new("Frame")
-						overlayRoot.Name = "OverlayRoot"
-						overlayRoot.BackgroundTransparency = 1
-						overlayRoot.BorderSizePixel = 0
-						overlayRoot.Size = UDim2.fromScale(1, 1)
-						overlayRoot.Position = UDim2.fromScale(0, 0)
-						overlayRoot.Parent = Overlaygui
-
-						holder.Parent = overlayRoot
-					end
-
-					local function positionHolder()
-						if not overlayRoot or not holder or not holder.Parent then
-							return
-						end
-
-						local rootPosition = overlayRoot.AbsolutePosition
-						local rootSize = overlayRoot.AbsoluteSize
-						local rowPosition = selectionRow.AbsolutePosition
-						local rowSize = selectionRow.AbsoluteSize
-						local width = math.max(0, rowSize.X)
-						local height = holder.Size.Y.Offset
-						local x = rowPosition.X - rootPosition.X
-						local y = rowPosition.Y - rootPosition.Y + rowSize.Y + 3
-
-						if y + height > rootSize.Y then
-							y = rowPosition.Y - rootPosition.Y - height - 3
-						end
-
-						x = math.clamp(x, 0, math.max(0, rootSize.X - width))
-						y = math.clamp(y, 0, math.max(0, rootSize.Y - height))
-
-						holder.Position = UDim2.fromOffset(x, y)
-						holder.Size = UDim2.fromOffset(width, height)
-					end
-
-					--==========================================================
-					-- UI UPDATES
-					--==========================================================
-
-					local function updateHolderSize()
-						local count = #values
-						local visibleRows = math.min(count, maxVisibleItems)
-
-						local function heightFor(rows)
-							if rows == 0 then
-								return 0
-							end
-
-							return padding * 2
-								+ rows * rowHeight
-								+ math.max(0, rows - 1) * rowGap
-						end
-
-						local holderHeight = heightFor(visibleRows)
-
-						if overlayRoot then
-							holder.Size = UDim2.fromOffset(selectionRow.AbsoluteSize.X, holderHeight)
-						else
-							holder.Size = UDim2.new(1, 0, 0, holderHeight)
-						end
-
-						holder.CanvasSize = UDim2.fromOffset(0, heightFor(count))
-						holder.ScrollingEnabled = count > maxVisibleItems
-
-						if count == 0 then
-							isOpen = false
-						end
-
-						holder.Visible = isOpen and count > 0
-						arrow.Rotation = holder.Visible and 180 or 0
-						positionHolder()
-					end
-
-					local function updateSelectedText()
-						local current = getValue()
-						local hasSelection
-
-						if multi then
-							local display = {}
-
-							for _, value in ipairs(current) do
-								table.insert(display, tostring(value))
-							end
-
-							hasSelection = #display > 0
-							selectedLabel.Text = hasSelection
-								and table.concat(display, ", ")
-								or "-"
-						else
-							hasSelection = current ~= nil
-							selectedLabel.Text = hasSelection and tostring(current) or "-"
-						end
-
-						selectedLabel.TextColor3 = hasSelection
-							and library.AccentColor
-							or library.FontColor
-
-						option.Value = current
-					end
-
-					local function updateItems()
-						for index, item in ipairs(elements) do
-							local selected = multi
-								and selectedIndices[index] == true
-								or (not multi and picked == item.name)
-
-							item.button.Text = selected
-								and ("✓  " .. tostring(item.name))
-								or tostring(item.name)
-
-							item.button.TextColor3 = selected
-								and library.AccentColor
-								or library.FontColor
-						end
-					end
-
-					local function updateUI()
-						updateSelectedText()
-						updateItems()
-						updateHolderSize()
-					end
-
-					-- Reapply current theme values to already-created instances.
-					local function refreshTheme()
-						if destroyed then
-							return
-						end
-
-						local strokeColor = library.UIstroke or library.UIStroke or library.SecondaryColor
-
-						header.TextColor3 = library.FontColor
-						header.Font = library.Font
-						selectedLabel.Font = library.Font
-						holder.BackgroundColor3 = library.MainColor
-						holder.ScrollBarImageColor3 = library.AccentColor
-
-						if typeof(library.FontFace) == "Font" then
-							header.FontFace = library.FontFace
-							selectedLabel.FontFace = library.FontFace
-						end
-
-						for _, root in ipairs({ main, holder }) do
-							for _, descendant in ipairs(root:GetDescendants()) do
-								if descendant:IsA("UIStroke") then
-									if descendant.Parent == selectionRow or descendant.Parent == holder then
-										descendant.Color = library.SecondaryColor
-									else
-										descendant.Color = strokeColor
-									end
-								elseif descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
-									descendant.Font = library.Font
-
-									if typeof(library.FontFace) == "Font" then
-										descendant.FontFace = library.FontFace
-									end
-								end
-							end
-						end
-
-						updateSelectedText()
-						updateItems()
-					end
-
-					local function readThemeSnapshot()
-						return {
-							MainColor = library.MainColor,
-							SecondaryColor = library.SecondaryColor,
-							AccentColor = library.AccentColor,
-							FontColor = library.FontColor,
-							UIstroke = library.UIstroke,
-							UIStroke = library.UIStroke,
-							Font = library.Font,
-							FontFace = library.FontFace,
-						}
-					end
-
-					local function themeSnapshotChanged(previous, current)
-						for key, value in pairs(previous) do
-							if current[key] ~= value then
-								return true
-							end
-						end
-
-						return false
-					end
-
-					local function notifyChanged()
-						local value = getValue()
-
-						option.Value = value
-
-						changedEvent:Fire(
-							type(value) == "table" and table.clone(value) or value
-						)
-
-						if type(callback) == "function" then
-							local ok, err = pcall(
-								callback,
-								type(value) == "table" and table.clone(value) or value
-							)
-
-							if not ok then
-								warn(
-									"[Dropdown:" .. tostring(name) .. "] Callback failed:",
-									err
-								)
-							end
-						end
-					end
-
-					local function setValue(value, silent)
-						if destroyed then
-							return false
-						end
-
-						local previous = getValue()
-
-						if multi then
-							table.clear(selectedIndices)
-
-							local selections
-
-							if type(value) == "table" then
-								selections = value
-							elseif value ~= nil then
-								selections = { value }
-							else
-								selections = {}
-							end
-
-							for _, selection in ipairs(selections) do
-								local index = findIndex(selection)
-
-								if index then
-									selectedIndices[index] = true
-								end
-							end
-						else
-							local index = findIndex(value)
-							picked = index and values[index] or nil
-						end
-
-						updateUI()
-
-						local changed = not equalValues(previous, getValue())
-
-						if changed and not silent then
-							notifyChanged()
-						end
-
-						return changed
-					end
-
-					--==========================================================
-					-- ITEM CREATION / DELETION
-					--==========================================================
-
-					local function destroyItems()
-						for _, item in ipairs(elements) do
-							if item.connection then
-								item.connection:Disconnect()
-							end
-
-							item.button:Destroy()
-						end
-
-						table.clear(elements)
-					end
-
-					local function buildItems()
-						for index, itemName in ipairs(values) do
-							local item = {
-								name = itemName,
-								index = index,
-							}
-
-							local itemButton = library:Create("TextButton", {
-								Name = "Item_" .. tostring(index),
-								ZIndex = 21,
-								Size = UDim2.new(1, -4, 0, rowHeight),
-								BackgroundTransparency = 1,
-								Text = tostring(itemName),
-								TextSize = 13,
-								TextColor3 = library.FontColor,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Left,
-								TextTruncate = Enum.TextTruncate.AtEnd,
-								LayoutOrder = index,
-								AutoButtonColor = false,
-								Parent = holder,
-							}, {
-								instancep = "Font",
-								tinstance = library.Font,
-							}, {
-								instancep = "TextColor3",
-								tinstance = library.FontColor,
-							})
-
-							library:Create("UIStroke", {
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-								Color = library.UIstroke or library.UIStroke or library.SecondaryColor,
-								Thickness = 1,
-								Parent = itemButton,
-							}, {
-								instancep = "Color",
-								tinstance = library.UIstroke or library.UIStroke or library.SecondaryColor,
-							})
-
-							if typeof(library.FontFace) == "Font" then
-								itemButton.FontFace = library.FontFace
-							end
-
-							item.button = itemButton
-							elements[index] = item
-
-							item.connection = itemButton.MouseButton1Click:Connect(function()
-								if destroyed then
-									return
-								end
-
-								local previous = getValue()
-
-								if multi then
-									if selectedIndices[index] then
-										selectedIndices[index] = nil
-									else
-										selectedIndices[index] = true
-									end
-								else
-									picked = itemName
-									isOpen = false
-								end
-
-								updateUI()
-
-								if not equalValues(previous, getValue()) then
-									notifyChanged()
-								end
-							end)
-						end
-					end
-
-					--==========================================================
-					-- PUBLIC VALUE METHODS
-					--==========================================================
-
-					function Dropdown:GetValue()
-						return getValue()
-					end
-
-					function Dropdown:GetIndex()
-						if multi then
-							local indices = {}
-
-							for index in ipairs(values) do
-								if selectedIndices[index] then
-									table.insert(indices, index)
-								end
-							end
-
-							return indices
-						end
-
-						return picked ~= nil and table.find(values, picked) or nil
-					end
-
-					function Dropdown:GetValues()
-						return table.clone(values)
-					end
-
-					function Dropdown:SetValue(value, silent)
-						return setValue(value, silent == true)
-					end
-
-					function Dropdown:GetInstance()
-						return selectedLabel
-					end
-
-					function Dropdown:SetText(text)
-						if not destroyed then
-							header.Text = tostring(text or name)
-						end
-
-						return self
-					end
-
-					function Dropdown:SetCallback(fn)
-						assert(
-							fn == nil or type(fn) == "function",
-							"Dropdown:SetCallback expects a function or nil"
-						)
-
-						callback = fn
-						return self
-					end
-
-					--==========================================================
-					-- REFRESH / CLEAR / REMOVE
-					--==========================================================
-
-					function Dropdown:Refresh(newValues, defaultValue, silent)
-						if destroyed then
-							return self
-						end
-
-						local refreshed = copyUnique(newValues)
-						local previous = getValue()
-
-						destroyItems()
-						table.clear(values)
-						table.clear(selectedIndices)
-						picked = nil
-
-						for _, value in ipairs(refreshed) do
-							table.insert(values, value)
-						end
-
-						buildItems()
-
-						if defaultValue ~= nil then
-							setValue(defaultValue, true)
-						else
-							if multi then
-								for _, oldValue in ipairs(previous) do
-									local index = table.find(values, oldValue)
-
-									if index then
-										selectedIndices[index] = true
-									end
-								end
-							elseif previous ~= nil and table.find(values, previous) then
-								picked = previous
-							end
-
-							updateUI()
-						end
-
-						holder.CanvasPosition = Vector2.zero
-
-						if silent == false and not equalValues(previous, getValue()) then
-							notifyChanged()
-						end
-
-						refreshTheme()
-
-						return self
-					end
-
-					function Dropdown:SetValues(newValues, defaultValue, silent)
-						return self:Refresh(newValues, defaultValue, silent)
-					end
-
-					function Dropdown:Clear(silent)
-						return self:Refresh({}, nil, silent)
-					end
-
-					function Dropdown:AddItem(itemName)
-						if destroyed then
-							return nil
-						end
-
-						local existingIndex = table.find(values, itemName)
-
-						if existingIndex then
-							return elements[existingIndex]
-						end
-
-						local updated = table.clone(values)
-						table.insert(updated, itemName)
-
-						self:Refresh(updated)
-
-						local index = table.find(values, itemName)
-						return index and elements[index] or nil
-					end
-
-					function Dropdown:RemoveItem(itemName, silent)
-						if destroyed then
-							return false
-						end
-
-						local index = table.find(values, itemName)
-
-						if not index then
-							return false
-						end
-
-						local updated = table.clone(values)
-						table.remove(updated, index)
-
-						self:Refresh(updated, nil, silent)
-
-						return true
-					end
-
-					function Dropdown:Open()
-						if not destroyed and #values > 0 then
-							isOpen = true
-							updateHolderSize()
-						end
-
-						return self
-					end
-
-					function Dropdown:Close()
-						if not destroyed then
-							isOpen = false
-							updateHolderSize()
-						end
-
-						return self
-					end
-
-					--==========================================================
-					-- OVERLAY TRACKING + LIVE THEME WATCHER
-					--==========================================================
-
-					if overlayRoot then
-						connect(selectionRow:GetPropertyChangedSignal("AbsolutePosition"), positionHolder)
-						connect(selectionRow:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
-						connect(overlayRoot:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
-					end
-
-					local themeSnapshot = readThemeSnapshot()
-
-					connect(game:GetService("RunService").Heartbeat, function()
-						if destroyed then
-							return
-						end
-
-						local currentSnapshot = readThemeSnapshot()
-
-						if themeSnapshotChanged(themeSnapshot, currentSnapshot) then
-							themeSnapshot = currentSnapshot
-							refreshTheme()
-						end
-					end)
-
-					--==========================================================
-					-- CLEANUP
-					--==========================================================
-
-					local function cleanup()
-						if destroyed then
-							return
-						end
-
-						destroyed = true
-
-						destroyItems()
-
-						for _, connection in ipairs(connections) do
-							connection:Disconnect()
-						end
-
-						table.clear(connections)
-
-						if overlayGui then
-							overlayGui:Destroy()
-							overlayGui = nil
-							overlayRoot = nil
-						end
-
-						if library.Options[name] == option then
-							library.Options[name] = nil
-						end
-
-						option.Controller = nil
-						changedEvent:Destroy()
-					end
-
-					function Dropdown:Destroy()
-						if destroyed then
-							return
-						end
-
-						cleanup()
-						main:Destroy()
-					end
-
-					connect(main.Destroying, cleanup)
-
-					connect(button.MouseButton1Click, function()
-						if destroyed then
-							return
-						end
-
-						isOpen = not isOpen
-						updateHolderSize()
-					end)
-
-					--==========================================================
-					-- OPTION API
-					--==========================================================
-
-					local forwardedMethods = {
-						"GetValue",
-						"GetIndex",
-						"GetValues",
-						"SetValue",
-						"SetValues",
-						"Refresh",
-						"Clear",
-						"AddItem",
-						"RemoveItem",
-						"GetInstance",
-						"SetText",
-						"SetCallback",
-						"Open",
-						"Close",
-						"Destroy",
-					}
-
-					for _, methodName in ipairs(forwardedMethods) do
-						local method = Dropdown[methodName]
-
-						option[methodName] = function(_, ...)
-							return method(Dropdown, ...)
-						end
-					end
-
-					--==========================================================
-					-- INITIALIZATION
-					--==========================================================
-
-					Dropdown.Instance = selectedLabel
-					Dropdown.Main = main
-					Dropdown.Header = header
-					Dropdown.Holder = holder
-					Dropdown.Option = option
-					Dropdown.OnChanged = changedEvent.Event
-
-					if typeof(library.FontFace) == "Font" then
-						header.FontFace = library.FontFace
-						selectedLabel.FontFace = library.FontFace
-					end
-
-					Dropdown:Refresh(opts.Values or {}, opts.Default, true)
-					refreshTheme()
-					positionHolder()
-
-					return Dropdown
-				end
-
-				function groupbox:AddInput(name, opts)
-					opts = opts or {}
-
-					local input = {}
-
-					local initialValue = tostring(opts.Default or "")
-					local changedEvent = Instance.new("BindableEvent")
-
-					local option = {
-						Type = "Input",
-						Name = name,
-						Value = initialValue,
-						OnChanged = changedEvent.Event,
-					}
-
-					library.Options = library.Options or {}
-					library.Options[name] = option
-
-					local Holder = library:Create("Frame", {
-						Name = "Input",
-						Size = UDim2.new(0.95, 0, 0, 20),
-						LayoutOrder = #elementsholder:GetChildren(),
-						BackgroundColor3 = library.MainColor,
-						Parent = elementsholder,
-					}, {
-						instancep = "BackgroundColor3",
-						tinstance = library.MainColor,
-					})
-
-					library:Create("UIStroke", {
-						Name = "UIStroke",
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-						Color = library.SecondaryColor,
-						Thickness = 1,
-						Parent = Holder,
-					}, {
-						instancep = "Color",
-						tinstance = library.SecondaryColor,
-					})
-
-					local text = library:Create("TextBox", {
-						Name = "Text",
-						Size = UDim2.new(1, 0, 1, 0),
-						BackgroundTransparency = 1,
-						ClearTextOnFocus = false,
-						MultiLine = false,
-						PlaceholderText = name .. "..",
-						Text = initialValue,
-						TextColor3 = library.FontColor,
-						TextSize = 13,
-						Font = library.Font,
-						TextXAlignment = Enum.TextXAlignment.Center,
-						ZIndex = 2,
-						Parent = Holder,
-					}, {
-						instancep = "TextColor3",
-						tinstance = library.FontColor,
-					}, {
-						instancep = "Font",
-						tinstance = library.Font,
-					})
-
-					library:Create("UIStroke", {
-						Name = "TextStroke",
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-						Color = library.UIstroke,
-						Thickness = 1,
-						Parent = text,
-					}, {
-						instancep = "Color",
-						tinstance = library.UIstroke,
-					})
-
-					library:Create("UITextSizeConstraint", {
-						Name = "UITextSizeConstraint",
-						MaxTextSize = 13,
-						Parent = text,
-					})
-
-					local updating = false
-
-					local function setValue(value, silent)
-						value = tostring(value or "")
-
-						option.Value = value
-
-						if text.Text ~= value then
-							updating = true
-							text.Text = value
-							updating = false
-						end
-
-						if not silent then
-							changedEvent:Fire(value)
-
-							if opts.Callback then
-								opts.Callback(value)
-							end
-						end
-					end
-
-					function option:GetValue()
-						return option.Value
-					end
-
-					function option:SetValue(value)
-						setValue(value, false)
-					end
-
-					function input:GetValue()
-						return option.Value
-					end
-
-					function input:SetValue(value)
-						option:SetValue(value)
-					end
-
-					function input:GetInstance()
-						return text
-					end
-
-					text:GetPropertyChangedSignal("Text"):Connect(function()
-						if updating then
-							return
-						end
-
-						local value = text.Text
-
-						if option.Value == value then
-							return
-						end
-
-						option.Value = value
-						changedEvent:Fire(value)
-
-						if opts.Callback then
-							opts.Callback(value)
-						end
-					end)
-
-					input.Instance = text
-					input.Holder = Holder
-					input.Option = option
-
-					return input
-				end	
-				
-				
-function groupbox:AddLineGraph(text, opts)
-	opts = opts or {}
-
-	local linegraph = {}
-	local graphsets = {}
-	local curvePoints = 0
-	local opened = false
-	local destroyed = false
-
-	local instance
-	local followConn
-	local outsideConn
-	local buttonConnection
-	local openConnections = {}
-	local pointFrames = {}
-	local pointConnections = {}
-	local curveFrames = {}
-
-	local UIS = game:GetService("UserInputService")
-
-	local selectedPreset = opts.Preset or "Linear"
-	local draggingPoint
-	local dragMoveConn
-	local dragEndConn
-
-	local presets = {
-		"Linear",
-		"Smooth",
-		"Exponential",
-		"Ease In",
-		"Ease Out",
-		"Ease In Out"
-	}
-
-	local function addConnection(signal, callback)
-		local connection = signal:Connect(callback)
-
-		if trackConnection then
-			trackConnection(connection)
-		end
-
-		table.insert(openConnections, connection)
-		return connection
-	end
-
-	local function disconnectConnection(connection)
-		if connection then
-			connection:Disconnect()
-		end
-	end
-
-	local function clearPointConnections()
-		for _, connection in ipairs(pointConnections) do
-			disconnectConnection(connection)
-		end
-
-		table.clear(pointConnections)
-	end
-
-	local function clearOpenConnections()
-		for _, connection in ipairs(openConnections) do
-			disconnectConnection(connection)
-		end
-
-		table.clear(openConnections)
-		clearPointConnections()
-
-		disconnectConnection(followConn)
-		disconnectConnection(outsideConn)
-		disconnectConnection(dragMoveConn)
-		disconnectConnection(dragEndConn)
-
-		followConn = nil
-		outsideConn = nil
-		dragMoveConn = nil
-		dragEndConn = nil
-		draggingPoint = nil
-	end
-
-	local function clearList(list)
-		for _, object in ipairs(list) do
-			if object then
-				object:Destroy()
-			end
-		end
-
-		table.clear(list)
-	end
-
-	local function copyPoints(values)
-		local result = {}
-
-		for _, point in ipairs(values or {}) do
-			local x = tonumber(point.X or point.x or point[1]) or 0
-			local y = tonumber(point.Y or point.y or point[2]) or 0
-
-			table.insert(result, {
-				X = math.clamp(x, 0, 1),
-				Y = math.clamp(y, 0, 1)
-			})
-		end
-
-		table.sort(result, function(a, b)
-			return a.X < b.X
-		end)
-
-		return result
-	end
-
-	graphsets = copyPoints(opts.default or opts.Default or {})
-	curvePoints = #graphsets
-
-	local function getData()
-		local result = {}
-
-		for i, point in ipairs(graphsets) do
-			result[i] = {
-				X = point.X,
-				Y = point.Y
-			}
-		end
-
-		return result
-	end
-
-	local function notifyChanged()
-		curvePoints = #graphsets
-
-		if type(opts.Callback) == "function" then
-			opts.Callback(getData())
-		end
-	end
-
-	local holder = library:Create("Frame", {
-		Name = "Holder";
-		Size = UDim2.new(0.95, 0, 0, 20);
-		BackgroundTransparency = 1;
-		LayoutOrder = #elementsholder:GetChildren();
-		Parent = elementsholder;
-	})
-
-	local uitext = library:Create("TextLabel", {
-		Name = "TextLabel";
-		Size = UDim2.new(0.937, 0, 1, 0);
-		BackgroundTransparency = 1;
-		Text = text;
-		TextSize = 13;
-		TextColor3 = library.FontColor;
-		Font = library.Font;
-		LayoutOrder = 1;
-		TextXAlignment = Enum.TextXAlignment.Left;
-		TextYAlignment = Enum.TextYAlignment.Center;
-		Parent = holder;
-	}, {
-		instancep = "TextColor3";
-		tinstance = library.FontColor;
-	}, {
-		instancep = "Font";
-		tinstance = library.Font;
-	})
-
-	library:Create("UITextSizeConstraint", {
-		Name = "UITextSizeConstraint";
-		MaxTextSize = 13;
-		Parent = uitext;
-	})
-
-	library:Create("UIStroke", {
-		Name = "UIStroke";
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-		Color = Color3.fromRGB(0, 0, 0);
-		Thickness = 1;
-		Parent = uitext;
-	}, {
-		instancep = "Color";
-		tinstance = library.UIstroke;
-	})
-
-	library:Create("UIListLayout", {
-		Name = "UIListLayout";
-		FillDirection = Enum.FillDirection.Horizontal;
-		HorizontalAlignment = Enum.HorizontalAlignment.Left;
-		SortOrder = Enum.SortOrder.LayoutOrder;
-		Parent = holder;
-	})
-
-	local buttonopen = library:Create("ImageButton", {
-		Name = "ButtonOpen";
-		Size = UDim2.new(0, 19, 0, 19);
-		LayoutOrder = 2;
-		BackgroundTransparency = 1;
-		Image = "rbxassetid://10734950309";
-		ImageColor3 = library.AccentColor;
-		Parent = holder;
-	}, {
-		instancep = "ImageColor3";
-		tinstance = library.AccentColor;
-	})
-
-	local function getPopupPosition()
-		local absolute = buttonopen.AbsolutePosition
-		local base = screengui.AbsolutePosition
-
-		return UDim2.fromOffset(
-			absolute.X - base.X,
-			absolute.Y - base.Y
-		)
-	end
-
-	local closeGraph
-
-	local function openGraph()
-		if opened or destroyed then
-			return
-		end
-
-		opened = true
-
-		-- Use the existing library ScreenGui; don't create another one.
-		local lineG = library:Create("Frame", {
-			Name = "CursorBox";
-			Size = UDim2.fromOffset(15, 15);
-			Position = getPopupPosition();
-			BackgroundTransparency = 1;
-			ZIndex = 2;
-			Parent = screengui;
-		})
-
-		instance = lineG
-
-		followConn = buttonopen:GetPropertyChangedSignal(
-			"AbsolutePosition"
-		):Connect(function()
-			if opened and instance and instance.Parent then
-				instance.Position = getPopupPosition()
-			end
-		end)
-
-		if trackConnection then
-			trackConnection(followConn)
-		end
-
-		local framewindow = library:Create("Frame", {
-			Name = "Frame";
-			Size = UDim2.fromOffset(323, 246);
-			Position = UDim2.new(1, 0, 1.4, 0);
-			BackgroundColor3 = library.MainColor;
-			BorderSizePixel = 0;
-			ZIndex = 2;
-			Parent = lineG;
-		}, {
-			instancep = "BackgroundColor3";
-			tinstance = library.MainColor;
-		})
-
-		library:Create("UIStroke", {
-			Name = "UIStroke";
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-			LineJoinMode = Enum.LineJoinMode.Miter;
-			Color = library.SecondaryColor;
-			Thickness = 1;
-			ZIndex = 2;
-			Parent = framewindow;
-		}, {
-			instancep = "Color";
-			tinstance = library.SecondaryColor;
-		})
-
-		library:Create("UIStroke", {
-			Name = "OuterStroke";
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-			LineJoinMode = Enum.LineJoinMode.Miter;
-			Color = library.MainColor;
-			Thickness = 4;
-			ZIndex = 2;
-			Parent = framewindow;
-		}, {
-			instancep = "Color";
-			tinstance = library.MainColor;
-		})
-
-		local title = library:Create("TextLabel", {
-			Name = "TextLabel";
-			Size = UDim2.new(1, 0, 0, 18);
-			Position = UDim2.fromOffset(0, 0);
-			BackgroundTransparency = 1;
-			Text = text or "Line Graph";
-			TextColor3 = library.FontColor;
-			Font = library.Font;
-			TextSize = 13;
-			TextXAlignment = Enum.TextXAlignment.Left;
-			ZIndex = 3;
-			Parent = framewindow;
-		}, {
-			instancep = "TextColor3";
-			tinstance = library.FontColor;
-		}, {
-			instancep = "Font";
-			tinstance = library.Font;
-		})
-
-		library:Create("UIPadding", {
-			PaddingLeft = UDim.new(0, 6);
-			Parent = title;
-		})
-
-		library:Create("UIStroke", {
-			Name = "UIStroke";
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-			Color = library.UIstroke;
-			Thickness = 1;
-			Parent = title;
-		}, {
-			instancep = "Color";
-			tinstance = library.UIstroke;
-		})
-
-		local GraphHolder = library:Create("Frame", {
-			Name = "GraphHolder";
-			Position = UDim2.fromOffset(4, 24);
-			Size = UDim2.fromOffset(315, 168);
-			BackgroundTransparency = 1;
-			BorderSizePixel = 0;
-			ClipsDescendants = false;
-			Active = true;
-			ZIndex = 2;
-			Parent = framewindow;
-		})
-
-		library:Create("UIStroke", {
-			Color = library.SecondaryColor;
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-			Parent = GraphHolder;
-		}, {
-			instancep = "Color";
-			tinstance = library.SecondaryColor;
-		})
-
-		local grid = library:Create("Frame", {
-			Name = "Grid";
-			Size = UDim2.fromScale(1, 1);
-			BackgroundTransparency = 1;
-			ZIndex = 2;
-			Parent = GraphHolder;
-		})
-
-		local curveLayer = library:Create("Frame", {
-			Name = "CurveLines";
-			Size = UDim2.fromScale(1, 1);
-			BackgroundTransparency = 1;
-			ZIndex = 3;
-			Parent = GraphHolder;
-		})
-
-		local pointLayer = library:Create("Frame", {
-			Name = "Points";
-			Size = UDim2.fromScale(1, 1);
-			BackgroundTransparency = 1;
-			ZIndex = 5;
-			Parent = GraphHolder;
-		})
-
-		for i = 1, 4 do
-			library:Create("Frame", {
-				Name = "HorizontalLine";
-				Position = UDim2.fromScale(0, i / 5);
-				Size = UDim2.new(1, 0, 0, 1);
-				BorderSizePixel = 0;
-				BackgroundColor3 = library.SecondaryColor;
-				ZIndex = 2;
-				Parent = grid;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.SecondaryColor;
-			})
-		end
-
-		for i = 1, 7 do
-			library:Create("Frame", {
-				Name = "VerticalLine";
-				Position = UDim2.fromScale(i / 8, 0);
-				Size = UDim2.new(0, 1, 1, 0);
-				BorderSizePixel = 0;
-				BackgroundColor3 = library.SecondaryColor;
-				ZIndex = 2;
-				Parent = grid;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.SecondaryColor;
-			})
-		end
-
-		local function toPixels(point)
-			local size = GraphHolder.AbsoluteSize
-
-			return Vector2.new(
-				point.X * size.X,
-				(1 - point.Y) * size.Y
-			)
-		end
-
-		local function createSegment(a, b)
-			local delta = b - a
-			local length = delta.Magnitude
-
-			if length < 0.5 then
-				return
-			end
-
-			local segment = library:Create("Frame", {
-				Name = "CurveSegment";
-				AnchorPoint = Vector2.new(0, 0.5);
-				Position = UDim2.fromOffset(a.X, a.Y);
-				Size = UDim2.fromOffset(length, 2);
-				Rotation = math.deg(math.atan2(delta.Y, delta.X));
-				BorderSizePixel = 0;
-				BackgroundColor3 = library.AccentColor;
-				ZIndex = 3;
-				Parent = curveLayer;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.AccentColor;
-			})
-
-			table.insert(curveFrames, segment)
-		end
-
-		local function catmullRom(p0, p1, p2, p3, t)
-			local t2 = t * t
-			local t3 = t2 * t
-
-			return Vector2.new(
-				0.5 * (
-					2 * p1.X
-					+ (-p0.X + p2.X) * t
-					+ (2*p0.X - 5*p1.X + 4*p2.X - p3.X) * t2
-					+ (-p0.X + 3*p1.X - 3*p2.X + p3.X) * t3
-				),
-				0.5 * (
-					2 * p1.Y
-					+ (-p0.Y + p2.Y) * t
-					+ (2*p0.Y - 5*p1.Y + 4*p2.Y - p3.Y) * t2
-					+ (-p0.Y + 3*p1.Y - 3*p2.Y + p3.Y) * t3
-				)
-			)
-		end
-
-		local function interpolateY(a, b, t)
-			if selectedPreset == "Exponential"
-				or selectedPreset == "Ease In" then
-				t = t * t
-			elseif selectedPreset == "Ease Out" then
-				t = 1 - (1 - t) * (1 - t)
-			elseif selectedPreset == "Ease In Out" then
-				if t < 0.5 then
-					t = 2 * t * t
-				else
-					t = 1 - ((-2 * t + 2) ^ 2) / 2
-				end
-			end
-
-			return a + (b - a) * t
-		end
-
-		local renderGraph
-
-		local function drawCurve()
-			clearList(curveFrames)
-
-			if #graphsets < 2 then
-				return
-			end
-
-			local points = {}
-
-			for i, point in ipairs(graphsets) do
-				points[i] = toPixels(point)
-			end
-
-			for i = 1, #points - 1 do
-				local p1 = points[i]
-				local p2 = points[i + 1]
-
-				if selectedPreset == "Smooth" then
-					local p0 = points[math.max(1, i - 1)]
-					local p3 = points[math.min(#points, i + 2)]
-					local previous = p1
-
-					for step = 1, 20 do
-						local nextPoint = catmullRom(
-							p0, p1, p2, p3, step / 20
-						)
-
-						createSegment(previous, nextPoint)
-						previous = nextPoint
-					end
-				else
-					local previous = p1
-
-					for step = 1, 20 do
-						local t = step / 20
-
-						local nextPoint = Vector2.new(
-							p1.X + (p2.X - p1.X) * t,
-							interpolateY(p1.Y, p2.Y, t)
-						)
-
-						createSegment(previous, nextPoint)
-						previous = nextPoint
-					end
-				end
-			end
-		end
-
-		local function endDrag()
-			draggingPoint = nil
-
-			disconnectConnection(dragMoveConn)
-			disconnectConnection(dragEndConn)
-
-			dragMoveConn = nil
-			dragEndConn = nil
-
-			table.sort(graphsets, function(a, b)
-				return a.X < b.X
-			end)
-
-			if opened then
-				renderGraph()
-				notifyChanged()
-			end
-		end
-
-		local function startDrag(point)
-			disconnectConnection(dragMoveConn)
-			disconnectConnection(dragEndConn)
-
-			draggingPoint = point
-
-			dragMoveConn = UIS.InputChanged:Connect(function(input)
-				if not draggingPoint or not opened or destroyed then
-					return
-				end
-
-				if input.UserInputType ~= Enum.UserInputType.MouseMovement
-					and input.UserInputType ~= Enum.UserInputType.Touch then
-					return
-				end
-
-				local position = input.Position
-				local origin = GraphHolder.AbsolutePosition
-				local size = GraphHolder.AbsoluteSize
-
-				if size.X <= 0 or size.Y <= 0 then
-					return
-				end
-
-				draggingPoint.X = math.clamp(
-					(position.X - origin.X) / size.X, 0, 1
-				)
-
-				draggingPoint.Y = math.clamp(
-					1 - (position.Y - origin.Y) / size.Y, 0, 1
-				)
-
-				renderGraph()
-				notifyChanged()
-			end)
-
-			dragEndConn = UIS.InputEnded:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1
-					or input.UserInputType == Enum.UserInputType.Touch then
-					endDrag()
-				end
-			end)
-
-			if trackConnection then
-				trackConnection(dragMoveConn)
-				trackConnection(dragEndConn)
-			end
-		end
-
-		renderGraph = function()
-			clearPointConnections()
-			clearList(pointFrames)
-
-			for _, point in ipairs(graphsets) do
-				local pixel = toPixels(point)
-
-				local dot = library:Create("TextButton", {
-					Name = "CurveDot";
-					AnchorPoint = Vector2.new(0.5, 0.5);
-					Position = UDim2.fromOffset(pixel.X, pixel.Y);
-					Size = UDim2.fromOffset(10, 10);
-					BackgroundColor3 = library.AccentColor;
-					BorderSizePixel = 0;
-					Text = "";
-					AutoButtonColor = false;
-					Active = true;
-					ZIndex = 5;
-					Parent = pointLayer;
-				}, {
-					instancep = "BackgroundColor3";
-					tinstance = library.AccentColor;
-				})
-
-				library:Create("UICorner", {
-					CornerRadius = UDim.new(1, 0);
-					Parent = dot;
-				})
-
-				library:Create("TextLabel", {
-					Name = "PointValue";
-					AnchorPoint = Vector2.new(0.5, 1);
-					Position = UDim2.new(0.5, 0, 0, -3);
-					Size = UDim2.fromOffset(90, 14);
-					BackgroundTransparency = 1;
-					Text = string.format("%.2f, %.2f", point.X, point.Y);
-					TextColor3 = library.FontColor;
-					Font = library.Font;
-					TextSize = 10;
-					ZIndex = 6;
-					Parent = dot;
-				}, {
-					instancep = "TextColor3";
-					tinstance = library.FontColor;
-				}, {
-					instancep = "Font";
-					tinstance = library.Font;
-				})
-
-				table.insert(pointFrames, dot)
-
-				local connection = dot.InputBegan:Connect(function(input)
-					if not opened or destroyed then
-						return
-					end
-
-					if input.UserInputType == Enum.UserInputType.MouseButton1
-						or input.UserInputType == Enum.UserInputType.Touch then
-						startDrag(point)
-					end
-				end)
-
-				table.insert(pointConnections, connection)
-
-				if trackConnection then
-					trackConnection(connection)
-				end
-			end
-
-			drawCurve()
-		end
-
-		addConnection(GraphHolder.InputBegan, function(input)
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then
-				return
-			end
-
-			if not opened or destroyed then
-				return
-			end
-
-			local position = input.Position
-			local origin = GraphHolder.AbsolutePosition
-			local size = GraphHolder.AbsoluteSize
-
-			if size.X <= 0 or size.Y <= 0 then
-				return
-			end
-
-			local x = math.clamp(
-				(position.X - origin.X) / size.X, 0, 1
-			)
-
-			local y = math.clamp(
-				1 - (position.Y - origin.Y) / size.Y, 0, 1
-			)
-
-			table.insert(graphsets, {
-				X = x;
-				Y = y;
-			})
-
-			table.sort(graphsets, function(a, b)
-				return a.X < b.X
-			end)
-
-			renderGraph()
-			notifyChanged()
-		end)
-
-		if opts.Presets == true then
-			local presetButton = library:Create("TextButton", {
-				Name = "PresetButton";
-				Position = UDim2.fromOffset(6, 197);
-				Size = UDim2.new(1, -12, 0, 20);
-				BackgroundColor3 = library.MainColor;
-				Text = "Curve: " .. selectedPreset .. "  v";
-				TextColor3 = library.FontColor;
-				Font = library.Font;
-				TextSize = 12;
-				BorderSizePixel = 0;
-				ZIndex = 10;
-				Parent = framewindow;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.MainColor;
-			}, {
-				instancep = "TextColor3";
-				tinstance = library.FontColor;
-			}, {
-				instancep = "Font";
-				tinstance = library.Font;
-			})
-
-			local menu = library:Create("Frame", {
-				Name = "PresetMenu";
-				Position = UDim2.new(0, 6, 1, -48 - (#presets * 20));
-				Size = UDim2.new(1, -12, 0, #presets * 20);
-				BackgroundColor3 = library.MainColor;
-				BorderSizePixel = 0;
-				Visible = false;
-				ZIndex = 20;
-				Parent = framewindow;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.MainColor;
-			})
-
-			library:Create("UIListLayout", {
-				SortOrder = Enum.SortOrder.LayoutOrder;
-				Parent = menu;
-			})
-
-			for i, preset in ipairs(presets) do
-				local option = library:Create("TextButton", {
-					Name = preset;
-					Size = UDim2.new(1, 0, 0, 20);
-					BackgroundColor3 = library.MainColor;
-					BorderSizePixel = 0;
-					Text = preset;
-					TextColor3 = library.FontColor;
-					Font = library.Font;
-					TextSize = 12;
-					LayoutOrder = i;
-					ZIndex = 21;
-					Parent = menu;
-				}, {
-					instancep = "BackgroundColor3";
-					tinstance = library.MainColor;
-				}, {
-					instancep = "TextColor3";
-					tinstance = library.FontColor;
-				}, {
-					instancep = "Font";
-					tinstance = library.Font;
-				})
-
-				addConnection(option.Activated, function()
-					selectedPreset = preset
-					presetButton.Text = "Curve: " .. preset .. "  v"
-					menu.Visible = false
-
-					renderGraph()
-					notifyChanged()
-				end)
-			end
-
-			addConnection(presetButton.Activated, function()
-				menu.Visible = not menu.Visible
-			end)
-		end
-
-		local resetButton = library:Create("TextButton", {
-			Name = "ResetGraph";
-			Position = UDim2.new(0, 6, 1, -25);
-			Size = UDim2.new(1, -12, 0, 20);
-			BackgroundColor3 = library.MainColor;
-			Text = "Reset Graph";
-			TextColor3 = library.FontColor;
-			Font = library.Font;
-			TextSize = 12;
-			BorderSizePixel = 0;
-			ZIndex = 10;
-			Parent = framewindow;
-		}, {
-			instancep = "BackgroundColor3";
-			tinstance = library.MainColor;
-		}, {
-			instancep = "TextColor3";
-			tinstance = library.FontColor;
-		}, {
-			instancep = "Font";
-			tinstance = library.Font;
-		})
-
-		addConnection(resetButton.Activated, function()
-			table.clear(graphsets)
-			renderGraph()
-			notifyChanged()
-		end)
-
-		addConnection(
-			GraphHolder:GetPropertyChangedSignal("AbsoluteSize"),
-			function()
-				if opened then
-					renderGraph()
-				end
-			end
-		)
-
-		-- Defer the outside-click check so the opening click cannot close it.
-		outsideConn = UIS.InputBegan:Connect(function(input)
-			if not opened or not instance or not instance.Parent then
-				return
-			end
-
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then
-				return
-			end
-
-			local position = input.Position
-			local topLeft = framewindow.AbsolutePosition
-			local bottomRight = topLeft + framewindow.AbsoluteSize
-
-			local inWindow =
-				position.X >= topLeft.X
-				and position.X <= bottomRight.X
-				and position.Y >= topLeft.Y
-				and position.Y <= bottomRight.Y
-
-			local buttonPos = buttonopen.AbsolutePosition
-			local buttonSize = buttonopen.AbsoluteSize
-
-			local inButton =
-				position.X >= buttonPos.X
-				and position.X <= buttonPos.X + buttonSize.X
-				and position.Y >= buttonPos.Y
-				and position.Y <= buttonPos.Y + buttonSize.Y
-
-			if not inWindow and not inButton then
-				closeGraph()
-			end
-		end)
-
-		if trackConnection then
-			trackConnection(outsideConn)
-		end
-
-		task.defer(function()
-			if opened and GraphHolder.Parent then
-				renderGraph()
-			end
-		end)
-	end
-
-	closeGraph = function()
-		if not opened then
-			return
-		end
-
-		-- Set this first so callbacks stop acting while the popup closes.
-		opened = false
-
-		clearOpenConnections()
-
-		if instance then
-			instance:Destroy()
-			instance = nil
-		end
-	end
-
-	-- IMPORTANT: This connection is deliberately NOT added to
-	-- openConnections, so closing the popup won't kill the reopen button.
-	buttonConnection = buttonopen.Activated:Connect(function()
-		if destroyed then
-			return
-		end
-
-		if opened then
-			closeGraph()
-		else
-			openGraph()
-		end
-	end)
-
-	if trackConnection then
-		trackConnection(buttonConnection)
-	end
-
-	function linegraph:Get()
-		return getData()
-	end
-
-	function linegraph:Set(values)
-		if destroyed then
-			return
-		end
-
-		graphsets = copyPoints(values)
-		curvePoints = #graphsets
-
-		if opened then
-			closeGraph()
-			openGraph()
-		end
-
-		notifyChanged()
-	end
-
-	function linegraph:Reset()
-		if destroyed then
-			return
-		end
-
-		graphsets = {}
-		curvePoints = 0
-
-		if opened then
-			closeGraph()
-			openGraph()
-		end
-
-		notifyChanged()
-	end
-
-	function linegraph:SetPreset(preset)
-		if destroyed then
-			return false
-		end
-
-		for _, name in ipairs(presets) do
-			if name == preset then
-				selectedPreset = name
-
-				if opened then
-					closeGraph()
-					openGraph()
-				end
-
-				notifyChanged()
-				return true
-			end
-		end
-
-		return false
-	end
-
-	function linegraph:Destroy()
-		if destroyed then
-			return
-		end
-
-		destroyed = true
-		closeGraph()
-
-		disconnectConnection(buttonConnection)
-		buttonConnection = nil
-
-		clearOpenConnections()
-		clearPointConnections()
-
-		if holder then
-			holder:Destroy()
-			holder = nil
-		end
-	end
-
-	return linegraph
+ return MakeGroupbox(Left, title)
 end
-
-
-				return groupbox
-			end
 
 			function tab:AddRightGroupbox(title)
-				local groupbox = {
-					elements = {};
-				}
-
-				local groupboxf = library:Create("Frame", {
-					Name = "Groupbox";
-					Size = UDim2.new(0.95, 0,0, 0);
-					Position = UDim2.new(0, 0,0, 0);
-					BackgroundColor3 = library.MainColor;
-					AutomaticSize = Enum.AutomaticSize.Y;
-					LayoutOrder = #Right:GetChildren();
-					Parent = Right;
-				}, {
-					instancep = "BackgroundColor3";
-					tinstance = library.MainColor;
-				})
-
-				local uistroke = library:Create("UIStroke", {
-					Name = "UIStroke";
-					Parent = groupboxf;
-					Thickness = 1;
-					Color = library.SecondaryColor;
-					ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-				}, {
-					instancep = "Color";
-					tinstance = library.SecondaryColor;
-				})
-
-				local uilay = library:Create("UIListLayout", {
-					Name = "uil";
-					FillDirection = Enum.FillDirection.Vertical;
-					Padding = UDim.new(0, 1);
-					SortOrder = Enum.SortOrder.LayoutOrder;
-					HorizontalAlignment = Enum.HorizontalAlignment.Center;
-					VerticalAlignment = Enum.VerticalAlignment.Top;
-
-					Parent = groupboxf;
-				})
-
-				local uipad = library:Create("UIPadding", {
-					Name = "uip";
-					PaddingRight = UDim.new(0, 0);
-					PaddingLeft = UDim.new(0, 0);
-					PaddingTop = UDim.new(0, 0);
-					PaddingBottom = UDim.new(0, 4);
-					Parent = groupboxf;
-				})
-
-				local accent = library:Create("Frame", {
-					Name = "Accent";
-					Size = UDim2.new(1, 0,0, 1);
-					Position = UDim2.new(0, 0,0, 0);
-					BackgroundColor3 = library.AccentColor;
-					LayoutOrder = -1000;
-					Parent = groupboxf;
-				}, {
-					instancep = "BackgroundColor3";
-					tinstance = library.AccentColor;
-				})
-
-				local titlegroupbox = library:Create("TextLabel", {
-					Name = "Title";
-					Size = UDim2.new(1, 0,0, 20);
-					LayoutOrder = -1;
-
-					BackgroundTransparency = 1;
-					Text = title;
-					Font = library.Font;
-					TextColor3 = library.FontColor;
-					TextSize = 14;
-
-					Parent = groupboxf;
-				}, {
-					instancep = "TextColor3";
-					tinstance = library.FontColor;
-				}, {
-					instancep = "Font";
-					tinstance = library.Font;
-				})
-
-				local titleuis = library:Create("UIStroke", {
-					Name = "UIStroke";
-					Parent = titlegroupbox;
-					Thickness = 1;
-					Color = library.UIstroke;
-				}, {
-					instancep = "Color";
-					tinstance = library.UIstroke;
-				})
-
-				local titleuits = library:Create("UITextSizeConstraint", {
-					Name = "uit";
-					MaxTextSize = 14;
-					Parent = titlegroupbox;
-				})
-
-				local titleuip = library:Create("UIPadding", {
-					Name = "uip";
-					PaddingRight = UDim.new(0, 0);
-					PaddingLeft = UDim.new(0, 0);
-					PaddingTop = UDim.new(0, 3);
-					PaddingBottom = UDim.new(0, 0);
-					Parent = titlegroupbox;
-				})
-
-				local elementsholder = library:Create("Frame", {
-					Name = "elem";
-					Size = UDim2.new(1, 0,0, 0);
-					BackgroundTransparency = 1;
-					LayoutOrder = 1;
-					AutomaticSize = Enum.AutomaticSize.Y;
-					Parent = groupboxf;
-				})
-
-				local elemsuill = library:Create("UIListLayout", {
-					Name = "UIListLayout";
-					FillDirection = Enum.FillDirection.Horizontal;
-					Wraps = true;
-					HorizontalAlignment = Enum.HorizontalAlignment.Center;
-					VerticalAlignment = Enum.VerticalAlignment.Top;
-					SortOrder = Enum.SortOrder.LayoutOrder;
-					Padding = UDim.new(0, 5);
-					Parent = elementsholder;
-				})
-
-				local elemsuip = library:Create("UIPadding", {
-					Name = "UIPadding";
-					PaddingBottom = UDim.new(0, 0);
-					PaddingLeft = UDim.new(0, 0);
-					PaddingRight = UDim.new(0, 0);
-					PaddingTop = UDim.new(0, 3);
-					Parent = elementsholder;
-				})
-
-				-- api	
-				function groupbox:AddLabel(text, opts)
-				--[[
-				    MAX 3 COLOR PICKERS (cant use key picker if u do this)
-				    MAX 1 KEY PICKER (cant use color pickers if u do this)
-				]]
-
-					local label = {}
-					local colorpickers = {}
-					local keypicker = nil
-
-					local RestrictedKeypicker = false
-					local RestrictedColorpicker = false
-
-					local holder = library:Create("Frame", {
-						Name = "Holder";
-						Size = UDim2.new(0.95, 0,0, 20);
-						BackgroundTransparency = 1;
-						LayoutOrder = #elementsholder:GetChildren();
-						Parent = elementsholder;
-					})
-
-					local uitext = library:Create("TextLabel", {
-						Name = "TextLabel";
-						Size = UDim2.new(.795, 0,1, 0);
-						BackgroundTransparency = 1;
-						Text = text;
-						TextSize = 13;
-						TextColor3 = library.FontColor;
-						Font = library.Font;
-						LayoutOrder = 1;
-						TextXAlignment = Enum.TextXAlignment.Left;
-						TextYAlignment = Enum.TextYAlignment.Center;
-						Parent = holder;
-					}, {
-						instancep = "TextColor3";
-						tinstance = library.FontColor;
-					})
-
-					local uitextsui = library:Create("UITextSizeConstraint", {
-						Name = "UITextSizeConstraint";
-						MaxTextSize = 13;
-						Parent = uitext;
-					})
-
-					local uistroke = library:Create("UIStroke", {
-						Name = "UIStroke";
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-						Color = Color3.fromRGB(0, 0, 0);
-						Thickness = 1;
-						Parent = uitext;
-					}, {
-						instancep = "Color";
-						tinstance = library.UIstroke;
-					})
-
-					local uill = library:Create("UIListLayout", {
-						Name = "UIListLayout";
-						FillDirection = Enum.FillDirection.Horizontal;
-						HorizontalAlignment = Enum.HorizontalAlignment.Left;
-						SortOrder = Enum.SortOrder.LayoutOrder;
-						Parent = holder;
-					})
-
-					local holder2 = library:Create("Frame", {
-						Name = "Holder";
-						Size = UDim2.new(0.043, 50,1, 0);
-						BackgroundTransparency = 1;
-						LayoutOrder = 2;
-						Parent = holder;
-					})
-
-					local uillh = library:Create("UIListLayout", {
-						Name = "UIListLayout";
-						FillDirection = Enum.FillDirection.Horizontal;
-						HorizontalAlignment = Enum.HorizontalAlignment.Right;
-						VerticalAlignment = Enum.VerticalAlignment.Center;
-						SortOrder = Enum.SortOrder.LayoutOrder;
-						Padding = UDim.new(0, 6);
-						Parent = holder2;
-					})
-
-					function label:AddColorPicker(name, opts)
-						if RestrictedColorpicker then
-							error("Restricted your using a keypicker!")
-							return
-						end
-
-						if #colorpickers >= 3 then
-							error("Max number of colorpickers reached")
-							return
-						end
-
-						local colorpicker = {}
-						table.insert(colorpickers, colorpicker)
-						RestrictedKeypicker = true
-						local color = opts.Startcolor or Color3.new(1, 1, 1)
-						local transparency = opts.Transparency or 0
-						local pointPosition
-
-						colorpicker.Color = color
-						colorpicker.Transparency = transparency
-						colorpicker.OnChanged = newSignal()
-						Options[name] = colorpicker
-						local opened = false
-						local instance 
-						local followConn
-						local outsideConn
-
-						local colorbox = library:Create("Frame", {
-							Name = "ColorBox";
-							Size = UDim2.new(0, 15,0, 15);
-							BackgroundColor3 = color;
-							LayoutOrder = #holder2:GetChildren();
-							Parent = holder2;
-						})
-
-						local uistroke = library:Create("UIStroke", {
-							Name = "UIStroke";
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-							LineJoinMode = Enum.LineJoinMode.Miter;
-							Color = library.SecondaryColor;
-							Thickness = 1;
-							Parent = colorbox;
-						}, {
-							instancep = "Color";
-							tinstance = library.SecondaryColor;
-						})
-
-						local hitbox = library:Create("TextButton", {
-							Name = "Hitbox";
-							Size = UDim2.new(1,0,1,0);
-							BackgroundTransparency = 1;
-							Active = true;
-							ZIndex = 10;
-							Selectable = true;
-							Text = "";
-							Parent = colorbox;
-						})
-
-						local function OnChange(newcolor, newtransparency)
-							colorpicker.Color = newcolor
-							colorpicker.Transparency = newtransparency
-
-							if opts.Callback then
-								opts.Callback(newcolor, newtransparency)
-							end
-
-							colorpicker.OnChanged:Fire(newcolor, newtransparency)
-						end
-
-						local function Createcolorpickerbox()
-							opened = true
-
-							local function getPos()
-								local abs = colorbox.AbsolutePosition
-								local base = screengui.AbsolutePosition
-								return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
-							end
-
-							local cursorbox = library:Create("Frame", {
-								Name = "CursorBox";
-								Size = UDim2.new(0, 15,0, 15);
-								Position = getPos();
-								BackgroundColor3 = Color3.new(1,1,1);
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = screengui;
-							})
-
-							instance = cursorbox
-
-							followConn = colorbox:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-								if instance then
-									instance.Position = getPos()
-								end
-							end)
-
-							local framewindow = library:Create("Frame", {
-								Name = "Frame";
-								Size = UDim2.new(0, 323,0, 198);
-								Position = UDim2.new(1, 0,1.4, 0);
-								BackgroundColor3 = library.MainColor;
-								ZIndex = 2;
-								Parent = cursorbox;
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local uistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								LineJoinMode = Enum.LineJoinMode.Miter;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local uistroke2 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								LineJoinMode = Enum.LineJoinMode.Miter;
-								Color = library.MainColor;
-								Thickness = 4;
-								Parent = framewindow;
-							}, {
-								instancep = "Color";
-								tinstance = library.MainColor;
-							})
-
-							local text = library:Create("TextLabel", {
-								Name = "TextLabel";
-								Size = UDim2.new(1, 0,0, 16);
-								Position = UDim2.new(0, 0,0, 0);
-								Text = name;
-								TextColor3 = library.FontColor;
-								Font = library.Font;
-								TextSize = 13;
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local textuistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = text;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local textuisize = library:Create("UITextSizeConstraint", {
-								Name = "UISizeConstraint";
-								MaxTextSize = 13;
-								Parent = text;
-							})
-
-							local colors = library:Create("Frame", {
-								Name = "Colors";
-								Size = UDim2.new(1, 0,0, 23);
-								Position = UDim2.new(0, 0,0.879, 0);
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							})
-
-							local colorsUIl = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								FillDirection = Enum.FillDirection.Horizontal;
-								HorizontalAlignment = Enum.HorizontalAlignment.Center;
-								Padding = UDim.new(0, 8);
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								VerticalAlignment = Enum.VerticalAlignment.Center;
-								Parent = colors;
-							})
-
-							local colorsboxcolor = library:Create("Frame", {
-								Name = "Color";
-								Size = UDim2.new(0, 20,0, 20);
-								BackgroundColor3 = color;
-								ZIndex = 2;
-								LayoutOrder = 1;
-								Parent = colors;
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = color;
-							})
-
-							local colorsboxcoloruistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								Parent = colorsboxcolor;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local function rgbText(c)
-								return math.floor(c.R * 255 + 0.5) .. "," .. math.floor(c.G * 255 + 0.5) .. "," .. math.floor(c.B * 255 + 0.5)
-							end
-
-							local huecoloreditbox = library:Create("TextBox", {
-								Name = "Hue";
-								Size = UDim2.new(0, 71,0, 20);
-								BackgroundColor3 = library.MainColor;
-								TextColor3 = library.FontColor;
-								Text = rgbText(color);
-								TextSize = 13;
-								Font = Enum.Font.SourceSans;
-								MultiLine = false;
-								ZIndex = 2;
-								LayoutOrder = 2;
-								Parent = colors;
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							})
-
-							local huecolorboxuis1 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								Parent = huecoloreditbox;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local huecolorboxuis2 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = huecoloreditbox;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local transditbox = library:Create("TextBox", {
-								Name = "trans";
-								Size = UDim2.new(0, 71,0, 20);
-								BackgroundColor3 = library.MainColor;
-								TextColor3 = library.FontColor;
-								Text = transparency;
-								TextSize = 13;
-								Font = Enum.Font.SourceSans;
-								MultiLine = false;
-								ZIndex = 2;
-								LayoutOrder = 2;
-								Parent = colors;
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							})
-
-							local transboxuis1 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								Parent = transditbox;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local transboxuis2 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = transditbox;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local hexditbox = library:Create("TextBox", {
-								Name = "trans";
-								Size = UDim2.new(0, 71,0, 20);
-								BackgroundColor3 = library.MainColor;
-								TextColor3 = library.FontColor;
-								Text = color:ToHex();
-								TextSize = 13;
-								Font = Enum.Font.SourceSans;
-								MultiLine = false;
-								ZIndex = 2; 
-								LayoutOrder = 2;
-								Parent = colors;
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							})
-
-							local hexboxuis1 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								Parent = hexditbox;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local hexboxuis2 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = hexditbox;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local main = library:Create("Frame", {
-								Name = "Main";
-								Size = UDim2.new(1, 0,0, 158);
-								Position = UDim2.new(0, 0,0.081, 0);
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							})
-
-							local uillmain = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								FillDirection = Enum.FillDirection.Horizontal;
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								HorizontalAlignment = Enum.HorizontalAlignment.Center;
-								VerticalAlignment = Enum.VerticalAlignment.Center;
-								Padding = UDim.new(0, 5);
-								Parent = main;
-							})
-
-							local h, s, v = color:ToHSV()
-							local UIS = game:GetService("UserInputService")
-
-							local huebox = library:Create("Frame", {
-								Name = "HueBox";
-								Size = UDim2.new(0.576, 50,0.94, 0);
-								BackgroundColor3 = Color3.fromHSV(h, 1, 1);
-								ZIndex = 2;
-								Parent = main;
-							})
-
-							local helight = library:Create("Frame", {
-								Name = "HueBox2";
-								Size = UDim2.new(1,0,1,0);
-								BackgroundColor3 = Color3.new(1, 1, 1);
-								ZIndex = 3;
-								Parent = huebox;
-							})
-
-							local huelightgrad = library:Create("UIGradient", {
-								Name = "grad";
-								Parent = helight;
-
-								Transparency = NumberSequence.new({
-									NumberSequenceKeypoint.new(0, 0),
-									NumberSequenceKeypoint.new(1, 1),
-								})
-							})
-
-							local huedark = library:Create("Frame", {
-								Name = "HueBox3";
-								Size = UDim2.new(1,0,1,0);
-								BackgroundColor3 = Color3.new(0, 0, 0);
-								ZIndex = 3;
-								Parent = huebox;
-							})
-
-							local huedarkgrad = library:Create("UIGradient", {
-								Name = "grad";
-								Parent = huedark;
-
-								Rotation = 90,
-								Transparency = NumberSequence.new({
-									NumberSequenceKeypoint.new(0, 1),
-									NumberSequenceKeypoint.new(1, 0),
-								}),
-							})
-
-							local shiftbox = library:Create("Frame", {
-								Name = "shiftbox";
-								Size = UDim2.new(-0.057, 50,0.94, 0);
-								BackgroundColor3 = Color3.new(1,1,1);
-								ZIndex = 2;
-								LayoutOrder = 2;
-								Parent = main;
-							})
-
-							local rainbow = {}
-							for i = 0, 6 do
-								table.insert(rainbow, ColorSequenceKeypoint.new(i / 6, Color3.fromHSV(i / 6, 1, 1)))
-							end
-
-							local shiftgrad = library:Create("UIGradient", {
-								Name = "grad";
-								Rotation = 90;
-								Color = ColorSequence.new(rainbow);
-								Parent = shiftbox;
-							})
-
-							local transparencybox = library:Create("Frame", {
-								Name = "TransparencyBox";
-								Size = UDim2.new(-0.057, 50,0.94, 0);
-								BackgroundColor3 = Color3.new(1,1,1);
-								ZIndex = 2;
-								LayoutOrder = 3;
-								Parent = main;
-							})
-
-							local imagetrans = library:Create("ImageLabel", {
-								Name = "ImageLabel";
-								Size = UDim2.new(1,0,1,0);
-								BackgroundColor3 = Color3.new(1,1,1);
-								Parent = transparencybox;
-								Image = "rbxassetid://155451930";
-								ScaleType = Enum.ScaleType.Tile;
-								TileSize = UDim2.new(1, 0,0.3, 0);
-							})
-
-							local transfade = library:Create("Frame", {
-								Name = "Fade";
-								Size = UDim2.new(1,0,1,0);
-								BackgroundColor3 = color;
-								ZIndex = 3;
-								Parent = transparencybox;
-							})
-
-							local transfadegrad = library:Create("UIGradient", {
-								Name = "grad";
-								Rotation = 90;
-								Transparency = NumberSequence.new({
-									NumberSequenceKeypoint.new(0, 0),
-									NumberSequenceKeypoint.new(1, 1),
-								});
-								Parent = transfade;
-							})
-
-							local function refresh()
-								color = Color3.fromHSV(h, s, v)
-								colorbox.BackgroundColor3 = color
-								colorsboxcolor.BackgroundColor3 = color
-								huebox.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
-								transfade.BackgroundColor3 = color
-								huecoloreditbox.Text = rgbText(color)
-								hexditbox.Text = color:ToHex()
-								transditbox.Text = tostring(math.floor(transparency * 100 + 0.5) / 100)
-								OnChange(color, transparency, pointPosition)
-							end
-
-							local function makeSlider(box, start, onChange)
-								box.Active = true
-
-								local bar = library:Create("Frame", {
-									Name = "Bar";
-									Size = UDim2.new(1, 4,0, 3);
-									AnchorPoint = Vector2.new(0.5, 0.5);
-									Position = UDim2.new(0.5, 0,start, 0);
-									BackgroundColor3 = Color3.new(1, 1, 1);
-									ZIndex = 5;
-									Parent = box;
-								})
-
-								local barstroke = library:Create("UIStroke", {
-									Name = "UIStroke";
-									ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-									Color = Color3.new(0, 0, 0);
-									Thickness = 1;
-									Parent = bar;
-								})
-
-								local moveConn, endConn
-
-								local function stop()
-									if moveConn then moveConn:Disconnect() moveConn = nil end
-									if endConn then endConn:Disconnect() endConn = nil end
-								end
-
-								local function update(input)
-									local a = math.clamp((input.Position.Y - box.AbsolutePosition.Y) / box.AbsoluteSize.Y, 0, 1)
-									bar.Position = UDim2.new(0.5, 0,a, 0)
-									onChange(a)
-								end
-
-								trackConnection(box.InputBegan:Connect(function(input)
-									if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-										stop()
-										update(input)
-
-										moveConn = trackConnection(UIS.InputChanged:Connect(function(i)
-											if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-												update(i)
-											end
-										end))
-
-										endConn = trackConnection(UIS.InputEnded:Connect(function(i)
-											if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-												stop()
-											end
-										end))
-									end
-								end))
-
-								return function(a)
-									bar.Position = UDim2.new(0.5, 0,a, 0)
-								end
-							end
-
-							local setHueBar = makeSlider(shiftbox, h, function(a)
-								h = a
-								refresh()
-							end)
-
-							local setTransBar = makeSlider(transparencybox, transparency, function(a)
-								transparency = a
-								refresh()
-							end)
-
-							local cursor = library:Create("Frame", {
-								Name = "Cursor";
-								Size = UDim2.new(0, 8,0, 8);
-								AnchorPoint = Vector2.new(0.5, 0.5);
-								Position = UDim2.new(s, 0,1 - v, 0);
-								BackgroundColor3 = Color3.new(1, 1, 1);
-								ZIndex = 6;
-								Parent = huebox;
-							})
-
-							local cursorcorner = library:Create("UICorner", {
-								CornerRadius = UDim.new(1, 0);
-								Parent = cursor;
-							})
-
-							local cursorstroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								Color = Color3.new(0, 0, 0);
-								Thickness = 1;
-								Parent = cursor;
-							})
-
-							local function setCursor(ns, nv)
-								cursor.Position = UDim2.new(ns, 0,1 - nv, 0)
-							end
-
-							do
-								huedark.Active = true
-								local moveConn, endConn
-
-								local function stop()
-									if moveConn then moveConn:Disconnect() moveConn = nil end
-									if endConn then endConn:Disconnect() endConn = nil end
-								end
-
-								local function update(input)
-									local pos, size = huebox.AbsolutePosition, huebox.AbsoluteSize
-									s = math.clamp((input.Position.X - pos.X) / size.X, 0, 1)
-									v = 1 - math.clamp((input.Position.Y - pos.Y) / size.Y, 0, 1)
-									setCursor(s, v)
-									refresh()
-								end
-
-								trackConnection(huedark.InputBegan:Connect(function(input)
-									if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-										stop()
-										update(input)
-
-										moveConn = trackConnection(UIS.InputChanged:Connect(function(i)
-											if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-												update(i)
-											end
-										end))
-
-										endConn = trackConnection(UIS.InputEnded:Connect(function(i)
-											if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-												stop()
-											end
-										end))
-									end
-								end))
-							end
-
-							huecoloreditbox.FocusLost:Connect(function()
-								local r, g, b = huecoloreditbox.Text:match("^%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*$")
-								r, g, b = tonumber(r), tonumber(g), tonumber(b)
-
-								if r and g and b then
-									local c = Color3.fromRGB(math.clamp(r, 0, 255), math.clamp(g, 0, 255), math.clamp(b, 0, 255))
-									h, s, v = c:ToHSV()
-									setHueBar(h)
-									setCursor(s, v)
-									refresh()
-								else
-									huecoloreditbox.Text = rgbText(color)
-								end
-							end)
-
-							outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
-								if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-									return
-								end
-
-								local function isInside(gui)
-									local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
-									local m = input.Position
-									return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
-								end
-
-								if isInside(framewindow) or isInside(colorbox) then
-									return
-								end
-
-								colorpicker:Close()
-							end))
-
-						end
-
-						function colorpicker:Close()
-							if not opened then return end
-							opened = false
-
-							if followConn then
-								followConn:Disconnect()
-								followConn = nil
-							end
-
-							if outsideConn then
-								outsideConn:Disconnect()
-								outsideConn = nil
-							end
-
-							if instance then
-								instance:Destroy()
-								instance = nil
-							end
-						end
-
-						hitbox.Activated:Connect(function()
-							if opened then
-								colorpicker:Close()
-							else
-								Createcolorpickerbox()
-							end
-						end)
-
-						function colorpicker:AddColorPicker(name, opts)
-							return label:AddColorPicker(name, opts)
-						end
-
-						library.windowinstances.Colorbox = colorpicker
-
-						return colorpicker
-					end
-
-					function label:AddKeyPicker(name, opts)
-						if type(name) == "table" then
-							opts = name
-							name = uitext.Text
-						end
-
-						opts = opts or {}
-
-						local picker = {}
-						local InputService = InputService or game:GetService("UserInputService")
-
-						local function resolvekey(k)
-							if typeof(k) == "EnumItem" then
-								return k
-							end
-
-							if type(k) == "string" then
-								local ok, res = pcall(function()
-									return Enum.KeyCode[k]
-								end)
-								if ok then
-									return res
-								end
-							end
-
-							return nil
-						end
-
-						local currentkey = resolvekey(opts.Default)
-						local Mode = opts.Mode or "Hold"
-						local modes = {"Hold", "Toggle", "Always"}
-
-						local opened = false
-						local instance
-						local followConn
-						local outsideConn
-						local waitkeyconn
-
-						local waiting_for_key = false
-
-						local winkeytext
-						local winmodetext
-
-						local ignoredkeys = {
-							library.Menukey;
-							Enum.KeyCode.Return,
-							Enum.KeyCode.End,
-							Enum.KeyCode.Home,
-							Enum.KeyCode.PageUp,
-							Enum.KeyCode.PageDown,
-						}
-
-						local ignoredset = {}
-						for _, k in next, ignoredkeys do
-							if k then
-								ignoredset[k] = true
-							end
-						end
-
-						if RestrictedKeypicker then
-							error("Restricted your using a colorpicker!")
-							return
-						end
-
-						if keypicker then
-							warn("KeyPicker already exists for this label")
-							return
-						end
-
-						keypicker = picker
-						RestrictedColorpicker = true
-
-						picker.Key = currentkey
-						picker.Mode = Mode
-						picker.OnChanged = newSignal()
-						Options[name] = picker
-
-						local keyframe = library:Create("Frame", {
-							Name = "KeyPicker",
-							Size = UDim2.new(0, 50, 0, 15),
-							LayoutOrder = #holder2:GetChildren();
-							BackgroundColor3 = library.MainColor,
-							Parent = holder2;
-						},{
-							instancep = "BackgroundColor3";
-							tinstance = library.MainColor;
-						})
-
-						local uistrokekey = library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							Parent = keyframe,
-						},{
-							instancep = "Color";
-							tinstance = library.SecondaryColor;
-						})
-
-						local keybox = library:Create("TextButton", {
-							Name = "KeyBox",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = "",
-							ZIndex = 4,
-							Parent = keyframe,
-						})
-
-						local keytext = library:Create("TextLabel", {
-							Name = "KeyText",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = "None",
-							TextColor3 = library.FontColor,
-							TextSize = 13,
-							Font = library.Font,
-							TextXAlignment = Enum.TextXAlignment.Center,
-							Parent = keyframe,
-						},{
-							instancep = "TextColor3";
-							tinstance = library.FontColor;
-						}, {
-							instancep = "Font";
-							tinstance = library.Font;
-						})
-
-						local active = false
-						picker.Value = false
-
-						local function setState(state)
-							if active == state then return end
-							active = state
-							picker.Value = state
-
-							if opts.Callback then
-								opts.Callback(state)
-							end
-						end
-
-						local function updatetexts()
-							local t
-							if waiting_for_key then
-								t = "..."
-							elseif currentkey then
-								t = keyshorts[currentkey] or currentkey.Name
-							else
-								t = "None"
-							end
-
-							keytext.Text = t
-							if winkeytext then
-								winkeytext.Text = t
-							end
-							if winmodetext then
-								winmodetext.Text = Mode
-							end
-						end
-
-						local function setKey(k)
-							currentkey = k
-							picker.Key = k
-							updatetexts()
-
-							if opts.CallbackKey then
-								opts.CallbackKey(k)
-							end
-
-							picker.OnChanged:Fire(currentkey, Mode)
-						end
-
-						local function setMode(m)
-							Mode = m
-							picker.Mode = m
-							updatetexts()
-
-							setState(m == "Always")
-
-							if opts.CallbackMode then
-								opts.CallbackMode(m)
-							end
-
-							picker.OnChanged:Fire(currentkey, Mode)
-						end
-
-						local function startbind()
-							if waiting_for_key then
-								return
-							end
-
-							waiting_for_key = true
-							updatetexts()
-
-							waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-								if ignoredset[input.KeyCode] then return end
-
-								if waitkeyconn then
-									waitkeyconn:Disconnect()
-									waitkeyconn = nil
-								end
-
-								task.defer(function()
-									waiting_for_key = false
-									updatetexts()
-								end)
-
-								if input.KeyCode == Enum.KeyCode.Backspace then
-									setKey(nil)
-								else
-									setKey(input.KeyCode)
-								end
-							end))
-						end
-
-						local function openminiwindow()
-							opened = true
-
-							local function getPos()
-								local abs = keyframe.AbsolutePosition
-								local base = screengui.AbsolutePosition
-								return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
-							end
-
-							local cursorbox = library:Create("Frame", {
-								Name = "CursorBox";
-								Size = UDim2.new(0, 15,0, 15);
-								Position = getPos();
-								BackgroundColor3 = Color3.new(1,1,1);
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = screengui;
-							})
-
-							instance = cursorbox
-
-							followConn = keyframe:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-								if instance then
-									instance.Position = getPos()
-								end
-							end)
-
-							local framewindow = library:Create("Frame", {
-								Name = "Frame";
-								Size = UDim2.new(0, 323,0, 93);
-								Position = UDim2.new(1, 0,1.4, 0);
-								BackgroundColor3 = library.MainColor;
-								ZIndex = 2;
-								Parent = cursorbox;
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local uistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								LineJoinMode = Enum.LineJoinMode.Miter;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								Parent = framewindow;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local uistroke2 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								LineJoinMode = Enum.LineJoinMode.Miter;
-								Color = library.MainColor;
-								Thickness = 4;
-								Parent = framewindow;
-							}, {
-								instancep = "Color";
-								tinstance = library.MainColor;
-							})
-
-							local text = library:Create("TextLabel", {
-								Name = "TextLabel";
-								Size = UDim2.new(1, 0,0, 16);
-								Position = UDim2.new(0, 0,0, 0);
-								Text = name;
-								TextColor3 = library.FontColor;
-								Font = library.Font;
-								TextSize = 13;
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local textuistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = text;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local textuisize = library:Create("UITextSizeConstraint", {
-								Name = "UISizeConstraint";
-								MaxTextSize = 13;
-								Parent = text;
-							})
-
-							local holder = library:Create("Frame", {
-								Name = "Holder";
-								Size = UDim2.new(1, 0,-0.228, 96);
-								Position = UDim2.new(0, 0,0.195, 0);
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							})
-
-							local uill = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								Padding = UDim.new(0, 5);
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								FillDirection = Enum.FillDirection.Vertical;
-								HorizontalAlignment = Enum.HorizontalAlignment.Center;
-								VerticalAlignment = Enum.VerticalAlignment.Top;
-								Parent = holder;
-							})
-
-							local uipadd = library:Create("UIPadding", {
-								Name = "UIPadding";
-								PaddingLeft = UDim.new(0, 0);
-								PaddingRight = UDim.new(0, 0);
-								PaddingTop = UDim.new(0, 3);
-								PaddingBottom = UDim.new(0, 0);
-								Parent = holder;
-							})
-
-							local keysetbind = library:Create("Frame", {
-								Name = "KeysetBind";
-								Size = UDim2.new(.95, 0,0, 20);
-								BackgroundTransparency = 1;
-								LayoutOrder = 1;
-								Parent = holder;
-								ZIndex = 2;
-							})
-
-							local keybindsetuil = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								Padding = UDim.new(0, 0);
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								FillDirection = Enum.FillDirection.Horizontal;
-								HorizontalAlignment = Enum.HorizontalAlignment.Left;
-								VerticalAlignment = Enum.VerticalAlignment.Center;
-								Parent = keysetbind;
-							})
-
-							local keylabelset = library:Create("TextLabel", {
-								Name = "KeyLabel";
-								Size = UDim2.new(1, -55,1, 0);
-								BackgroundTransparency = 1;
-								Text = "Keybind";
-								TextColor3 = library.FontColor;
-								TextSize = 13;
-								TextXAlignment = Enum.TextXAlignment.Left;
-								TextYAlignment = Enum.TextYAlignment.Center;
-								Font = library.Font;
-								LayoutOrder = 1;
-								ZIndex = 2;
-								Parent = keysetbind;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local labeluistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = keylabelset;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local labeltsize = library:Create("UITextSizeConstraint", {
-								Name = "UITextSizeConstraint";
-								MaxTextSize = 13;
-								Parent = keylabelset;
-							})
-
-							local winkeyframe = library:Create("Frame", {
-								Name = "KeyPicker",
-								Size = UDim2.new(0, 50, 0, 15),
-								LayoutOrder = 2;
-								BackgroundColor3 = library.MainColor,
-								ZIndex = 2;
-								Parent = keysetbind,
-							},{
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local winuistrokekey = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = winkeyframe,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local winkeybox = library:Create("TextButton", {
-								Name = "KeyBox",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 3,
-								Parent = winkeyframe,
-							})
-
-							winkeytext = library:Create("TextLabel", {
-								Name = "KeyText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "None",
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								ZIndex = 2,
-								Parent = winkeyframe,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-
-							local modesetbind = library:Create("Frame", {
-								Name = "ModesetBind";
-								Size = UDim2.new(.95, 0,0, 20);
-								BackgroundTransparency = 1;
-								LayoutOrder = 2;
-								Parent = holder;
-								ZIndex = 2;
-							})
-
-							local modesetuil = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								Padding = UDim.new(0, 0);
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								FillDirection = Enum.FillDirection.Horizontal;
-								HorizontalAlignment = Enum.HorizontalAlignment.Left;
-								VerticalAlignment = Enum.VerticalAlignment.Center;
-								Parent = modesetbind;
-							})
-
-							local modelabelset = library:Create("TextLabel", {
-								Name = "ModeLabel";
-								Size = UDim2.new(1, -55,1, 0);
-								BackgroundTransparency = 1;
-								Text = "Mode";
-								TextColor3 = library.FontColor;
-								TextSize = 13;
-								TextXAlignment = Enum.TextXAlignment.Left;
-								TextYAlignment = Enum.TextYAlignment.Center;
-								Font = library.Font;
-								LayoutOrder = 1;
-								ZIndex = 2;
-								Parent = modesetbind;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local labelmuistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = modelabelset;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local labelmtsize = library:Create("UITextSizeConstraint", {
-								Name = "UITextSizeConstraint";
-								MaxTextSize = 13;
-								Parent = modelabelset;
-							})
-
-							local modeframe = library:Create("Frame", {
-								Name = "ModePicker",
-								Size = UDim2.new(0, 50, 0, 15),
-								LayoutOrder = 2;
-								BackgroundColor3 = library.MainColor,
-								ZIndex = 2;
-								Parent = modesetbind,
-							},{
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local uistrokemode = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = modeframe,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local Modebox = library:Create("TextButton", {
-								Name = "ModeBox",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 3,
-								Parent = modeframe,
-							})
-
-							winmodetext = library:Create("TextLabel", {
-								Name = "ModeText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = Mode,
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								ZIndex = 2,
-								Parent = modeframe,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local unbindbox = library:Create("Frame", {
-								Name = "UnbindBox",
-								Size = UDim2.new(0.95, 0,0, 15),
-								LayoutOrder = 3,
-								BackgroundColor3 = library.MainColor,
-								ZIndex = 2,
-								Parent = holder,
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local unbindstroke = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = unbindbox,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local unbindtext = library:Create("TextLabel", {
-								Name = "UnbindText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "Unbind",
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								ZIndex = 2,
-								Parent = unbindbox,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local unbindboxt = library:Create("TextButton", {
-								Name = "UnbindBoxText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 3,
-								Parent = unbindbox,
-							})
-
-							winkeybox.MouseButton1Click:Connect(startbind)
-
-							Modebox.MouseButton1Click:Connect(function()
-								local index = table.find(modes, Mode) or 1
-								setMode(modes[index % #modes + 1])
-							end)
-
-							unbindboxt.MouseButton1Click:Connect(function()
-								setKey(nil)
-							end)
-
-							updatetexts()
-
-							outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
-								if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-									return
-								end
-
-								local function isInside(gui)
-									local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
-									local m = input.Position
-									return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
-								end
-
-								if isInside(framewindow) or isInside(keyframe) then
-									return
-								end
-
-								picker:Close()
-							end))
-						end
-
-						function picker:Close()
-							if not opened then return end
-							opened = false
-
-							winkeytext = nil
-							winmodetext = nil
-
-							if followConn then
-								followConn:Disconnect()
-								followConn = nil
-							end
-
-							if outsideConn then
-								outsideConn:Disconnect()
-								outsideConn = nil
-							end
-
-							if instance then
-								instance:Destroy()
-								instance = nil
-							end
-						end
-
-						keybox.MouseButton1Click:Connect(startbind)
-
-						keybox.MouseButton2Click:Connect(function()
-							if opened then
-								picker:Close()
-							else
-								openminiwindow()
-							end
-						end)
-
-						trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-							if waiting_for_key then return end
-							if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-							if not currentkey or input.KeyCode ~= currentkey then return end
-
-							if Mode == "Toggle" then
-								setState(not active)
-							elseif Mode == "Hold" then
-								setState(true)
-							end
-						end))
-
-						trackConnection(InputService.InputEnded:Connect(function(input)
-							if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-							if not currentkey or input.KeyCode ~= currentkey then return end
-
-							if Mode == "Hold" then
-								setState(false)
-							end
-						end))
-
-						updatetexts()
-
-						if Mode == "Always" then
-							setState(true)
-						end
-
-						library.windowinstances.Keybindbox = picker
-
-						return picker
-					end
-
-					return label
-				end
-
-				function groupbox:AddToggle(name, opts)
-					local toggle = {}
-					local togglename = name
-					local toggled = opts.Default
-
-					if opts.Default == nil then
-						toggled = false
-					end
-
-					toggle.Value = toggled
-
-					local holder = library:Create("Frame", {
-						Name = "Holder";
-						Size = UDim2.new(0.95, 0,0, 20);
-						BackgroundTransparency = 1;
-						LayoutOrder = #elementsholder:GetChildren();
-						Parent = elementsholder;
-					})
-
-					local hb = library:Create("TextButton", {
-						Name = "Hitbox";
-						Size = UDim2.new(1, 0, 1, 0);
-						BackgroundTransparency = 1;
-						ZIndex = 2;
-						Text = "";
-						Parent = holder;
-					})
-
-					local elements = library:Create("Frame", {
-						Name = "Holder2";
-						Size = UDim2.new(1,0,1,0);
-						BackgroundTransparency = 1;
-						Parent = holder;
-					})
-
-					local uilistlayout = library:Create("UIListLayout", {
-						Name = "UIListLayout";
-						FillDirection = Enum.FillDirection.Horizontal;
-						HorizontalAlignment = Enum.HorizontalAlignment.Left;
-						SortOrder = Enum.SortOrder.LayoutOrder;
-						VerticalAlignment = Enum.VerticalAlignment.Center;
-						Padding = UDim.new(0, 0);
-						Parent = elements;
-					})
-
-					local boxelem = library:Create("Frame", {
-						Name = "Box";
-						Size = UDim2.new(0, 15, 0, 15);
-						BackgroundColor3 = library.AccentColor;
-						BackgroundTransparency = 1;
-						LayoutOrder = 1;
-						Parent = elements;
-					}, {
-						instancep = "BackgroundColor3";
-						tinstance = library.AccentColor;
-					})
-
-					local uis1 = library:Create("UIStroke", {
-						Name = "UIStroke";
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-						LineJoinMode = Enum.LineJoinMode.Miter;
-						Color = library.SecondaryColor;
-						Thickness = 1;
-
-						Parent = boxelem;
-					}, {
-						instancep = "Color";
-						tinstance = library.SecondaryColor;
-					})
-
-					local label = library:Create("TextLabel", {
-						Name = "Label";
-						Size = UDim2.new(0.772, 0, 1, 0);
-						BackgroundTransparency = 1;
-						Text = name;
-						TextColor3 = library.FontColor;
-						Font = library.Font;
-						TextSize = 13;
-						TextXAlignment = Enum.TextXAlignment.Left;
-						LayoutOrder = 2;
-						TextYAlignment = Enum.TextYAlignment.Center;
-						Parent = elements;
-					}, {
-						instancep = "TextColor3";
-						tinstance = library.FontColor;
-					}, {
-						instancep = "Font";
-						tinstance = library.Font;
-					})
-
-					local luip = library:Create("UIPadding", {
-						Name = "UIPadding";
-						PaddingLeft = UDim.new(0, 7);
-						PaddingRight = UDim.new(0, 0);
-						PaddingTop = UDim.new(0, 0);
-						PaddingBottom = UDim.new(0, 0);
-						Parent = label;
-					})
-
-					local luis = library:Create("UIStroke", {
-						Name = "UIStroke";
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-						Color = library.UIstroke;
-						Thickness = 1;
-
-						Parent = label;
-					}, {
-						instancep = "Color";
-						tinstance = library.UIstroke;
-					})
-
-					local luitextsize = library:Create("UITextSizeConstraint", {
-						Name = "UITextSizeConstraint";
-						MaxTextSize = 13;
-						Parent = label;
-					})
-
-					if toggled then
-						boxelem.BackgroundTransparency = 0
-					end
-
-					local function togglef()
-						toggled = not toggled
-
-						if toggled then
-							boxelem.BackgroundTransparency = 0
-						else
-							boxelem.BackgroundTransparency = 1
-						end
-
-						Toggles[togglename].value = toggled
-						toggle.Value = toggled
-
-						if opts.Callback then
-							opts.Callback(toggled)
-						end
-
-						if library.UpdateDependencyBoxes then
-							library:UpdateDependencyBoxes()
-						end
-					end
-
-					hb.MouseButton1Click:Connect(togglef)
-
-					Toggles[togglename] = {
-						value = toggled;
-						keypicker = nil;
-					}
-
-					function toggle:AddKeyPicker(name, opts)
-						if type(name) == "table" then
-							opts = name
-							name = togglename
-						end
-
-						opts = opts or {}
-
-						local keypicker = {}
-						local InputService = InputService or game:GetService("UserInputService")
-
-						local function resolvekey(k)
-							if typeof(k) == "EnumItem" then
-								return k
-							end
-
-							if type(k) == "string" then
-								local ok, res = pcall(function()
-									return Enum.KeyCode[k]
-								end)
-								if ok then
-									return res
-								end
-							end
-
-							return nil
-						end
-
-						local currentkey = resolvekey(opts.Default)
-						local Mode = opts.Mode or "Hold"
-						local modes = {"Hold", "Toggle", "Always"}
-
-						local opened = false
-						local instance
-						local followConn
-						local outsideConn
-						local waitkeyconn
-
-						local waiting_for_key = false
-
-						local winkeytext
-						local winmodetext
-
-						local ignoredkeys = {
-							library.Menukey;
-							Enum.KeyCode.Return,
-							Enum.KeyCode.End,
-							Enum.KeyCode.Home,
-							Enum.KeyCode.PageUp,
-							Enum.KeyCode.PageDown,
-						}
-
-						local ignoredset = {}
-						for _, k in next, ignoredkeys do
-							if k then
-								ignoredset[k] = true
-							end
-						end
-
-						if not Toggles[togglename].keypicker then
-							Toggles[togglename].keypicker = keypicker
-						else
-							warn("KeyPicker already exists for toggle: "..togglename)
-							return 
-						end
-
-						keypicker.Key = currentkey
-						keypicker.Mode = Mode
-						keypicker.OnChanged = newSignal()
-						Options[name] = keypicker
-
-						local keyframe = library:Create("Frame", {
-							Name = "KeyPicker",
-							Size = UDim2.new(0, 50, 0, 15),
-							LayoutOrder = 999;
-							BackgroundColor3 = library.MainColor,
-							Parent = elements;
-						},{
-							instancep = "BackgroundColor3";
-							tinstance = library.MainColor;
-						})
-
-						local uistrokekey = library:Create("UIStroke", {
-							Name = "UIStroke",
-							ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-							Color = library.SecondaryColor,
-							Thickness = 1,
-							Parent = keyframe,
-						},{
-							instancep = "Color";
-							tinstance = library.SecondaryColor;
-						})
-
-						local keybox = library:Create("TextButton", {
-							Name = "KeyBox",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = "",
-							ZIndex = 4,
-							Parent = keyframe,
-						})
-
-						local keytext = library:Create("TextLabel", {
-							Name = "KeyText",
-							Size = UDim2.new(1, 0, 1, 0),
-							BackgroundTransparency = 1,
-							Text = "None",
-							TextColor3 = library.FontColor,
-							TextSize = 13,
-							Font = library.Font,
-							TextXAlignment = Enum.TextXAlignment.Center,
-							Parent = keyframe,
-						},{
-							instancep = "TextColor3";
-							tinstance = library.FontColor;
-						}, {
-							instancep = "Font";
-							tinstance = library.Font;
-						})
-
-						local function setState(state)
-							if toggled == state then return end
-							togglef()
-							Toggles[togglename].value = toggled
-						end
-
-						local function updatetexts()
-							local t
-							if waiting_for_key then
-								t = "..."
-							elseif currentkey then
-								t = keyshorts[currentkey] or currentkey.Name
-							else
-								t = "None"
-							end
-
-							keytext.Text = t
-							if winkeytext then
-								winkeytext.Text = t
-							end
-							if winmodetext then
-								winmodetext.Text = Mode
-							end
-						end
-
-						local function setKey(k)
-							currentkey = k
-							keypicker.Key = k
-							updatetexts()
-
-							if opts.CallbackKey then
-								opts.CallbackKey(k)
-							end
-
-							keypicker.OnChanged:Fire(currentkey, Mode)
-						end
-
-						local function setMode(m)
-							Mode = m
-							keypicker.Mode = m
-							updatetexts()
-
-							setState(m == "Always")
-
-							if opts.CallbackMode then
-								opts.CallbackMode(m)
-							end
-
-							keypicker.OnChanged:Fire(currentkey, Mode)
-						end
-
-						local function startbind()
-							if waiting_for_key then
-								return
-							end
-
-							waiting_for_key = true
-							updatetexts()
-
-							waitkeyconn = trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-
-								if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-								if ignoredset[input.KeyCode] then return end
-
-								if waitkeyconn then
-									waitkeyconn:Disconnect()
-									waitkeyconn = nil
-								end
-
-								task.defer(function()
-									waiting_for_key = false
-									updatetexts()
-								end)
-
-								if input.KeyCode == Enum.KeyCode.Backspace then
-									setKey(nil)
-								else
-									setKey(input.KeyCode)
-								end
-							end))
-						end
-
-						local function openminiwindow()
-							opened = true
-
-							local function getPos()
-								local abs = keyframe.AbsolutePosition
-								local base = screengui.AbsolutePosition
-								return UDim2.new(0, abs.X - base.X, 0, abs.Y - base.Y)
-							end
-
-							local cursorbox = library:Create("Frame", {
-								Name = "CursorBox";
-								Size = UDim2.new(0, 15,0, 15);
-								Position = getPos();
-								BackgroundColor3 = Color3.new(1,1,1);
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = screengui;
-							})
-
-							instance = cursorbox
-
-							followConn = keyframe:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-								if instance then
-									instance.Position = getPos()
-								end
-							end)
-
-							local framewindow = library:Create("Frame", {
-								Name = "Frame";
-								Size = UDim2.new(0, 323,0, 93);
-								Position = UDim2.new(1, 0,1.4, 0);
-								BackgroundColor3 = library.MainColor;
-								ZIndex = 2;
-								Parent = cursorbox;
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local uistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								LineJoinMode = Enum.LineJoinMode.Miter;
-								Color = library.SecondaryColor;
-								Thickness = 1;
-								Parent = framewindow;
-							}, {
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local uistroke2 = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-								LineJoinMode = Enum.LineJoinMode.Miter;
-								Color = library.MainColor;
-								Thickness = 4;
-								Parent = framewindow;
-							}, {
-								instancep = "Color";
-								tinstance = library.MainColor;
-							})
-
-							local text = library:Create("TextLabel", {
-								Name = "TextLabel";
-								Size = UDim2.new(1, 0,0, 16);
-								Position = UDim2.new(0, 0,0, 0);
-								Text = name;
-								TextColor3 = library.FontColor;
-								Font = library.Font;
-								TextSize = 13;
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local textuistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = text;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local textuisize = library:Create("UITextSizeConstraint", {
-								Name = "UISizeConstraint";
-								MaxTextSize = 13;
-								Parent = text;
-							})
-
-							local holder = library:Create("Frame", {
-								Name = "Holder";
-								Size = UDim2.new(1, 0,-0.228, 96);
-								Position = UDim2.new(0, 0,0.195, 0);
-								BackgroundTransparency = 1;
-								ZIndex = 2;
-								Parent = framewindow;
-							})
-
-							local uill = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								Padding = UDim.new(0, 5);
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								FillDirection = Enum.FillDirection.Vertical;
-								HorizontalAlignment = Enum.HorizontalAlignment.Center;
-								VerticalAlignment = Enum.VerticalAlignment.Top;
-								Parent = holder;
-							})
-
-							local uipadd = library:Create("UIPadding", {
-								Name = "UIPadding";
-								PaddingLeft = UDim.new(0, 0);
-								PaddingRight = UDim.new(0, 0);
-								PaddingTop = UDim.new(0, 3);
-								PaddingBottom = UDim.new(0, 0);
-								Parent = holder;
-							})
-
-							local keysetbind = library:Create("Frame", {
-								Name = "KeysetBind";
-								Size = UDim2.new(.95, 0,0, 20);
-								BackgroundTransparency = 1;
-								LayoutOrder = 1;
-								Parent = holder;
-								ZIndex = 2;
-							})
-
-							local keybindsetuil = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								Padding = UDim.new(0, 0);
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								FillDirection = Enum.FillDirection.Horizontal;
-								HorizontalAlignment = Enum.HorizontalAlignment.Left;
-								VerticalAlignment = Enum.VerticalAlignment.Center;
-								Parent = keysetbind;
-							})
-
-							local keylabelset = library:Create("TextLabel", {
-								Name = "KeyLabel";
-								Size = UDim2.new(1, -55,1, 0);
-								BackgroundTransparency = 1;
-								Text = "Keybind";
-								TextColor3 = library.FontColor;
-								TextSize = 13;
-								TextXAlignment = Enum.TextXAlignment.Left;
-								TextYAlignment = Enum.TextYAlignment.Center;
-								Font = library.Font;
-								LayoutOrder = 1;
-								ZIndex = 2;
-								Parent = keysetbind;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local labeluistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = keylabelset;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local labeltsize = library:Create("UITextSizeConstraint", {
-								Name = "UITextSizeConstraint";
-								MaxTextSize = 13;
-								Parent = keylabelset;
-							})
-
-							local winkeyframe = library:Create("Frame", {
-								Name = "KeyPicker",
-								Size = UDim2.new(0, 50, 0, 15),
-								LayoutOrder = 2;
-								BackgroundColor3 = library.MainColor,
-								ZIndex = 2;
-								Parent = keysetbind,
-							},{
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local winuistrokekey = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = winkeyframe,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local winkeybox = library:Create("TextButton", {
-								Name = "KeyBox",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 3,
-								Parent = winkeyframe,
-							})
-
-							winkeytext = library:Create("TextLabel", {
-								Name = "KeyText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "None",
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								ZIndex = 2,
-								Parent = winkeyframe,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-
-							local modesetbind = library:Create("Frame", {
-								Name = "ModesetBind";
-								Size = UDim2.new(.95, 0,0, 20);
-								BackgroundTransparency = 1;
-								LayoutOrder = 2;
-								Parent = holder;
-								ZIndex = 2;
-							})
-
-							local modesetuil = library:Create("UIListLayout", {
-								Name = "UIListLayout";
-								Padding = UDim.new(0, 0);
-								SortOrder = Enum.SortOrder.LayoutOrder;
-								FillDirection = Enum.FillDirection.Horizontal;
-								HorizontalAlignment = Enum.HorizontalAlignment.Left;
-								VerticalAlignment = Enum.VerticalAlignment.Center;
-								Parent = modesetbind;
-							})
-
-							local modelabelset = library:Create("TextLabel", {
-								Name = "ModeLabel";
-								Size = UDim2.new(1, -55,1, 0);
-								BackgroundTransparency = 1;
-								Text = "Mode";
-								TextColor3 = library.FontColor;
-								TextSize = 13;
-								TextXAlignment = Enum.TextXAlignment.Left;
-								TextYAlignment = Enum.TextYAlignment.Center;
-								Font = library.Font;
-								LayoutOrder = 1;
-								ZIndex = 2;
-								Parent = modesetbind;
-							}, {
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local labelmuistroke = library:Create("UIStroke", {
-								Name = "UIStroke";
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-								Color = library.UIstroke;
-								Thickness = 1;
-								Parent = modelabelset;
-							}, {
-								instancep = "Color";
-								tinstance = library.UIstroke;
-							})
-
-							local labelmtsize = library:Create("UITextSizeConstraint", {
-								Name = "UITextSizeConstraint";
-								MaxTextSize = 13;
-								Parent = modelabelset;
-							})
-
-							local modeframe = library:Create("Frame", {
-								Name = "ModePicker",
-								Size = UDim2.new(0, 50, 0, 15),
-								LayoutOrder = 2;
-								BackgroundColor3 = library.MainColor,
-								ZIndex = 2;
-								Parent = modesetbind,
-							},{
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local uistrokemode = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = modeframe,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local Modebox = library:Create("TextButton", {
-								Name = "ModeBox",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 3,
-								Parent = modeframe,
-							})
-
-							winmodetext = library:Create("TextLabel", {
-								Name = "ModeText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = Mode,
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								ZIndex = 2,
-								Parent = modeframe,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local unbindbox = library:Create("Frame", {
-								Name = "UnbindBox",
-								Size = UDim2.new(0.95, 0,0, 15),
-								LayoutOrder = 3,
-								BackgroundColor3 = library.MainColor,
-								ZIndex = 2,
-								Parent = holder,
-							}, {
-								instancep = "BackgroundColor3";
-								tinstance = library.MainColor;
-							})
-
-							local unbindstroke = library:Create("UIStroke", {
-								Name = "UIStroke",
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-								Color = library.SecondaryColor,
-								Thickness = 1,
-								Parent = unbindbox,
-							},{
-								instancep = "Color";
-								tinstance = library.SecondaryColor;
-							})
-
-							local unbindtext = library:Create("TextLabel", {
-								Name = "UnbindText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "Unbind",
-								TextColor3 = library.FontColor,
-								TextSize = 13,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Center,
-								ZIndex = 2,
-								Parent = unbindbox,
-							},{
-								instancep = "TextColor3";
-								tinstance = library.FontColor;
-							}, {
-								instancep = "Font";
-								tinstance = library.Font;
-							})
-
-							local unbindboxt = library:Create("TextButton", {
-								Name = "UnbindBoxText",
-								Size = UDim2.new(1, 0, 1, 0),
-								BackgroundTransparency = 1,
-								Text = "",
-								ZIndex = 3,
-								Parent = unbindbox,
-							})
-
-							winkeybox.MouseButton1Click:Connect(startbind)
-
-							Modebox.MouseButton1Click:Connect(function()
-								local index = table.find(modes, Mode) or 1
-								setMode(modes[index % #modes + 1])
-							end)
-
-							unbindboxt.MouseButton1Click:Connect(function()
-								setKey(nil)
-							end)
-
-							updatetexts()
-
-							outsideConn = trackConnection(InputService.InputBegan:Connect(function(input)
-								if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-									return
-								end
-
-								local function isInside(gui)
-									local pos, size = gui.AbsolutePosition, gui.AbsoluteSize
-									local m = input.Position
-									return m.X >= pos.X and m.X <= pos.X + size.X and m.Y >= pos.Y and m.Y <= pos.Y + size.Y
-								end
-
-								if isInside(framewindow) or isInside(keyframe) then
-									return
-								end
-
-								keypicker:Close()
-							end))
-						end
-
-						function keypicker:Close()
-							if not opened then return end
-							opened = false
-
-							winkeytext = nil
-							winmodetext = nil
-
-							if followConn then
-								followConn:Disconnect()
-								followConn = nil
-							end
-
-							if outsideConn then
-								outsideConn:Disconnect()
-								outsideConn = nil
-							end
-
-							if instance then
-								instance:Destroy()
-								instance = nil
-							end
-						end
-
-						keybox.MouseButton1Click:Connect(startbind)
-
-						keybox.MouseButton2Click:Connect(function()
-							if opened then
-								keypicker:Close()
-							else
-								openminiwindow()
-							end
-						end)
-
-						trackConnection(InputService.InputBegan:Connect(function(input, gameproccessed)
-							if waiting_for_key then return end
-							if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-							if not currentkey or input.KeyCode ~= currentkey then return end
-
-							if Mode == "Toggle" then
-								setState(not toggled)
-							elseif Mode == "Hold" then
-								setState(true)
-							end
-						end))
-
-						trackConnection(InputService.InputEnded:Connect(function(input)
-							if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-							if not currentkey or input.KeyCode ~= currentkey then return end
-
-							if Mode == "Hold" then
-								setState(false)
-							end
-						end))
-
-						updatetexts()
-
-						if Mode == "Always" then
-							setState(true)
-						end
-
-						library.windowinstances.Keybindbox = keypicker
-
-						return keypicker
-					end
-
-					return toggle
-				end
-
-				function groupbox:AddSlider(name, opts)
-					opts = opts or {}
-
-					local slider = {}
-					local UIS = InputService
-
-					local config = {
-						Minimum = opts.Minimum;
-						Maximum = opts.Maximum;
-						DefaultValue = opts.Default;
-						Step = opts.Step;
-						Format = opts.Format;
-					}
-
-					local range = config.Maximum - config.Minimum
-					if range <= 0 then
-						range = 1
-					end
-
-					local stepsize = config.Step > 0 and config.Step
-
-					local function decimalsof(n)
-						local d = tostring(n):match("%.(%d+)")
-						return d and #d or 0
-					end
-
-					local decimals = opts.Rounding or math.max(decimalsof(stepsize), decimalsof(config.Minimum))
-
-					local currentvalue = config.Minimum
-					local dragging = false
-
-					local mainframe = library:Create("Frame", {
-						Name = "Slider",
-						Size = UDim2.new(0.95, 0, 0, 15),
-						BackgroundTransparency = 1,
-						LayoutOrder = #elementsholder:GetChildren(),
-						Parent = elementsholder,
-					})
-
-					if opts.Smaller then
-						mainframe.Size = UDim2.new(0.465, 0, 0, 15)
-					end
-
-					local uistroke = library:Create("UIStroke", {
-						Name = "UIStroke",
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-						Color = library.SecondaryColor,
-						Thickness = 1,
-						LineJoinMode = Enum.LineJoinMode.Miter,
-						Parent = mainframe,
-					}, {
-						instancep = "Color";
-						tinstance = library.SecondaryColor;
-					})
-
-					local frame = library:Create("Frame", {
-						Name = "Frame",
-						Size = UDim2.new(0, 0, 1, 0),
-						BackgroundColor3 = library.AccentColor,
-						Parent = mainframe,
-					}, {
-						instancep = "BackgroundColor3";
-						tinstance = library.AccentColor;
-					})
-
-					local hitbox = library:Create("TextButton", {
-						Name = "Hitbox",
-						Size = UDim2.new(1, 0, 1, 0),
-						BackgroundTransparency = 1,
-						Text = "",
-						ZIndex = 3,
-						Parent = mainframe,
-					})
-
-					local text = library:Create("TextLabel", {
-						Name = "Text",
-						Size = UDim2.new(1, 0, 1, 0),
-						BackgroundTransparency = 1,
-						Text = name,
-						TextColor3 = library.FontColor,
-						Font = library.Font,
-						TextSize = 13,
-						TextXAlignment = Enum.TextXAlignment.Center,
-						TextYAlignment = Enum.TextYAlignment.Center,
-						ZIndex = 2,
-						Parent = mainframe,
-					}, {
-						instancep = "TextColor3";
-						tinstance = library.FontColor;
-					}, {
-						instancep = "Font";
-						tinstance = library.Font;
-					})
-
-					local uistoke2 = library:Create("UIStroke", {
-						Name = "UIStroke",
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-						Color = library.UIstroke,
-						Thickness = 1,
-						LineJoinMode = Enum.LineJoinMode.Round,
-						Parent = text,
-					}, {
-						instancep = "Color";
-						tinstance = library.UIstroke;
-					})
-
-					local textuisize = library:Create("UITextSizeConstraint", {
-						Name = "UITextSizeConstraint",
-						MaxTextSize = 13,
-						Parent = text,
-					})
-
-					local function fmt(n)
-						return tostring(n)
-					end
-
-					local function refreshui()
-						local alpha = (currentvalue - config.Minimum) / range
-						frame.Size = UDim2.new(math.clamp(alpha, 0, 1), 0, 1, 0)
-
-						local suffix = ""
-						if config.Format ~= "" then
-							suffix = " " .. config.Format
-						end
-
-						text.Text = name .. ": " .. fmt(currentvalue) .. "/" .. fmt(config.Maximum) .. suffix
-					end
-
-					local function setvalue(v, silent)
-						v = math.clamp(v, config.Minimum, config.Maximum)
-						v = config.Minimum + math.floor((v - config.Minimum) / stepsize + 0.5) * stepsize
-						v = math.clamp(v, config.Minimum, config.Maximum)
-						v = tonumber(string.format("%." .. decimals .. "f", v))
-
-						local changed = v ~= currentvalue
-						currentvalue = v
-						slider.Value = v
-						refreshui()
-
-						if changed and not silent then
-							if opts.Callback then
-								opts.Callback(v)
-							end
-
-							slider.OnChanged:Fire(v)
-						end
-					end
-
-					slider.Value = currentvalue
-					slider.OnChanged = newSignal()
-					Options[name] = slider
-
-					function slider:SetValue(v)
-						setvalue(v)
-					end
-
-					function slider:GetValue()
-						return currentvalue
-					end
-
-					setvalue(config.DefaultValue, true)
-
-					local moveConn
-					local endConn
-
-					local function stop()
-						dragging = false
-
-						if moveConn then
-							moveConn:Disconnect()
-							moveConn = nil
-						end
-
-						if endConn then
-							endConn:Disconnect()
-							endConn = nil
-						end
-					end
-
-					local function drag(input)
-						local pos, size = mainframe.AbsolutePosition, mainframe.AbsoluteSize
-						local alpha = math.clamp((input.Position.X - pos.X) / size.X, 0, 1)
-						setvalue(config.Minimum + alpha * range)
-					end
-
-					trackConnection(hitbox.InputBegan:Connect(function(input)
-						if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-							stop()
-							dragging = true
-							drag(input)
-
-							moveConn = trackConnection(UIS.InputChanged:Connect(function(i)
-								if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
-									drag(i)
-								end
-							end))
-
-							endConn = trackConnection(UIS.InputEnded:Connect(function(i)
-								if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-									stop()
-								end
-							end))
-						end
-					end))
-
-					return slider
-				end
-
-				function groupbox:AddButton(name , opts)
-					opts = opts or {}
-
-					local button = {}
-
-					local warnclick = opts.WarnClick or opts.Warn or false
-					local smaller = opts.Smaller or false
-					local armed = false
-					local armtoken = 0
-
-					local Holder = library:Create("Frame", {
-						Name = "Button",
-						Size = smaller and UDim2.new(0.465, 0, 0, 15) or UDim2.new(0.95, 0,0, 15),
-						LayoutOrder = #elementsholder:GetChildren(),
-						BackgroundColor3 = library.MainColor,
-						Parent = elementsholder,
-					}, {
-						instancep = "BackgroundColor3";
-						tinstance = library.MainColor;
-					})
-
-					local stroketext = library:Create("UIStroke", {
-						Name = "UIStroke",
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-						Color = library.SecondaryColor,
-						Thickness = 1,
-						Parent = Holder,
-					},{
-						instancep = "Color";
-						tinstance = library.SecondaryColor;
-					})
-
-					local text = library:Create("TextLabel", {
-						Name = "text",
-						Size = UDim2.new(1, 0, 1, 0),
-						BackgroundTransparency = 1,
-						Text = name,
-						TextColor3 = library.FontColor,
-						TextSize = 13,
-						Font = library.Font,
-						TextXAlignment = Enum.TextXAlignment.Center,
-						ZIndex = 2,
-						Parent = Holder,
-					},{
-						instancep = "TextColor3";
-						tinstance = library.FontColor;
-					}, {
-						instancep = "Font";
-						tinstance = library.Font;
-					})
-
-					local uistroke = library:Create("UIStroke", {
-						Name = "UIStroke",
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-						Color = library.UIstroke,
-						Thickness = 1,
-						Parent = text,
-					},{
-						instancep = "Color";
-						tinstance = library.UIstroke;
-					})
-
-					local textsizecon = library:Create("UITextSizeConstraint", {
-						Name = "UITextSizeConstraint",
-						MaxTextSize = 13,
-						Parent = text,
-					})
-
-					local Textbutton = library:Create("TextButton", {
-						Name = "Boxhit",
-						Size = UDim2.new(1, 0, 1, 0),
-						BackgroundTransparency = 1,
-						Text = "",
-						ZIndex = 3,
-						Parent = Holder,
-					})
-
-					local function disarm()
-						armed = false
-						armtoken += 1
-						text.Text = name
-						text.TextColor3 = library.FontColor
-					end
-
-					Textbutton.MouseButton1Click:Connect(function()
-						if warnclick and not armed then
-							armed = true
-							text.Text = "Are you sure?"
-							text.TextColor3 = Color3.fromRGB(255, 0, 0)
-
-							armtoken += 1
-							local mytoken = armtoken
-
-							task.delay(2, function()
-								if armed and armtoken == mytoken then
-									disarm()
-								end
-							end)
-
-							return
-						end
-
-						if armed then
-							disarm()
-						end
-
-						if opts.Callback then
-							opts.Callback()
-						end
-					end)
-
-					return button
-				end
-
-				function groupbox:AddDependencyBox()
-					local dependencybox = {}
-					dependencybox.Dependencies = {}
-
-					local groupbox = self
-					local Container = elementsholder
-
-					local Holder = library:Create("Frame", {
-						Name = "DependencyBox";
-						BackgroundTransparency = 1;
-						Size = UDim2.new(1, 0, 0, 0);
-						AutomaticSize = Enum.AutomaticSize.Y;
-						LayoutOrder = #Container:GetChildren();
-						Visible = false;
-						Parent = Container;
-					})
-
-					local Frame = library:Create("Frame", {
-						Name = "Elements";
-						BackgroundTransparency = 1;
-						Size = UDim2.new(1, 0, 0, 0);
-						AutomaticSize = Enum.AutomaticSize.Y;
-						Parent = Holder;
-					})
-
-					local Layout = library:Create("UIListLayout", {
-						Name = "UIListLayout";
-						FillDirection = Enum.FillDirection.Horizontal;
-						Wraps = true;
-						HorizontalAlignment = Enum.HorizontalAlignment.Center;
-						VerticalAlignment = Enum.VerticalAlignment.Top;
-						SortOrder = Enum.SortOrder.LayoutOrder;
-						Padding = UDim.new(0, 5);
-						Parent = Frame;
-					})
-
-					local order = 0
-
-					local function wrap(fname)
-						if typeof(groupbox[fname]) ~= "function" then
-							return
-						end
-
-						dependencybox[fname] = function(_, ...)
-							local before = {}
-
-							for _, child in ipairs(Container:GetChildren()) do
-								before[child] = true
-							end
-
-							local result = groupbox[fname](groupbox, ...)
-
-							for _, child in ipairs(Container:GetChildren()) do
-								if not before[child] then
-									order += 1
-									child.LayoutOrder = order
-									child.Parent = Frame
-								end
-							end
-
-							return result
-						end
-					end
-
-					for _, fname in ipairs({"AddLabel", "AddToggle", "AddSlider", "AddButton", "AddTextbox", "AddDropdown", "AddDependencyBox", "Divider"}) do
-						wrap(fname)
-					end
-
-					function dependencybox:Update()
-						for _, Dependency in next, dependencybox.Dependencies do
-							local Element = Dependency[1]
-							local Value = Dependency[2]
-
-							local current = Element.Value
-							if current == nil then
-								current = Element.value
-							end
-
-							if current ~= Value then
-								Holder.Visible = false
-								return
-							end
-						end
-
-						Holder.Visible = true
-					end
-
-					function dependencybox:SetupDependencies(Dependencies)
-						for _, Dependency in next, Dependencies do
-							assert(typeof(Dependency) == "table", "SetupDependencies: Dependency is not of type `table`.")
-							assert(Dependency[1], "SetupDependencies: Dependency is missing element argument.")
-							assert(Dependency[2] ~= nil, "SetupDependencies: Dependency is missing value argument.")
-						end
-
-						dependencybox.Dependencies = Dependencies
-						dependencybox:Update()
-					end
-
-					table.insert(groupbox.elements, dependencybox)
-					table.insert(library.DependencyBoxes, dependencybox)
-
-					return dependencybox
-				end
-
-				function groupbox:Divider()
-					local divider = {}
-
-					local frame = library:Create("Frame", {
-						Name = "Divider",
-						Size = UDim2.new(0.95, 0, 0, 3),
-						BackgroundColor3 = library.MainColor,
-						LayoutOrder = #elementsholder:GetChildren(),
-						Parent = elementsholder,
-					}, {
-						instancep = "BackgroundColor3";
-						tinstance = library.MainColor;
-					})
-
-					local uistroke1 = library:Create("UIStroke", {
-						Name = "UIStroke",
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-						Color = library.SecondaryColor,
-						Thickness = 1,
-						ZIndex = 2,
-						Parent = frame,
-					}, {
-						instancep = "Color";
-						tinstance = library.SecondaryColor;
-					})
-
-					return divider
-				end
-
-				function groupbox:AddDropdown(name, opts)
-					opts = opts or {}
-
-					library.Options = library.Options or {}
-
-					--==========================================================
-					-- REUSE AN EXISTING DROPDOWN
-					--==========================================================
-
-					local existing = library.Options[name]
-
-					if existing then
-						if existing.Type == "Dropdown"
-							and existing.Controller
-							and type(existing.Controller.Refresh) == "function" then
-
-							local controller = existing.Controller
-
-							if opts.Text ~= nil then
-								controller:SetText(opts.Text)
-							end
-
-							if opts.Callback ~= nil then
-								controller:SetCallback(opts.Callback)
-							end
-
-							if opts.Values ~= nil then
-								controller:Refresh(opts.Values, opts.Default)
-							elseif opts.Default ~= nil then
-								controller:SetValue(opts.Default, true)
-							end
-
-							return controller
-						end
-
-						warn("An option named '" .. tostring(name) .. "' already exists.")
-						return nil
-					end
-
-					--==========================================================
-					-- STATE
-					--==========================================================
-
-					local Dropdown = {}
-
-					local values = {}
-					local elements = {}
-					local selectedIndices = {}
-					local connections = {}
-
-					local picked = nil
-					local isOpen = false
-					local destroyed = false
-
-					local multi = opts.Multipick == true
-					local callback = opts.Callback
-
-					local rowHeight = 20
-					local rowGap = 3
-					local padding = 4
-
-					local requestedVisible = tonumber(opts.MaxVisibleItems) or 10
-
-					if requestedVisible ~= requestedVisible then
-						requestedVisible = 10
-					end
-
-					local maxVisibleItems = math.clamp(
-						math.floor(requestedVisible),
-						1,
-						30
-					)
-
-					local changedEvent = Instance.new("BindableEvent")
-
-					local option = {
-						Type = "Dropdown",
-						Name = name,
-						Value = multi and {} or nil,
-						Values = values,
-						OnChanged = changedEvent.Event,
-						Controller = Dropdown,
-					}
-
-					library.Options[name] = option
-
-					local function connect(signal, fn)
-						local connection = signal:Connect(fn)
-						table.insert(connections, connection)
-						return connection
-					end
-
-					local function copyUnique(source)
-						local result = {}
-						local seen = {}
-
-						if type(source) ~= "table" then
-							return result
-						end
-
-						for _, value in ipairs(source) do
-							local supported = type(value) == "string"
-								or (
-									type(value) == "number"
-									and value == value
-									and value > -math.huge
-									and value < math.huge
-								)
-
-							if supported and not seen[value] then
-								seen[value] = true
-								table.insert(result, value)
-							end
-						end
-
-						return result
-					end
-
-					local function findIndex(value)
-						if type(value) == "number" then
-							if value % 1 == 0 and value >= 1 and value <= #values then
-								return value
-							end
-
-							return nil
-						end
-
-						return table.find(values, value)
-					end
-
-					local function getValue()
-						if not multi then
-							return picked
-						end
-
-						local selected = {}
-
-						for index, value in ipairs(values) do
-							if selectedIndices[index] then
-								table.insert(selected, value)
-							end
-						end
-
-						return selected
-					end
-
-					local function equalValues(a, b)
-						if type(a) ~= type(b) then
-							return false
-						end
-
-						if type(a) ~= "table" then
-							return a == b
-						end
-
-						if #a ~= #b then
-							return false
-						end
-
-						for index, value in ipairs(a) do
-							if b[index] ~= value then
-								return false
-							end
-						end
-
-						return true
-					end
-
-					--==========================================================
-					-- MAIN UI
-					--==========================================================
-
-					local main = library:Create("Frame", {
-						Name = "Dropdown",
-						ZIndex = 10,
-						Size = UDim2.new(0.95, 0, 0, 0),
-						AutomaticSize = Enum.AutomaticSize.Y,
-						LayoutOrder = #elementsholder:GetChildren(),
-						BackgroundTransparency = 1,
-						Parent = elementsholder,
-					})
-
-					library:Create("UIListLayout", {
-						FillDirection = Enum.FillDirection.Vertical,
-						HorizontalAlignment = Enum.HorizontalAlignment.Center,
-						VerticalAlignment = Enum.VerticalAlignment.Top,
-						Padding = UDim.new(0, 5),
-						SortOrder = Enum.SortOrder.LayoutOrder,
-						Parent = main,
-					})
-
-					local header = library:Create("TextLabel", {
-						Name = "Header",
-						ZIndex = 11,
-						Size = UDim2.new(1, 0, 0, 15),
-						LayoutOrder = 1,
-						BackgroundTransparency = 1,
-						Text = tostring(opts.Text or name),
-						Font = library.Font,
-						TextColor3 = library.FontColor,
-						TextSize = 13,
-						TextXAlignment = Enum.TextXAlignment.Left,
-						Parent = main,
-					}, {
-						instancep = "TextColor3",
-						tinstance = library.FontColor,
-					}, {
-						instancep = "Font",
-						tinstance = library.Font,
-					})
-
-					library:Create("UIStroke", {
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-						Color = library.UIstroke,
-						Thickness = 1,
-						Parent = header,
-					}, {
-						instancep = "Color",
-						tinstance = library.UIstroke,
-					})
-
-					local dropdownFrame = library:Create("Frame", {
-						Name = "DropdownFrame",
-						ZIndex = 10,
-						Size = UDim2.new(1, 0, 0, 0),
-						AutomaticSize = Enum.AutomaticSize.Y,
-						LayoutOrder = 2,
-						BackgroundTransparency = 1,
-						ClipsDescendants = false,
-						Parent = main,
-					})
-
-					library:Create("UIListLayout", {
-						FillDirection = Enum.FillDirection.Vertical,
-						HorizontalAlignment = Enum.HorizontalAlignment.Center,
-						VerticalAlignment = Enum.VerticalAlignment.Top,
-						SortOrder = Enum.SortOrder.LayoutOrder,
-						Padding = UDim.new(0, 3),
-						Parent = dropdownFrame,
-					})
-
-					local selectionRow = library:Create("Frame", {
-						Name = "SelectionRow",
-						ZIndex = 11,
-						Size = UDim2.new(1, 0, 0, 22),
-						LayoutOrder = 1,
-						BackgroundTransparency = 1,
-						Parent = dropdownFrame,
-					})
-
-					library:Create("UIStroke", {
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-						Color = library.SecondaryColor,
-						Thickness = 1,
-						Parent = selectionRow,
-					}, {
-						instancep = "Color",
-						tinstance = library.SecondaryColor,
-					})
-
-					local selectedLabel = library:Create("TextLabel", {
-						Name = "Selected",
-						ZIndex = 12,
-						Size = UDim2.new(1, -25, 1, 0),
-						BackgroundTransparency = 1,
-						Text = "-",
-						Font = library.Font,
-						TextColor3 = library.FontColor,
-						TextSize = 12,
-						TextXAlignment = Enum.TextXAlignment.Left,
-						TextTruncate = Enum.TextTruncate.AtEnd,
-						Parent = selectionRow,
-					}, {
-						instancep = "Font",
-						tinstance = library.Font,
-					}, {
-						instancep = "TextColor3",
-						tinstance = library.FontColor,
-					})
-
-					library:Create("UIPadding", {
-						PaddingLeft = UDim.new(0, 6),
-						PaddingRight = UDim.new(0, 3),
-						Parent = selectedLabel,
-					})
-
-					library:Create("UIStroke", {
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-						Color = library.UIstroke,
-						Thickness = 1,
-						Parent = selectedLabel,
-					}, {
-						instancep = "Color",
-						tinstance = library.UIstroke,
-					})
-
-					local arrow = library:Create("ImageLabel", {
-						Name = "DropdownImage",
-						ZIndex = 13,
-						Size = UDim2.fromOffset(15, 15),
-						Position = UDim2.new(1, -19, 0.5, -7),
-						BackgroundTransparency = 1,
-						Image = "rbxassetid://10709767827",
-						ScaleType = Enum.ScaleType.Crop,
-						Parent = selectionRow,
-					})
-
-					local button = library:Create("TextButton", {
-						Name = "DropdownButton",
-						ZIndex = 14,
-						Size = UDim2.fromScale(1, 1),
-						BackgroundTransparency = 1,
-						Text = "",
-						AutoButtonColor = false,
-						Parent = selectionRow,
-					})
-
-					-- Fixed viewport height; canvas grows to fit every item.
-					local holder = library:Create("ScrollingFrame", {
-						Name = "Holder",
-						ZIndex = 20,
-						Size = UDim2.new(1, 0, 0, 0),
-						AutomaticSize = Enum.AutomaticSize.None,
-						AutomaticCanvasSize = Enum.AutomaticSize.None,
-						CanvasSize = UDim2.fromOffset(0, 0),
-						CanvasPosition = Vector2.zero,
-						LayoutOrder = 2,
-						BackgroundColor3 = library.MainColor,
-						BorderSizePixel = 0,
-						ScrollBarThickness = 3,
-						ScrollBarImageColor3 = library.AccentColor,
-						ScrollingDirection = Enum.ScrollingDirection.Y,
-						Visible = false,
-						ClipsDescendants = true,
-						Parent = dropdownFrame,
-					}, {
-						instancep = "BackgroundColor3",
-						tinstance = library.MainColor,
-					}, {
-						instancep = "ScrollBarImageColor3",
-						tinstance = library.AccentColor,
-					})
-
-					library:Create("UIStroke", {
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-						Color = library.SecondaryColor,
-						Thickness = 1,
-						Parent = holder,
-					}, {
-						instancep = "Color",
-						tinstance = library.SecondaryColor,
-					})
-
-					library:Create("UIListLayout", {
-						FillDirection = Enum.FillDirection.Vertical,
-						HorizontalAlignment = Enum.HorizontalAlignment.Center,
-						VerticalAlignment = Enum.VerticalAlignment.Top,
-						Padding = UDim.new(0, rowGap),
-						SortOrder = Enum.SortOrder.LayoutOrder,
-						Parent = holder,
-					})
-
-					library:Create("UIPadding", {
-						PaddingLeft = UDim.new(0, padding),
-						PaddingRight = UDim.new(0, padding),
-						PaddingTop = UDim.new(0, padding),
-						PaddingBottom = UDim.new(0, padding),
-						Parent = holder,
-					})
-
-					--==========================================================
-					-- TOP-LEVEL DROPDOWN OVERLAY
-					--==========================================================
-
-					local overlayRoot
-
-					local sourceScreenGui = main:FindFirstAncestorOfClass("ScreenGui")
-					local player = LocalPlayer
-					local playerGui = (sourceScreenGui and sourceScreenGui.Parent)
-						or (player and player:FindFirstChildOfClass("PlayerGui"))
-
-					if playerGui then
-						local highestDisplayOrder = 0
-
-						for _, child in ipairs(playerGui:GetChildren()) do
-							if child:IsA("ScreenGui") then
-								highestDisplayOrder = math.max(highestDisplayOrder, child.DisplayOrder)
-							end
-						end
-
-						overlayRoot = Instance.new("Frame")
-						overlayRoot.Name = "OverlayRoot"
-						overlayRoot.BackgroundTransparency = 1
-						overlayRoot.BorderSizePixel = 0
-						overlayRoot.Size = UDim2.fromScale(1, 1)
-						overlayRoot.Position = UDim2.fromScale(0, 0)
-						overlayRoot.Parent = Overlaygui
-
-						holder.Parent = overlayRoot
-					end
-
-					local function positionHolder()
-						if not overlayRoot or not holder or not holder.Parent then
-							return
-						end
-
-						local rootPosition = overlayRoot.AbsolutePosition
-						local rootSize = overlayRoot.AbsoluteSize
-						local rowPosition = selectionRow.AbsolutePosition
-						local rowSize = selectionRow.AbsoluteSize
-						local width = math.max(0, rowSize.X)
-						local height = holder.Size.Y.Offset
-						local x = rowPosition.X - rootPosition.X
-						local y = rowPosition.Y - rootPosition.Y + rowSize.Y + 3
-
-						if y + height > rootSize.Y then
-							y = rowPosition.Y - rootPosition.Y - height - 3
-						end
-
-						x = math.clamp(x, 0, math.max(0, rootSize.X - width))
-						y = math.clamp(y, 0, math.max(0, rootSize.Y - height))
-
-						holder.Position = UDim2.fromOffset(x, y)
-						holder.Size = UDim2.fromOffset(width, height)
-					end
-
-					--==========================================================
-					-- UI UPDATES
-					--==========================================================
-
-					local function updateHolderSize()
-						local count = #values
-						local visibleRows = math.min(count, maxVisibleItems)
-
-						local function heightFor(rows)
-							if rows == 0 then
-								return 0
-							end
-
-							return padding * 2
-								+ rows * rowHeight
-								+ math.max(0, rows - 1) * rowGap
-						end
-
-						local holderHeight = heightFor(visibleRows)
-
-						if overlayRoot then
-							holder.Size = UDim2.fromOffset(selectionRow.AbsoluteSize.X, holderHeight)
-						else
-							holder.Size = UDim2.new(1, 0, 0, holderHeight)
-						end
-
-						holder.CanvasSize = UDim2.fromOffset(0, heightFor(count))
-						holder.ScrollingEnabled = count > maxVisibleItems
-
-						if count == 0 then
-							isOpen = false
-						end
-
-						holder.Visible = isOpen and count > 0
-						arrow.Rotation = holder.Visible and 180 or 0
-						positionHolder()
-					end
-
-					local function updateSelectedText()
-						local current = getValue()
-						local hasSelection
-
-						if multi then
-							local display = {}
-
-							for _, value in ipairs(current) do
-								table.insert(display, tostring(value))
-							end
-
-							hasSelection = #display > 0
-							selectedLabel.Text = hasSelection
-								and table.concat(display, ", ")
-								or "-"
-						else
-							hasSelection = current ~= nil
-							selectedLabel.Text = hasSelection and tostring(current) or "-"
-						end
-
-						selectedLabel.TextColor3 = hasSelection
-							and library.AccentColor
-							or library.FontColor
-
-						option.Value = current
-					end
-
-					local function updateItems()
-						for index, item in ipairs(elements) do
-							local selected = multi
-								and selectedIndices[index] == true
-								or (not multi and picked == item.name)
-
-							item.button.Text = selected
-								and ("✓  " .. tostring(item.name))
-								or tostring(item.name)
-
-							item.button.TextColor3 = selected
-								and library.AccentColor
-								or library.FontColor
-						end
-					end
-
-					local function updateUI()
-						updateSelectedText()
-						updateItems()
-						updateHolderSize()
-					end
-
-					-- Reapply current theme values to already-created instances.
-					local function refreshTheme()
-						if destroyed then
-							return
-						end
-
-						local strokeColor = library.UIstroke or library.UIStroke or library.SecondaryColor
-
-						header.TextColor3 = library.FontColor
-						header.Font = library.Font
-						selectedLabel.Font = library.Font
-						holder.BackgroundColor3 = library.MainColor
-						holder.ScrollBarImageColor3 = library.AccentColor
-
-						if typeof(library.FontFace) == "Font" then
-							header.FontFace = library.FontFace
-							selectedLabel.FontFace = library.FontFace
-						end
-
-						for _, root in ipairs({ main, holder }) do
-							for _, descendant in ipairs(root:GetDescendants()) do
-								if descendant:IsA("UIStroke") then
-									if descendant.Parent == selectionRow or descendant.Parent == holder then
-										descendant.Color = library.SecondaryColor
-									else
-										descendant.Color = strokeColor
-									end
-								elseif descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
-									descendant.Font = library.Font
-
-									if typeof(library.FontFace) == "Font" then
-										descendant.FontFace = library.FontFace
-									end
-								end
-							end
-						end
-
-						updateSelectedText()
-						updateItems()
-					end
-
-					local function readThemeSnapshot()
-						return {
-							MainColor = library.MainColor,
-							SecondaryColor = library.SecondaryColor,
-							AccentColor = library.AccentColor,
-							FontColor = library.FontColor,
-							UIstroke = library.UIstroke,
-							UIStroke = library.UIStroke,
-							Font = library.Font,
-							FontFace = library.FontFace,
-						}
-					end
-
-					local function themeSnapshotChanged(previous, current)
-						for key, value in pairs(previous) do
-							if current[key] ~= value then
-								return true
-							end
-						end
-
-						return false
-					end
-
-					local function notifyChanged()
-						local value = getValue()
-
-						option.Value = value
-
-						changedEvent:Fire(
-							type(value) == "table" and table.clone(value) or value
-						)
-
-						if type(callback) == "function" then
-							local ok, err = pcall(
-								callback,
-								type(value) == "table" and table.clone(value) or value
-							)
-
-							if not ok then
-								warn(
-									"[Dropdown:" .. tostring(name) .. "] Callback failed:",
-									err
-								)
-							end
-						end
-					end
-
-					local function setValue(value, silent)
-						if destroyed then
-							return false
-						end
-
-						local previous = getValue()
-
-						if multi then
-							table.clear(selectedIndices)
-
-							local selections
-
-							if type(value) == "table" then
-								selections = value
-							elseif value ~= nil then
-								selections = { value }
-							else
-								selections = {}
-							end
-
-							for _, selection in ipairs(selections) do
-								local index = findIndex(selection)
-
-								if index then
-									selectedIndices[index] = true
-								end
-							end
-						else
-							local index = findIndex(value)
-							picked = index and values[index] or nil
-						end
-
-						updateUI()
-
-						local changed = not equalValues(previous, getValue())
-
-						if changed and not silent then
-							notifyChanged()
-						end
-
-						return changed
-					end
-
-					--==========================================================
-					-- ITEM CREATION / DELETION
-					--==========================================================
-
-					local function destroyItems()
-						for _, item in ipairs(elements) do
-							if item.connection then
-								item.connection:Disconnect()
-							end
-
-							item.button:Destroy()
-						end
-
-						table.clear(elements)
-					end
-
-					local function buildItems()
-						for index, itemName in ipairs(values) do
-							local item = {
-								name = itemName,
-								index = index,
-							}
-
-							local itemButton = library:Create("TextButton", {
-								Name = "Item_" .. tostring(index),
-								ZIndex = 21,
-								Size = UDim2.new(1, -4, 0, rowHeight),
-								BackgroundTransparency = 1,
-								Text = tostring(itemName),
-								TextSize = 13,
-								TextColor3 = library.FontColor,
-								Font = library.Font,
-								TextXAlignment = Enum.TextXAlignment.Left,
-								TextTruncate = Enum.TextTruncate.AtEnd,
-								LayoutOrder = index,
-								AutoButtonColor = false,
-								Parent = holder,
-							}, {
-								instancep = "Font",
-								tinstance = library.Font,
-							}, {
-								instancep = "TextColor3",
-								tinstance = library.FontColor,
-							})
-
-							library:Create("UIStroke", {
-								ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-								Color = library.UIstroke or library.UIStroke or library.SecondaryColor,
-								Thickness = 1,
-								Parent = itemButton,
-							}, {
-								instancep = "Color",
-								tinstance = library.UIstroke or library.UIStroke or library.SecondaryColor,
-							})
-
-							if typeof(library.FontFace) == "Font" then
-								itemButton.FontFace = library.FontFace
-							end
-
-							item.button = itemButton
-							elements[index] = item
-
-							item.connection = itemButton.MouseButton1Click:Connect(function()
-								if destroyed then
-									return
-								end
-
-								local previous = getValue()
-
-								if multi then
-									if selectedIndices[index] then
-										selectedIndices[index] = nil
-									else
-										selectedIndices[index] = true
-									end
-								else
-									picked = itemName
-									isOpen = false
-								end
-
-								updateUI()
-
-								if not equalValues(previous, getValue()) then
-									notifyChanged()
-								end
-							end)
-						end
-					end
-
-					--==========================================================
-					-- PUBLIC VALUE METHODS
-					--==========================================================
-
-					function Dropdown:GetValue()
-						return getValue()
-					end
-
-					function Dropdown:GetIndex()
-						if multi then
-							local indices = {}
-
-							for index in ipairs(values) do
-								if selectedIndices[index] then
-									table.insert(indices, index)
-								end
-							end
-
-							return indices
-						end
-
-						return picked ~= nil and table.find(values, picked) or nil
-					end
-
-					function Dropdown:GetValues()
-						return table.clone(values)
-					end
-
-					function Dropdown:SetValue(value, silent)
-						return setValue(value, silent == true)
-					end
-
-					function Dropdown:GetInstance()
-						return selectedLabel
-					end
-
-					function Dropdown:SetText(text)
-						if not destroyed then
-							header.Text = tostring(text or name)
-						end
-
-						return self
-					end
-
-					function Dropdown:SetCallback(fn)
-						assert(
-							fn == nil or type(fn) == "function",
-							"Dropdown:SetCallback expects a function or nil"
-						)
-
-						callback = fn
-						return self
-					end
-
-					--==========================================================
-					-- REFRESH / CLEAR / REMOVE
-					--==========================================================
-
-					function Dropdown:Refresh(newValues, defaultValue, silent)
-						if destroyed then
-							return self
-						end
-
-						local refreshed = copyUnique(newValues)
-						local previous = getValue()
-
-						destroyItems()
-						table.clear(values)
-						table.clear(selectedIndices)
-						picked = nil
-
-						for _, value in ipairs(refreshed) do
-							table.insert(values, value)
-						end
-
-						buildItems()
-
-						if defaultValue ~= nil then
-							setValue(defaultValue, true)
-						else
-							if multi then
-								for _, oldValue in ipairs(previous) do
-									local index = table.find(values, oldValue)
-
-									if index then
-										selectedIndices[index] = true
-									end
-								end
-							elseif previous ~= nil and table.find(values, previous) then
-								picked = previous
-							end
-
-							updateUI()
-						end
-
-						holder.CanvasPosition = Vector2.zero
-
-						if silent == false and not equalValues(previous, getValue()) then
-							notifyChanged()
-						end
-
-						refreshTheme()
-
-						return self
-					end
-
-					function Dropdown:SetValues(newValues, defaultValue, silent)
-						return self:Refresh(newValues, defaultValue, silent)
-					end
-
-					function Dropdown:Clear(silent)
-						return self:Refresh({}, nil, silent)
-					end
-
-					function Dropdown:AddItem(itemName)
-						if destroyed then
-							return nil
-						end
-
-						local existingIndex = table.find(values, itemName)
-
-						if existingIndex then
-							return elements[existingIndex]
-						end
-
-						local updated = table.clone(values)
-						table.insert(updated, itemName)
-
-						self:Refresh(updated)
-
-						local index = table.find(values, itemName)
-						return index and elements[index] or nil
-					end
-
-					function Dropdown:RemoveItem(itemName, silent)
-						if destroyed then
-							return false
-						end
-
-						local index = table.find(values, itemName)
-
-						if not index then
-							return false
-						end
-
-						local updated = table.clone(values)
-						table.remove(updated, index)
-
-						self:Refresh(updated, nil, silent)
-
-						return true
-					end
-
-					function Dropdown:Open()
-						if not destroyed and #values > 0 then
-							isOpen = true
-							updateHolderSize()
-						end
-
-						return self
-					end
-
-					function Dropdown:Close()
-						if not destroyed then
-							isOpen = false
-							updateHolderSize()
-						end
-
-						return self
-					end
-
-					--==========================================================
-					-- OVERLAY TRACKING + LIVE THEME WATCHER
-					--==========================================================
-
-					if overlayRoot then
-						connect(selectionRow:GetPropertyChangedSignal("AbsolutePosition"), positionHolder)
-						connect(selectionRow:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
-						connect(overlayRoot:GetPropertyChangedSignal("AbsoluteSize"), positionHolder)
-					end
-
-					local themeSnapshot = readThemeSnapshot()
-
-					connect(game:GetService("RunService").Heartbeat, function()
-						if destroyed then
-							return
-						end
-
-						local currentSnapshot = readThemeSnapshot()
-
-						if themeSnapshotChanged(themeSnapshot, currentSnapshot) then
-							themeSnapshot = currentSnapshot
-							refreshTheme()
-						end
-					end)
-
-					--==========================================================
-					-- CLEANUP
-					--==========================================================
-
-					local function cleanup()
-						if destroyed then
-							return
-						end
-
-						destroyed = true
-
-						destroyItems()
-
-						for _, connection in ipairs(connections) do
-							connection:Disconnect()
-						end
-
-						table.clear(connections)
-
-						if overlayGui then
-							overlayGui:Destroy()
-							overlayGui = nil
-							overlayRoot = nil
-						end
-
-						if library.Options[name] == option then
-							library.Options[name] = nil
-						end
-
-						option.Controller = nil
-						changedEvent:Destroy()
-					end
-
-					function Dropdown:Destroy()
-						if destroyed then
-							return
-						end
-
-						cleanup()
-						main:Destroy()
-					end
-
-					connect(main.Destroying, cleanup)
-
-					connect(button.MouseButton1Click, function()
-						if destroyed then
-							return
-						end
-
-						isOpen = not isOpen
-						updateHolderSize()
-					end)
-
-					--==========================================================
-					-- OPTION API
-					--==========================================================
-
-					local forwardedMethods = {
-						"GetValue",
-						"GetIndex",
-						"GetValues",
-						"SetValue",
-						"SetValues",
-						"Refresh",
-						"Clear",
-						"AddItem",
-						"RemoveItem",
-						"GetInstance",
-						"SetText",
-						"SetCallback",
-						"Open",
-						"Close",
-						"Destroy",
-					}
-
-					for _, methodName in ipairs(forwardedMethods) do
-						local method = Dropdown[methodName]
-
-						option[methodName] = function(_, ...)
-							return method(Dropdown, ...)
-						end
-					end
-
-					--==========================================================
-					-- INITIALIZATION
-					--==========================================================
-
-					Dropdown.Instance = selectedLabel
-					Dropdown.Main = main
-					Dropdown.Header = header
-					Dropdown.Holder = holder
-					Dropdown.Option = option
-					Dropdown.OnChanged = changedEvent.Event
-
-					if typeof(library.FontFace) == "Font" then
-						header.FontFace = library.FontFace
-						selectedLabel.FontFace = library.FontFace
-					end
-
-					Dropdown:Refresh(opts.Values or {}, opts.Default, true)
-					refreshTheme()
-					positionHolder()
-
-					return Dropdown
-				end
-
-				function groupbox:AddInput(name, opts)
-					opts = opts or {}
-
-					local input = {}
-
-					local initialValue = tostring(opts.Default or "")
-					local changedEvent = Instance.new("BindableEvent")
-
-					local option = {
-						Type = "Input",
-						Name = name,
-						Value = initialValue,
-						OnChanged = changedEvent.Event,
-					}
-
-					library.Options = library.Options or {}
-					library.Options[name] = option
-
-					local Holder = library:Create("Frame", {
-						Name = "Input",
-						Size = UDim2.new(0.95, 0, 0, 20),
-						LayoutOrder = #elementsholder:GetChildren(),
-						BackgroundColor3 = library.MainColor,
-						Parent = elementsholder,
-					}, {
-						instancep = "BackgroundColor3",
-						tinstance = library.MainColor,
-					})
-
-					library:Create("UIStroke", {
-						Name = "UIStroke",
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-						Color = library.SecondaryColor,
-						Thickness = 1,
-						Parent = Holder,
-					}, {
-						instancep = "Color",
-						tinstance = library.SecondaryColor,
-					})
-
-					local text = library:Create("TextBox", {
-						Name = "Text",
-						Size = UDim2.new(1, 0, 1, 0),
-						BackgroundTransparency = 1,
-						ClearTextOnFocus = false,
-						MultiLine = false,
-						PlaceholderText = name .. "..",
-						Text = initialValue,
-						TextColor3 = library.FontColor,
-						TextSize = 13,
-						Font = library.Font,
-						TextXAlignment = Enum.TextXAlignment.Center,
-						ZIndex = 2,
-						Parent = Holder,
-					}, {
-						instancep = "TextColor3",
-						tinstance = library.FontColor,
-					}, {
-						instancep = "Font",
-						tinstance = library.Font,
-					})
-
-					library:Create("UIStroke", {
-						Name = "TextStroke",
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-						Color = library.UIstroke,
-						Thickness = 1,
-						Parent = text,
-					}, {
-						instancep = "Color",
-						tinstance = library.UIstroke,
-					})
-
-					library:Create("UITextSizeConstraint", {
-						Name = "UITextSizeConstraint",
-						MaxTextSize = 13,
-						Parent = text,
-					})
-
-					local updating = false
-
-					local function setValue(value, silent)
-						value = tostring(value or "")
-
-						option.Value = value
-
-						if text.Text ~= value then
-							updating = true
-							text.Text = value
-							updating = false
-						end
-
-						if not silent then
-							changedEvent:Fire(value)
-
-							if opts.Callback then
-								opts.Callback(value)
-							end
-						end
-					end
-
-					function option:GetValue()
-						return option.Value
-					end
-
-					function option:SetValue(value)
-						setValue(value, false)
-					end
-
-					function input:GetValue()
-						return option.Value
-					end
-
-					function input:SetValue(value)
-						option:SetValue(value)
-					end
-
-					function input:GetInstance()
-						return text
-					end
-
-					text:GetPropertyChangedSignal("Text"):Connect(function()
-						if updating then
-							return
-						end
-
-						local value = text.Text
-
-						if option.Value == value then
-							return
-						end
-
-						option.Value = value
-						changedEvent:Fire(value)
-
-						if opts.Callback then
-							opts.Callback(value)
-						end
-					end)
-
-					input.Instance = text
-					input.Holder = Holder
-					input.Option = option
-
-					return input
-				end	
-
-				
-function groupbox:AddLineGraph(text, opts)
-	opts = opts or {}
-
-	local linegraph = {}
-	local graphsets = {}
-	local curvePoints = 0
-	local opened = false
-	local destroyed = false
-
-	local instance
-	local followConn
-	local outsideConn
-	local buttonConnection
-	local openConnections = {}
-	local pointFrames = {}
-	local pointConnections = {}
-	local curveFrames = {}
-
-	local UIS = game:GetService("UserInputService")
-
-	local selectedPreset = opts.Preset or "Linear"
-	local draggingPoint
-	local dragMoveConn
-	local dragEndConn
-
-	local presets = {
-		"Linear",
-		"Smooth",
-		"Exponential",
-		"Ease In",
-		"Ease Out",
-		"Ease In Out"
-	}
-
-	local function addConnection(signal, callback)
-		local connection = signal:Connect(callback)
-
-		if trackConnection then
-			trackConnection(connection)
-		end
-
-		table.insert(openConnections, connection)
-		return connection
-	end
-
-	local function disconnectConnection(connection)
-		if connection then
-			connection:Disconnect()
-		end
-	end
-
-	local function clearPointConnections()
-		for _, connection in ipairs(pointConnections) do
-			disconnectConnection(connection)
-		end
-
-		table.clear(pointConnections)
-	end
-
-	local function clearOpenConnections()
-		for _, connection in ipairs(openConnections) do
-			disconnectConnection(connection)
-		end
-
-		table.clear(openConnections)
-		clearPointConnections()
-
-		disconnectConnection(followConn)
-		disconnectConnection(outsideConn)
-		disconnectConnection(dragMoveConn)
-		disconnectConnection(dragEndConn)
-
-		followConn = nil
-		outsideConn = nil
-		dragMoveConn = nil
-		dragEndConn = nil
-		draggingPoint = nil
-	end
-
-	local function clearList(list)
-		for _, object in ipairs(list) do
-			if object then
-				object:Destroy()
-			end
-		end
-
-		table.clear(list)
-	end
-
-	local function copyPoints(values)
-		local result = {}
-
-		for _, point in ipairs(values or {}) do
-			local x = tonumber(point.X or point.x or point[1]) or 0
-			local y = tonumber(point.Y or point.y or point[2]) or 0
-
-			table.insert(result, {
-				X = math.clamp(x, 0, 1),
-				Y = math.clamp(y, 0, 1)
-			})
-		end
-
-		table.sort(result, function(a, b)
-			return a.X < b.X
-		end)
-
-		return result
-	end
-
-	graphsets = copyPoints(opts.default or opts.Default or {})
-	curvePoints = #graphsets
-
-	local function getData()
-		local result = {}
-
-		for i, point in ipairs(graphsets) do
-			result[i] = {
-				X = point.X,
-				Y = point.Y
-			}
-		end
-
-		return result
-	end
-
-	local function notifyChanged()
-		curvePoints = #graphsets
-
-		if type(opts.Callback) == "function" then
-			opts.Callback(getData())
-		end
-	end
-
-	local holder = library:Create("Frame", {
-		Name = "Holder";
-		Size = UDim2.new(0.95, 0, 0, 20);
-		BackgroundTransparency = 1;
-		LayoutOrder = #elementsholder:GetChildren();
-		Parent = elementsholder;
-	})
-
-	local uitext = library:Create("TextLabel", {
-		Name = "TextLabel";
-		Size = UDim2.new(0.937, 0, 1, 0);
-		BackgroundTransparency = 1;
-		Text = text;
-		TextSize = 13;
-		TextColor3 = library.FontColor;
-		Font = library.Font;
-		LayoutOrder = 1;
-		TextXAlignment = Enum.TextXAlignment.Left;
-		TextYAlignment = Enum.TextYAlignment.Center;
-		Parent = holder;
-	}, {
-		instancep = "TextColor3";
-		tinstance = library.FontColor;
-	}, {
-		instancep = "Font";
-		tinstance = library.Font;
-	})
-
-	library:Create("UITextSizeConstraint", {
-		Name = "UITextSizeConstraint";
-		MaxTextSize = 13;
-		Parent = uitext;
-	})
-
-	library:Create("UIStroke", {
-		Name = "UIStroke";
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-		Color = Color3.fromRGB(0, 0, 0);
-		Thickness = 1;
-		Parent = uitext;
-	}, {
-		instancep = "Color";
-		tinstance = library.UIstroke;
-	})
-
-	library:Create("UIListLayout", {
-		Name = "UIListLayout";
-		FillDirection = Enum.FillDirection.Horizontal;
-		HorizontalAlignment = Enum.HorizontalAlignment.Left;
-		SortOrder = Enum.SortOrder.LayoutOrder;
-		Parent = holder;
-	})
-
-	local buttonopen = library:Create("ImageButton", {
-		Name = "ButtonOpen";
-		Size = UDim2.new(0, 19, 0, 19);
-		LayoutOrder = 2;
-		BackgroundTransparency = 1;
-		Image = "rbxassetid://10734950309";
-		ImageColor3 = library.AccentColor;
-		Parent = holder;
-	}, {
-		instancep = "ImageColor3";
-		tinstance = library.AccentColor;
-	})
-
-	local function getPopupPosition()
-		local absolute = buttonopen.AbsolutePosition
-		local base = screengui.AbsolutePosition
-
-		return UDim2.fromOffset(
-			absolute.X - base.X,
-			absolute.Y - base.Y
-		)
-	end
-
-	local closeGraph
-
-	local function openGraph()
-		if opened or destroyed then
-			return
-		end
-
-		opened = true
-
-		-- Use the existing library ScreenGui; don't create another one.
-		local lineG = library:Create("Frame", {
-			Name = "CursorBox";
-			Size = UDim2.fromOffset(15, 15);
-			Position = getPopupPosition();
-			BackgroundTransparency = 1;
-			ZIndex = 2;
-			Parent = screengui;
-		})
-
-		instance = lineG
-
-		followConn = buttonopen:GetPropertyChangedSignal(
-			"AbsolutePosition"
-		):Connect(function()
-			if opened and instance and instance.Parent then
-				instance.Position = getPopupPosition()
-			end
-		end)
-
-		if trackConnection then
-			trackConnection(followConn)
-		end
-
-		local framewindow = library:Create("Frame", {
-			Name = "Frame";
-			Size = UDim2.fromOffset(323, 246);
-			Position = UDim2.new(1, 0, 1.4, 0);
-			BackgroundColor3 = library.MainColor;
-			BorderSizePixel = 0;
-			ZIndex = 2;
-			Parent = lineG;
-		}, {
-			instancep = "BackgroundColor3";
-			tinstance = library.MainColor;
-		})
-
-		library:Create("UIStroke", {
-			Name = "UIStroke";
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-			LineJoinMode = Enum.LineJoinMode.Miter;
-			Color = library.SecondaryColor;
-			Thickness = 1;
-			ZIndex = 2;
-			Parent = framewindow;
-		}, {
-			instancep = "Color";
-			tinstance = library.SecondaryColor;
-		})
-
-		library:Create("UIStroke", {
-			Name = "OuterStroke";
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-			LineJoinMode = Enum.LineJoinMode.Miter;
-			Color = library.MainColor;
-			Thickness = 4;
-			ZIndex = 2;
-			Parent = framewindow;
-		}, {
-			instancep = "Color";
-			tinstance = library.MainColor;
-		})
-
-		local title = library:Create("TextLabel", {
-			Name = "TextLabel";
-			Size = UDim2.new(1, 0, 0, 18);
-			Position = UDim2.fromOffset(0, 0);
-			BackgroundTransparency = 1;
-			Text = text or "Line Graph";
-			TextColor3 = library.FontColor;
-			Font = library.Font;
-			TextSize = 13;
-			TextXAlignment = Enum.TextXAlignment.Left;
-			ZIndex = 3;
-			Parent = framewindow;
-		}, {
-			instancep = "TextColor3";
-			tinstance = library.FontColor;
-		}, {
-			instancep = "Font";
-			tinstance = library.Font;
-		})
-
-		library:Create("UIPadding", {
-			PaddingLeft = UDim.new(0, 6);
-			Parent = title;
-		})
-
-		library:Create("UIStroke", {
-			Name = "UIStroke";
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-			Color = library.UIstroke;
-			Thickness = 1;
-			Parent = title;
-		}, {
-			instancep = "Color";
-			tinstance = library.UIstroke;
-		})
-
-		local GraphHolder = library:Create("Frame", {
-			Name = "GraphHolder";
-			Position = UDim2.fromOffset(4, 24);
-			Size = UDim2.fromOffset(315, 168);
-			BackgroundTransparency = 1;
-			BorderSizePixel = 0;
-			ClipsDescendants = false;
-			Active = true;
-			ZIndex = 2;
-			Parent = framewindow;
-		})
-
-		library:Create("UIStroke", {
-			Color = library.SecondaryColor;
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-			Parent = GraphHolder;
-		}, {
-			instancep = "Color";
-			tinstance = library.SecondaryColor;
-		})
-
-		local grid = library:Create("Frame", {
-			Name = "Grid";
-			Size = UDim2.fromScale(1, 1);
-			BackgroundTransparency = 1;
-			ZIndex = 2;
-			Parent = GraphHolder;
-		})
-
-		local curveLayer = library:Create("Frame", {
-			Name = "CurveLines";
-			Size = UDim2.fromScale(1, 1);
-			BackgroundTransparency = 1;
-			ZIndex = 3;
-			Parent = GraphHolder;
-		})
-
-		local pointLayer = library:Create("Frame", {
-			Name = "Points";
-			Size = UDim2.fromScale(1, 1);
-			BackgroundTransparency = 1;
-			ZIndex = 5;
-			Parent = GraphHolder;
-		})
-
-		for i = 1, 4 do
-			library:Create("Frame", {
-				Name = "HorizontalLine";
-				Position = UDim2.fromScale(0, i / 5);
-				Size = UDim2.new(1, 0, 0, 1);
-				BorderSizePixel = 0;
-				BackgroundColor3 = library.SecondaryColor;
-				ZIndex = 2;
-				Parent = grid;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.SecondaryColor;
-			})
-		end
-
-		for i = 1, 7 do
-			library:Create("Frame", {
-				Name = "VerticalLine";
-				Position = UDim2.fromScale(i / 8, 0);
-				Size = UDim2.new(0, 1, 1, 0);
-				BorderSizePixel = 0;
-				BackgroundColor3 = library.SecondaryColor;
-				ZIndex = 2;
-				Parent = grid;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.SecondaryColor;
-			})
-		end
-
-		local function toPixels(point)
-			local size = GraphHolder.AbsoluteSize
-
-			return Vector2.new(
-				point.X * size.X,
-				(1 - point.Y) * size.Y
-			)
-		end
-
-		local function createSegment(a, b)
-			local delta = b - a
-			local length = delta.Magnitude
-
-			if length < 0.5 then
-				return
-			end
-
-			local segment = library:Create("Frame", {
-				Name = "CurveSegment";
-				AnchorPoint = Vector2.new(0, 0.5);
-				Position = UDim2.fromOffset(a.X, a.Y);
-				Size = UDim2.fromOffset(length, 2);
-				Rotation = math.deg(math.atan2(delta.Y, delta.X));
-				BorderSizePixel = 0;
-				BackgroundColor3 = library.AccentColor;
-				ZIndex = 3;
-				Parent = curveLayer;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.AccentColor;
-			})
-
-			table.insert(curveFrames, segment)
-		end
-
-		local function catmullRom(p0, p1, p2, p3, t)
-			local t2 = t * t
-			local t3 = t2 * t
-
-			return Vector2.new(
-				0.5 * (
-					2 * p1.X
-					+ (-p0.X + p2.X) * t
-					+ (2*p0.X - 5*p1.X + 4*p2.X - p3.X) * t2
-					+ (-p0.X + 3*p1.X - 3*p2.X + p3.X) * t3
-				),
-				0.5 * (
-					2 * p1.Y
-					+ (-p0.Y + p2.Y) * t
-					+ (2*p0.Y - 5*p1.Y + 4*p2.Y - p3.Y) * t2
-					+ (-p0.Y + 3*p1.Y - 3*p2.Y + p3.Y) * t3
-				)
-			)
-		end
-
-		local function interpolateY(a, b, t)
-			if selectedPreset == "Exponential"
-				or selectedPreset == "Ease In" then
-				t = t * t
-			elseif selectedPreset == "Ease Out" then
-				t = 1 - (1 - t) * (1 - t)
-			elseif selectedPreset == "Ease In Out" then
-				if t < 0.5 then
-					t = 2 * t * t
-				else
-					t = 1 - ((-2 * t + 2) ^ 2) / 2
-				end
-			end
-
-			return a + (b - a) * t
-		end
-
-		local renderGraph
-
-		local function drawCurve()
-			clearList(curveFrames)
-
-			if #graphsets < 2 then
-				return
-			end
-
-			local points = {}
-
-			for i, point in ipairs(graphsets) do
-				points[i] = toPixels(point)
-			end
-
-			for i = 1, #points - 1 do
-				local p1 = points[i]
-				local p2 = points[i + 1]
-
-				if selectedPreset == "Smooth" then
-					local p0 = points[math.max(1, i - 1)]
-					local p3 = points[math.min(#points, i + 2)]
-					local previous = p1
-
-					for step = 1, 20 do
-						local nextPoint = catmullRom(
-							p0, p1, p2, p3, step / 20
-						)
-
-						createSegment(previous, nextPoint)
-						previous = nextPoint
-					end
-				else
-					local previous = p1
-
-					for step = 1, 20 do
-						local t = step / 20
-
-						local nextPoint = Vector2.new(
-							p1.X + (p2.X - p1.X) * t,
-							interpolateY(p1.Y, p2.Y, t)
-						)
-
-						createSegment(previous, nextPoint)
-						previous = nextPoint
-					end
-				end
-			end
-		end
-
-		local function endDrag()
-			draggingPoint = nil
-
-			disconnectConnection(dragMoveConn)
-			disconnectConnection(dragEndConn)
-
-			dragMoveConn = nil
-			dragEndConn = nil
-
-			table.sort(graphsets, function(a, b)
-				return a.X < b.X
-			end)
-
-			if opened then
-				renderGraph()
-				notifyChanged()
-			end
-		end
-
-		local function startDrag(point)
-			disconnectConnection(dragMoveConn)
-			disconnectConnection(dragEndConn)
-
-			draggingPoint = point
-
-			dragMoveConn = UIS.InputChanged:Connect(function(input)
-				if not draggingPoint or not opened or destroyed then
-					return
-				end
-
-				if input.UserInputType ~= Enum.UserInputType.MouseMovement
-					and input.UserInputType ~= Enum.UserInputType.Touch then
-					return
-				end
-
-				local position = input.Position
-				local origin = GraphHolder.AbsolutePosition
-				local size = GraphHolder.AbsoluteSize
-
-				if size.X <= 0 or size.Y <= 0 then
-					return
-				end
-
-				draggingPoint.X = math.clamp(
-					(position.X - origin.X) / size.X, 0, 1
-				)
-
-				draggingPoint.Y = math.clamp(
-					1 - (position.Y - origin.Y) / size.Y, 0, 1
-				)
-
-				renderGraph()
-				notifyChanged()
-			end)
-
-			dragEndConn = UIS.InputEnded:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1
-					or input.UserInputType == Enum.UserInputType.Touch then
-					endDrag()
-				end
-			end)
-
-			if trackConnection then
-				trackConnection(dragMoveConn)
-				trackConnection(dragEndConn)
-			end
-		end
-
-		renderGraph = function()
-			clearPointConnections()
-			clearList(pointFrames)
-
-			for _, point in ipairs(graphsets) do
-				local pixel = toPixels(point)
-
-				local dot = library:Create("TextButton", {
-					Name = "CurveDot";
-					AnchorPoint = Vector2.new(0.5, 0.5);
-					Position = UDim2.fromOffset(pixel.X, pixel.Y);
-					Size = UDim2.fromOffset(10, 10);
-					BackgroundColor3 = library.AccentColor;
-					BorderSizePixel = 0;
-					Text = "";
-					AutoButtonColor = false;
-					Active = true;
-					ZIndex = 5;
-					Parent = pointLayer;
-				}, {
-					instancep = "BackgroundColor3";
-					tinstance = library.AccentColor;
-				})
-
-				library:Create("UICorner", {
-					CornerRadius = UDim.new(1, 0);
-					Parent = dot;
-				})
-
-				library:Create("TextLabel", {
-					Name = "PointValue";
-					AnchorPoint = Vector2.new(0.5, 1);
-					Position = UDim2.new(0.5, 0, 0, -3);
-					Size = UDim2.fromOffset(90, 14);
-					BackgroundTransparency = 1;
-					Text = string.format("%.2f, %.2f", point.X, point.Y);
-					TextColor3 = library.FontColor;
-					Font = library.Font;
-					TextSize = 10;
-					ZIndex = 6;
-					Parent = dot;
-				}, {
-					instancep = "TextColor3";
-					tinstance = library.FontColor;
-				}, {
-					instancep = "Font";
-					tinstance = library.Font;
-				})
-
-				table.insert(pointFrames, dot)
-
-				local connection = dot.InputBegan:Connect(function(input)
-					if not opened or destroyed then
-						return
-					end
-
-					if input.UserInputType == Enum.UserInputType.MouseButton1
-						or input.UserInputType == Enum.UserInputType.Touch then
-						startDrag(point)
-					end
-				end)
-
-				table.insert(pointConnections, connection)
-
-				if trackConnection then
-					trackConnection(connection)
-				end
-			end
-
-			drawCurve()
-		end
-
-		addConnection(GraphHolder.InputBegan, function(input)
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then
-				return
-			end
-
-			if not opened or destroyed then
-				return
-			end
-
-			local position = input.Position
-			local origin = GraphHolder.AbsolutePosition
-			local size = GraphHolder.AbsoluteSize
-
-			if size.X <= 0 or size.Y <= 0 then
-				return
-			end
-
-			local x = math.clamp(
-				(position.X - origin.X) / size.X, 0, 1
-			)
-
-			local y = math.clamp(
-				1 - (position.Y - origin.Y) / size.Y, 0, 1
-			)
-
-			table.insert(graphsets, {
-				X = x;
-				Y = y;
-			})
-
-			table.sort(graphsets, function(a, b)
-				return a.X < b.X
-			end)
-
-			renderGraph()
-			notifyChanged()
-		end)
-
-		if opts.Presets == true then
-			local presetButton = library:Create("TextButton", {
-				Name = "PresetButton";
-				Position = UDim2.fromOffset(6, 197);
-				Size = UDim2.new(1, -12, 0, 20);
-				BackgroundColor3 = library.MainColor;
-				Text = "Curve: " .. selectedPreset .. "  v";
-				TextColor3 = library.FontColor;
-				Font = library.Font;
-				TextSize = 12;
-				BorderSizePixel = 0;
-				ZIndex = 10;
-				Parent = framewindow;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.MainColor;
-			}, {
-				instancep = "TextColor3";
-				tinstance = library.FontColor;
-			}, {
-				instancep = "Font";
-				tinstance = library.Font;
-			})
-
-			local menu = library:Create("Frame", {
-				Name = "PresetMenu";
-				Position = UDim2.new(0, 6, 1, -48 - (#presets * 20));
-				Size = UDim2.new(1, -12, 0, #presets * 20);
-				BackgroundColor3 = library.MainColor;
-				BorderSizePixel = 0;
-				Visible = false;
-				ZIndex = 20;
-				Parent = framewindow;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.MainColor;
-			})
-
-			library:Create("UIListLayout", {
-				SortOrder = Enum.SortOrder.LayoutOrder;
-				Parent = menu;
-			})
-
-			for i, preset in ipairs(presets) do
-				local option = library:Create("TextButton", {
-					Name = preset;
-					Size = UDim2.new(1, 0, 0, 20);
-					BackgroundColor3 = library.MainColor;
-					BorderSizePixel = 0;
-					Text = preset;
-					TextColor3 = library.FontColor;
-					Font = library.Font;
-					TextSize = 12;
-					LayoutOrder = i;
-					ZIndex = 21;
-					Parent = menu;
-				}, {
-					instancep = "BackgroundColor3";
-					tinstance = library.MainColor;
-				}, {
-					instancep = "TextColor3";
-					tinstance = library.FontColor;
-				}, {
-					instancep = "Font";
-					tinstance = library.Font;
-				})
-
-				addConnection(option.Activated, function()
-					selectedPreset = preset
-					presetButton.Text = "Curve: " .. preset .. "  v"
-					menu.Visible = false
-
-					renderGraph()
-					notifyChanged()
-				end)
-			end
-
-			addConnection(presetButton.Activated, function()
-				menu.Visible = not menu.Visible
-			end)
-		end
-
-		local resetButton = library:Create("TextButton", {
-			Name = "ResetGraph";
-			Position = UDim2.new(0, 6, 1, -25);
-			Size = UDim2.new(1, -12, 0, 20);
-			BackgroundColor3 = library.MainColor;
-			Text = "Reset Graph";
-			TextColor3 = library.FontColor;
-			Font = library.Font;
-			TextSize = 12;
-			BorderSizePixel = 0;
-			ZIndex = 10;
-			Parent = framewindow;
-		}, {
-			instancep = "BackgroundColor3";
-			tinstance = library.MainColor;
-		}, {
-			instancep = "TextColor3";
-			tinstance = library.FontColor;
-		}, {
-			instancep = "Font";
-			tinstance = library.Font;
-		})
-
-		addConnection(resetButton.Activated, function()
-			table.clear(graphsets)
-			renderGraph()
-			notifyChanged()
-		end)
-
-		addConnection(
-			GraphHolder:GetPropertyChangedSignal("AbsoluteSize"),
-			function()
-				if opened then
-					renderGraph()
-				end
-			end
-		)
-
-		-- Defer the outside-click check so the opening click cannot close it.
-		outsideConn = UIS.InputBegan:Connect(function(input)
-			if not opened or not instance or not instance.Parent then
-				return
-			end
-
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then
-				return
-			end
-
-			local position = input.Position
-			local topLeft = framewindow.AbsolutePosition
-			local bottomRight = topLeft + framewindow.AbsoluteSize
-
-			local inWindow =
-				position.X >= topLeft.X
-				and position.X <= bottomRight.X
-				and position.Y >= topLeft.Y
-				and position.Y <= bottomRight.Y
-
-			local buttonPos = buttonopen.AbsolutePosition
-			local buttonSize = buttonopen.AbsoluteSize
-
-			local inButton =
-				position.X >= buttonPos.X
-				and position.X <= buttonPos.X + buttonSize.X
-				and position.Y >= buttonPos.Y
-				and position.Y <= buttonPos.Y + buttonSize.Y
-
-			if not inWindow and not inButton then
-				closeGraph()
-			end
-		end)
-
-		if trackConnection then
-			trackConnection(outsideConn)
-		end
-
-		task.defer(function()
-			if opened and GraphHolder.Parent then
-				renderGraph()
-			end
-		end)
-	end
-
-	closeGraph = function()
-		if not opened then
-			return
-		end
-
-		-- Set this first so callbacks stop acting while the popup closes.
-		opened = false
-
-		clearOpenConnections()
-
-		if instance then
-			instance:Destroy()
-			instance = nil
-		end
-	end
-
-	-- IMPORTANT: This connection is deliberately NOT added to
-	-- openConnections, so closing the popup won't kill the reopen button.
-	buttonConnection = buttonopen.Activated:Connect(function()
-		if destroyed then
-			return
-		end
-
-		if opened then
-			closeGraph()
-		else
-			openGraph()
-		end
-	end)
-
-	if trackConnection then
-		trackConnection(buttonConnection)
-	end
-
-	function linegraph:Get()
-		return getData()
-	end
-
-	function linegraph:Set(values)
-		if destroyed then
-			return
-		end
-
-		graphsets = copyPoints(values)
-		curvePoints = #graphsets
-
-		if opened then
-			closeGraph()
-			openGraph()
-		end
-
-		notifyChanged()
-	end
-
-	function linegraph:Reset()
-		if destroyed then
-			return
-		end
-
-		graphsets = {}
-		curvePoints = 0
-
-		if opened then
-			closeGraph()
-			openGraph()
-		end
-
-		notifyChanged()
-	end
-
-	function linegraph:SetPreset(preset)
-		if destroyed then
-			return false
-		end
-
-		for _, name in ipairs(presets) do
-			if name == preset then
-				selectedPreset = name
-
-				if opened then
-					closeGraph()
-					openGraph()
-				end
-
-				notifyChanged()
-				return true
-			end
-		end
-
-		return false
-	end
-
-	function linegraph:Destroy()
-		if destroyed then
-			return
-		end
-
-		destroyed = true
-		closeGraph()
-
-		disconnectConnection(buttonConnection)
-		buttonConnection = nil
-
-		clearOpenConnections()
-		clearPointConnections()
-
-		if holder then
-			holder:Destroy()
-			holder = nil
-		end
-	end
-
-	return linegraph
+ return MakeGroupbox(Right, title)
 end
-
-
-				return groupbox
-			end
 
 			function tab:Open()
 				if library.Tab == tab then return end
