@@ -7037,6 +7037,602 @@ function library:Watermark(configuration)
 	return wm
 end
 
+function library:Hotkeys(configuration)
+    configuration = configuration or {}
+
+    local hotkeys = {}
+    local UIS = game:GetService("UserInputService")
+    local RunService = game:GetService("RunService")
+
+    local visible = configuration.Visible == true
+    local activeOnly = configuration.ActiveOnly == true
+    local destroyed = false
+    local connections = {}
+    local rows = {}
+
+    local width = math.max(160, tonumber(configuration.Width) or 260)
+    local rowHeight = 20
+    local headerHeight = 27
+    local refreshInterval = 0.05
+
+    local dragging = false
+    local dragInput
+    local dragStart
+    local startPosition
+    local dragclone
+
+    local function connect(signal, callback)
+        local connection = signal:Connect(callback)
+        table.insert(connections, connection)
+
+        if trackConnection then
+            trackConnection(connection)
+        end
+
+        return connection
+    end
+
+    local main = library:Create("Frame", {
+        Name = "Hotkeys";
+        Size = UDim2.fromOffset(width, headerHeight);
+        Position = configuration.Position
+            or UDim2.new(0, 20, 0.35, 0);
+        AnchorPoint = Vector2.new(0, 0);
+        BackgroundColor3 = library.MainColor;
+        BorderSizePixel = 0;
+        Visible = visible;
+        ZIndex = 20;
+        Parent = screengui;
+    }, {
+        instancep = "BackgroundColor3";
+        tinstance = library.MainColor;
+    })
+
+    local outerStroke = library:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+        LineJoinMode = Enum.LineJoinMode.Miter;
+        Color = library.MainColor;
+        Thickness = 3;
+        Parent = main;
+    })
+
+    local borderStroke = library:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+        LineJoinMode = Enum.LineJoinMode.Miter;
+        Color = library.SecondaryColor;
+        Thickness = 1;
+        Parent = main;
+    })
+
+    local accent = library:Create("Frame", {
+        Name = "Accent";
+        Size = UDim2.new(1, 0, 0, 1);
+        BackgroundColor3 = library.AccentColor;
+        BorderSizePixel = 0;
+        ZIndex = 22;
+        Parent = main;
+    })
+
+    local header = library:Create("TextButton", {
+        Name = "Header";
+        Size = UDim2.new(1, 0, 0, headerHeight);
+        BackgroundTransparency = 1;
+        AutoButtonColor = false;
+        Active = true;
+        Text = tostring(configuration.Title or "Hotkeys");
+        TextSize = 14;
+        Font = library.Font;
+        TextColor3 = library.FontColor;
+        ZIndex = 21;
+        Parent = main;
+    })
+
+    local headerStroke = library:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+        Color = library.UIstroke
+            or library.UIStroke
+            or library.SecondaryColor;
+        Thickness = 1;
+        Parent = header;
+    })
+
+    local separator = library:Create("Frame", {
+        Name = "Separator";
+        Position = UDim2.fromOffset(0, headerHeight - 1);
+        Size = UDim2.new(1, 0, 0, 1);
+        BackgroundColor3 = library.SecondaryColor;
+        BorderSizePixel = 0;
+        Visible = false;
+        ZIndex = 21;
+        Parent = main;
+    })
+
+    local body = library:Create("Frame", {
+        Name = "Entries";
+        Position = UDim2.fromOffset(8, headerHeight + 3);
+        Size = UDim2.new(1, -16, 0, 0);
+        BackgroundTransparency = 1;
+        ZIndex = 21;
+        Parent = main;
+    })
+
+    local shortcuts = {
+        LeftControl = "LCtrl",
+        RightControl = "RCtrl",
+        LeftShift = "LShift",
+        RightShift = "RShift",
+        LeftAlt = "LAlt",
+        RightAlt = "RAlt",
+        MouseButton1 = "M1",
+        MouseButton2 = "M2",
+        MouseButton3 = "M3",
+    }
+
+    local function keyText(key)
+        if key == nil then
+            return "None"
+        end
+
+        local name
+
+        if typeof(key) == "EnumItem" then
+            name = key.Name
+        else
+            name = tostring(key):match("([^%.]+)$")
+        end
+
+        return shortcuts[name] or name or "None"
+    end
+
+    local function isBound(key)
+        local name = keyText(key)
+
+        return name ~= "None"
+            and name ~= "Unknown"
+            and name ~= ""
+    end
+
+    local function collectEntries()
+        local entries = {}
+        local owners = {}
+        local seen = {}
+
+        -- A toggle keypicker's active state belongs to its toggle.
+        local function scanToggles(registry)
+            if type(registry) ~= "table" then
+                return
+            end
+
+            for name, toggle in pairs(registry) do
+                if type(toggle) == "table" then
+                    local picker = toggle.keypicker or toggle.KeyPicker
+
+                    if type(picker) == "table" then
+                        owners[picker] = {
+                            Name = tostring(name),
+                            Toggle = toggle,
+                        }
+                    end
+                end
+            end
+        end
+
+        scanToggles(Toggles)
+        scanToggles(library.Toggles)
+
+        local function addPicker(name, picker)
+            if type(picker) ~= "table" or seen[picker] then
+                return
+            end
+
+            -- Distinguish keypickers from sliders/other options.
+            if picker.Mode == nil then
+                return
+            end
+
+            seen[picker] = true
+
+            if not isBound(picker.Key) then
+                return
+            end
+
+            local owner = owners[picker]
+            local active
+
+            if owner then
+                local value = owner.Toggle.Value
+
+                if value == nil then
+                    value = owner.Toggle.value
+                end
+
+                active = value == true
+            else
+                active = picker.Value == true
+                    or picker.Mode == "Always"
+            end
+
+            if activeOnly and not active then
+                return
+            end
+
+            table.insert(entries, {
+                Picker = picker,
+                Name = owner and owner.Name or tostring(name),
+                Key = keyText(picker.Key),
+                Mode = string.lower(tostring(picker.Mode)),
+                Active = active,
+            })
+        end
+
+        -- Include attached pickers even if an option name was reused.
+        for picker, owner in pairs(owners) do
+            addPicker(owner.Name, picker)
+        end
+
+        local function scanOptions(registry)
+            if type(registry) ~= "table" then
+                return
+            end
+
+            for name, option in pairs(registry) do
+                addPicker(name, option)
+            end
+        end
+
+        scanOptions(Options)
+        scanOptions(library.Options)
+
+        table.sort(entries, function(a, b)
+            local left = string.lower(a.Name)
+            local right = string.lower(b.Name)
+
+            if left == right then
+                if a.Key == b.Key then
+                    return a.Mode < b.Mode
+                end
+
+                return a.Key < b.Key
+            end
+
+            return left < right
+        end)
+
+        return entries
+    end
+
+    local function createRow()
+        local label = library:Create("TextLabel", {
+            Name = "Hotkey";
+            Size = UDim2.new(1, 0, 0, rowHeight);
+            BackgroundTransparency = 1;
+            Text = "";
+            TextSize = 13;
+            Font = library.Font;
+            TextColor3 = library.FontColor;
+            TextXAlignment = Enum.TextXAlignment.Left;
+            TextTruncate = Enum.TextTruncate.AtEnd;
+            ZIndex = 21;
+            Parent = body;
+        })
+
+        local stroke = library:Create("UIStroke", {
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+            Color = library.UIstroke
+                or library.UIStroke
+                or library.SecondaryColor;
+            Thickness = 1;
+            Parent = label;
+        })
+
+        return {
+            Label = label,
+            Stroke = stroke,
+        }
+    end
+
+    local function refresh()
+        if destroyed then
+            return
+        end
+
+        local entries = collectEntries()
+        local strokeColor = library.UIstroke
+            or library.UIStroke
+            or library.SecondaryColor
+
+        main.BackgroundColor3 = library.MainColor
+        outerStroke.Color = library.MainColor
+        borderStroke.Color = library.SecondaryColor
+        accent.BackgroundColor3 = library.AccentColor
+        separator.BackgroundColor3 = library.SecondaryColor
+        separator.Visible = #entries > 0
+
+        header.Font = library.Font
+        header.TextColor3 = library.FontColor
+        headerStroke.Color = strokeColor
+
+        for index, entry in ipairs(entries) do
+            local row = rows[index]
+
+            if not row then
+                row = createRow()
+                rows[index] = row
+            end
+
+            local label = row.Label
+
+            label.Visible = true
+            label.Position = UDim2.fromOffset(
+                0,
+                (index - 1) * rowHeight
+            )
+
+            label.Text = string.format(
+                "%s [%s] [%s]",
+                entry.Name,
+                entry.Key,
+                entry.Mode
+            )
+
+            label.Font = library.Font
+            label.TextColor3 = entry.Active
+                and library.AccentColor
+                or library.FontColor
+
+            row.Stroke.Color = strokeColor
+        end
+
+        -- Remove surplus UI instead of keeping unused rows.
+        for index = #rows, #entries + 1, -1 do
+            rows[index].Label:Destroy()
+            rows[index] = nil
+        end
+
+        local bodyHeight = #entries * rowHeight
+        local height = headerHeight
+
+        if #entries > 0 then
+            height = height + bodyHeight + 6
+        end
+
+        body.Size = UDim2.new(1, -16, 0, bodyHeight)
+        main.Size = UDim2.fromOffset(width, height)
+
+        if dragclone then
+            dragclone.Size = main.Size
+        end
+    end
+
+    local function finishDrag(commit)
+        if not dragging then
+            return
+        end
+
+        dragging = false
+        dragInput = nil
+
+        if dragclone then
+            if commit then
+                main.Position = dragclone.Position
+            end
+
+            dragclone:Destroy()
+            dragclone = nil
+        end
+
+        if not destroyed then
+            main.Visible = visible
+        end
+    end
+
+    connect(header.InputBegan, function(input)
+        if destroyed
+            or not visible
+            or dragging
+            or configuration.Draggable == false then
+            return
+        end
+
+        local inputType = input.UserInputType
+
+        if inputType ~= Enum.UserInputType.MouseButton1
+            and inputType ~= Enum.UserInputType.Touch then
+            return
+        end
+
+        dragging = true
+        dragInput = input
+        dragStart = input.Position
+        startPosition = main.Position
+
+        dragclone = library:Create("Frame", {
+            Name = "HotkeysDragPreview";
+            Size = main.Size;
+            Position = main.Position;
+            AnchorPoint = main.AnchorPoint;
+            BackgroundTransparency = 1;
+            BorderSizePixel = 0;
+            ZIndex = 100;
+            Parent = screengui;
+        })
+
+        library:Create("UIStroke", {
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+            Color = library.AccentColor;
+            Thickness = 1;
+            Parent = dragclone;
+        })
+
+        main.Visible = false
+    end)
+
+    connect(UIS.InputChanged, function(input)
+        if not dragging or not dragclone then
+            return
+        end
+
+        local touchDrag = dragInput.UserInputType
+            == Enum.UserInputType.Touch
+
+        if touchDrag then
+            if input ~= dragInput then
+                return
+            end
+        elseif input.UserInputType
+            ~= Enum.UserInputType.MouseMovement then
+            return
+        end
+
+        local delta = input.Position - dragStart
+
+        dragclone.Position = UDim2.new(
+            startPosition.X.Scale,
+            startPosition.X.Offset + delta.X,
+            startPosition.Y.Scale,
+            startPosition.Y.Offset + delta.Y
+        )
+    end)
+
+    connect(UIS.InputEnded, function(input)
+        if not dragging then
+            return
+        end
+
+        if input == dragInput
+            or (
+                dragInput.UserInputType
+                    == Enum.UserInputType.MouseButton1
+                and input.UserInputType
+                    == Enum.UserInputType.MouseButton1
+            ) then
+            finishDrag(true)
+        end
+    end)
+
+    connect(UIS.WindowFocusReleased, function()
+        finishDrag(true)
+    end)
+
+    function hotkeys:ToggleVisibility(value)
+        if destroyed then
+            return self
+        end
+
+        if value == nil then
+            visible = not visible
+        else
+            visible = value == true
+        end
+
+        if not visible then
+            finishDrag(true)
+        else
+            refresh()
+        end
+
+        main.Visible = visible and not dragging
+        return self
+    end
+
+    function hotkeys:SetVisibility(value)
+        return self:ToggleVisibility(value)
+    end
+
+    function hotkeys:GetVisibility()
+        return visible
+    end
+
+    function hotkeys:SetPosition(position)
+        if destroyed then
+            return self
+        end
+
+        assert(
+            typeof(position) == "UDim2",
+            "Hotkeys:SetPosition expects a UDim2"
+        )
+
+        finishDrag(false)
+        main.Position = position
+        return self
+    end
+
+    function hotkeys:GetPosition()
+        return main.Position
+    end
+
+    function hotkeys:SetTitle(text)
+        if not destroyed then
+            header.Text = tostring(text or "Hotkeys")
+        end
+
+        return self
+    end
+
+    function hotkeys:SetActiveOnly(value)
+        if not destroyed then
+            activeOnly = value == true
+            refresh()
+        end
+
+        return self
+    end
+
+    function hotkeys:Refresh()
+        refresh()
+        return self
+    end
+
+    local function cleanup()
+        if destroyed then
+            return
+        end
+
+        destroyed = true
+        visible = false
+        finishDrag(false)
+
+        for _, connection in ipairs(connections) do
+            connection:Disconnect()
+        end
+
+        table.clear(connections)
+        table.clear(rows)
+    end
+
+    function hotkeys:Destroy()
+        if destroyed then
+            return
+        end
+
+        cleanup()
+        main:Destroy()
+    end
+
+    connect(main.Destroying, cleanup)
+
+    local elapsed = 0
+
+    connect(RunService.Heartbeat, function(deltaTime)
+        if destroyed or not visible then
+            return
+        end
+
+        elapsed = elapsed + deltaTime
+
+        if elapsed >= refreshInterval then
+            elapsed = 0
+            refresh()
+        end
+    end)
+
+    hotkeys.Instance = main
+
+    refresh()
+    return hotkeys
+end
+
 function library:Notify(text, time, persistant)
 	local notification = {}
 	local frame
