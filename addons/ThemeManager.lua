@@ -62,50 +62,11 @@ ThemeManager.BuiltInThemes = {
 		Font = Enum.Font.Code,
 	},
 
-	Classic = {
-		AccentColor = Color3.fromRGB(103, 131, 255),
-		MainColor = Color3.fromRGB(15, 15, 15),
-		SecondaryColor = Color3.fromRGB(25, 25, 25),
-		FontColor = Color3.fromRGB(2, 133, 255),
-		UIstroke = Color3.fromRGB(0, 0, 0),
-		Font = Enum.Font.Code,
-	},
-
-	Crimson = {
-		AccentColor = Color3.fromRGB(255, 0, 0),
-		MainColor = Color3.fromRGB(10, 10, 10),
-		SecondaryColor = Color3.fromRGB(18, 18, 18),
-		FontColor = Color3.fromRGB(255, 255, 255),
-		UIstroke = Color3.fromRGB(0, 0, 0),
-		Font = Enum.Font.RobotoCondensed,
-	},
-
-	Ubuntu = {
-		AccentColor = Color3.fromRGB(226, 88, 30),
-		MainColor = Color3.fromRGB(50, 50, 50),
-		SecondaryColor = Color3.fromRGB(62, 62, 62),
-		FontColor = Color3.fromRGB(255, 255, 255),
-		UIstroke = Color3.fromRGB(0, 0, 0),
-		Font = Enum.Font.Ubuntu,
-	},
-
-	BBot = {
-		AccentColor = Color3.fromRGB(126, 72, 163),
-		MainColor = Color3.fromRGB(35, 35, 35),
-		SecondaryColor = Color3.fromRGB(30, 30, 30),
-		FontColor = Color3.fromRGB(255, 255, 255),
-		UIstroke = Color3.fromRGB(0, 0, 0),
-		Font = Enum.Font.Code,
-	},
-
-	Nocturne = {
-		AccentColor = Color3.fromRGB(195, 163, 255),
-		MainColor = Color3.fromRGB(19, 17, 27),
-		SecondaryColor = Color3.fromRGB(34, 29, 46),
-		FontColor = Color3.fromRGB(234, 225, 249),
-		UIstroke = Color3.fromRGB(70, 54, 94),
-		Font = Enum.Font.Code,
-	},
+	LightMode = {},
+	
+	Limerence = {},
+	
+	Christmas = {},
 }
 
     --==============================================================
