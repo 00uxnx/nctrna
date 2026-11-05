@@ -1,4 +1,5 @@
 print(game:GetService("Players").LocalPlayer.UserId)
+warn("2")
 warn(game:GetService("HttpService"):GenerateGUID(false))
 task.wait(2.5213123)
 
