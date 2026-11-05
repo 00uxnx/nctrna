@@ -1,4 +1,5 @@
-warn("updated n.bz loader")
+warn(game:GetService("HttpService"):GenerateGUID(false))
+
 --[[ N.bz ]]
 
 
