@@ -1,6 +1,7 @@
 print(game:GetService("Players").LocalPlayer.UserId)
 warn(game:GetService("HttpService"):GenerateGUID(false))
 task.wait(2.5213123)
+print(_G.Key)
 
 --[[ protected by N obfuscator ]]
 
