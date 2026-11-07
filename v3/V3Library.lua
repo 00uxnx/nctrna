@@ -3652,1028 +3652,1023 @@ function library:NewWindow(configuration)
 		-- AddDropdown — v2 layout (label + mini pill on the right)
 		---------------------------------------------------------------
 		function groupbox:AddDropdown(name, opts)
-			opts = opts or {}
-
-			library.Options = library.Options or {}
-			library.windowinstances = library.windowinstances or {}
-
-			local UserInputService = game:GetService("UserInputService")
-			local GuiService = game:GetService("GuiService")
-
-			-- Reuse existing dropdown.
-			local existing = library.Options[name]
-
-			if existing then
-				if existing.Type == "Dropdown"
-					and existing.Controller
-					and type(existing.Controller.Refresh) == "function" then
-
-					local controller = existing.Controller
-
-					if opts.Text ~= nil then
-						controller:SetText(opts.Text)
-					end
-
-					if opts.Callback ~= nil then
-						controller:SetCallback(opts.Callback)
-					end
-
-					if opts.Values ~= nil then
-						controller:Refresh(opts.Values, opts.Default)
-					elseif opts.Default ~= nil then
-						controller:SetValue(opts.Default, true)
-					end
-
-					return controller
-				end
-
-				warn("An option named '" .. tostring(name) .. "' already exists.")
-				return nil
-			end
-
-			local Dropdown = {}
-
-			local values = {}
-			local elements = {}
-			local selectedIndices = {}
-			local connections = {}
-			local popupConnections = {}
-
-			local picked = nil
-			local isOpen = false
-			local destroyed = false
-			local multi = opts.Multipick == true
-			local callback = opts.Callback
-
-			-- These instances exist only while the dropdown is open.
-			local popupHolder = nil
-			local holder = nil
-
-			local rowHeight = 20
-			local rowGap = 4
-			local innerPadding = 4
-			local outerPadding = 2
-			local scrollingWidth = 205
-
-			local requestedVisible = tonumber(opts.MaxVisibleItems) or 10
-
-			if requestedVisible ~= requestedVisible then
-				requestedVisible = 10
-			end
-
-			local maxVisibleItems = math.clamp(
-				math.floor(requestedVisible),
-				1,
-				30
-			)
-
-			local changedEvent = Instance.new("BindableEvent")
-
-			local option = {
-				Type = "Dropdown";
-				Name = name;
-				Value = multi and {} or nil;
-				Values = values;
-				OnChanged = changedEvent.Event;
-				Controller = Dropdown;
-			}
-
-			library.Options[name] = option
-
-			local function connect(signal, fn)
-				local connection = signal:Connect(fn)
-				table.insert(connections, connection)
-				return connection
-			end
-
-			local function connectPopup(signal, fn)
-				local connection = signal:Connect(fn)
-				table.insert(popupConnections, connection)
-				return connection
-			end
-
-			local function copyUnique(source)
-				local result = {}
-				local seen = {}
-
-				if type(source) ~= "table" then
-					return result
-				end
-
-				for _, value in ipairs(source) do
-					local supported = type(value) == "string"
-						or (
-							type(value) == "number"
-							and value == value
-							and value > -math.huge
-							and value < math.huge
-						)
-
-					if supported and not seen[value] then
-						seen[value] = true
-						table.insert(result, value)
-					end
-				end
-
-				return result
-			end
-
-			-- Numeric arguments retain the original index-based behavior.
-			local function findIndex(value)
-				if type(value) == "number" then
-					if value % 1 == 0 and value >= 1 and value <= #values then
-						return value
-					end
-
-					return nil
-				end
-
-				return table.find(values, value)
-			end
-
-			local function getValue()
-				if not multi then
-					return picked
-				end
-
-				local selected = {}
-
-				for index, value in ipairs(values) do
-					if selectedIndices[index] then
-						table.insert(selected, value)
-					end
-				end
-
-				return selected
-			end
-
-			local function equalValues(a, b)
-				if type(a) ~= type(b) then
-					return false
-				end
-
-				if type(a) ~= "table" then
-					return a == b
-				end
-
-				if #a ~= #b then
-					return false
-				end
-
-				for index, value in ipairs(a) do
-					if b[index] ~= value then
-						return false
-					end
-				end
-
-				return true
-			end
-
-			-- Main row.
-
-			local main = library:Create("Frame", {
-				Name = "Dropdown";
-				Size = UDim2.new(0.95, 0, 0, 20);
-				BackgroundTransparency = 1;
-				LayoutOrder = #elementsholder:GetChildren();
-				Parent = elementsholder;
-			})
-
-			local holder2 = library:Create("Frame", {
-				Name = "Holder2";
-				Size = UDim2.fromScale(1, 1);
-				BackgroundTransparency = 1;
-				Parent = main;
-			})
-
-			library:Create("UIListLayout", {
-				FillDirection = Enum.FillDirection.Horizontal;
-				VerticalAlignment = Enum.VerticalAlignment.Center;
-				SortOrder = Enum.SortOrder.LayoutOrder;
-				Parent = holder2;
-			})
-
-			local label = library:Create("TextLabel", {
-				Name = "Label";
-				Size = UDim2.new(0.7936, 0, 1, 0);
-				BackgroundTransparency = 1;
-				Text = opts.Text;
-				TextColor3 = library.FontColor;
-				Font = library.Font;
-				TextSize = 13;
-				TextXAlignment = Enum.TextXAlignment.Left;
-				LayoutOrder = 1;
-				Parent = holder2;
-			}, {
-				instancep = "TextColor3";
-				tinstance = library.FontColor;
-			}, {
-				instancep = "Font";
-				tinstance = library.Font;
-			})
-
-			library:Create("UIPadding", {
-				PaddingLeft = UDim.new(0, 7);
-				Parent = label;
-			})
-
-			library:Create("UIStroke", {
-				ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-				Color = library.UIstroke;
-				Thickness = 1;
-				Parent = label;
-			}, {
-				instancep = "Color";
-				tinstance = library.UIstroke;
-			})
-
-			local mini = library:Create("Frame", {
-				Name = "mini";
-				Size = UDim2.new(0.03, 50, 1, 0);
-				BackgroundColor3 = library.AccentColor;
-				BorderSizePixel = 0;
-				LayoutOrder = 2;
-				Parent = holder2;
-			}, {
-				instancep = "BackgroundColor3";
-				tinstance = library.AccentColor;
-			})
-
-			library:Create("UICorner", {
-				CornerRadius = UDim.new(0, 4);
-				Parent = mini;
-			})
-
-			library:Create("UIStroke", {
-				ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-				Color = library.SecondaryColor;
-				Thickness = 1;
-				Parent = mini;
-			}, {
-				instancep = "Color";
-				tinstance = library.SecondaryColor;
-			})
-
-			local selectedLabel = library:Create("TextLabel", {
-				Name = "selected";
-				Size = UDim2.fromScale(1, 1);
-				BackgroundTransparency = 1;
-				Text = "-";
-				TextColor3 = library.FontColor;
-				Font = library.Font;
-				TextSize = 14;
-				TextWrapped = true;
-				TextScaled = true;
-				Parent = mini;
-			}, {
-				instancep = "TextColor3";
-				tinstance = library.FontColor;
-			}, {
-				instancep = "Font";
-				tinstance = library.Font;
-			})
-
-			library:Create("UITextSizeConstraint", {
-				MaxTextSize = 14;
-				Parent = selectedLabel;
-			})
-			
-			library:Create("UIStroke", {
-				ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-				Color = library.UIstroke;
-				Thickness = 1;
-				Parent = selectedLabel;
-			}, {
-				instancep = "Color";
-				tinstance = library.UIstroke;
-			})
-			
-			local button = library:Create("TextButton", {
-				Name = "Hitbox";
-				Size = UDim2.fromScale(1, 1);
-				BackgroundTransparency = 1;
-				Text = "";
-				AutoButtonColor = false;
-				ZIndex = 3;
-				Parent = mini;
-			})
-
-			local function heightFor(rows)
-				if rows == 0 then
-					return 0
-				end
-
-				return innerPadding * 2
-					+ rows * rowHeight
-					+ math.max(0, rows - 1) * rowGap
-			end
-
-			local function positionHolder()
-				if destroyed or not popupHolder or not popupHolder.Parent then
-					return
-				end
-
-				local basePosition = screengui.AbsolutePosition
-				local screenSize = screengui.AbsoluteSize
-				local triggerPosition = mini.AbsolutePosition
-				local triggerSize = mini.AbsoluteSize
-
-				local width = popupHolder.Size.X.Offset
-				local height = popupHolder.Size.Y.Offset
-
-				local x = triggerPosition.X - basePosition.X + triggerSize.X
-				local y = triggerPosition.Y - basePosition.Y + triggerSize.Y
-
-				if y + height > screenSize.Y then
-					y = triggerPosition.Y - basePosition.Y - height
-				end
-
-				x = math.clamp(x, 0, math.max(0, screenSize.X - width))
-				y = math.clamp(y, 0, math.max(0, screenSize.Y - height))
-
-				popupHolder.Position = UDim2.fromOffset(x, y)
-			end
-
-			local function destroyItems()
-				for _, item in ipairs(elements) do
-					if item.connection then
-						item.connection:Disconnect()
-					end
-
-					item.button:Destroy()
-				end
-
-				table.clear(elements)
-			end
-
-			local function destroyPopup()
-				for _, connection in ipairs(popupConnections) do
-					connection:Disconnect()
-				end
-
-				table.clear(popupConnections)
-				destroyItems()
-
-				if popupHolder then
-					popupHolder:Destroy()
-				end
-
-				popupHolder = nil
-				holder = nil
-
-				Dropdown.Popup = nil
-				Dropdown.Holder = nil
-			end
-
-			local function updateSelectedText()
-				local current = getValue()
-				local text = "-"
-
-				if multi then
-					local display = {}
-
-					for _, value in ipairs(current) do
-						table.insert(display, tostring(value))
-					end
-
-					if #display > 0 then
-						text = table.concat(display, ", ")
-					end
-				elseif current ~= nil then
-					text = tostring(current)
-				end
-
-				local length = utf8.len(text)
-
-				if length and length > 5 then
-					local cutoff = utf8.offset(text, 5)
-					text = string.sub(text, 1, cutoff - 1) .. ".."
-				elseif not length and #text > 5 then
-					text = string.sub(text, 1, 4) .. ".."
-				end
-
-				selectedLabel.Text = text
-				option.Value = current
-			end
-
-			local function updateItems()
-				for index, item in ipairs(elements) do
-					local selected = (
-						multi and selectedIndices[index] == true
-					) or (
-						not multi and picked == item.name
-					)
-
-					item.button.Text = tostring(item.name)
-
-					if selected then
-						item.button.Font = library.Font
-						item.button.TextColor3 = library.AccentColor
-					else
-						item.button.Font = library.Font
-					end
-				end
-			end
-
-			local function updateHolderSize()
-				if destroyed or not popupHolder or not holder then
-					return
-				end
-
-				if #values == 0 then
-					Dropdown:Close()
-					return
-				end
-
-				local visibleRows = math.min(#values, maxVisibleItems)
-				local holderHeight = heightFor(visibleRows)
-
-				holder.Size = UDim2.fromOffset(scrollingWidth, holderHeight)
-				holder.CanvasSize = UDim2.fromOffset(0, heightFor(#values))
-				holder.ScrollingEnabled = #values > maxVisibleItems
-
-				popupHolder.Size = UDim2.fromOffset(
-					scrollingWidth + outerPadding * 2,
-					holderHeight + outerPadding * 2
-				)
-
-				positionHolder()
-			end
-
-			local function updateUI()
-				updateSelectedText()
-
-				if isOpen then
-					updateItems()
-					updateHolderSize()
-				end
-			end
-
-			local function notifyChanged()
-				local value = getValue()
-				option.Value = value
-
-				changedEvent:Fire(
-					type(value) == "table" and table.clone(value) or value
-				)
-
-				if type(callback) == "function" then
-					pcall(
-						callback,
-						type(value) == "table" and table.clone(value) or value
-					)
-				end
-			end
-
-			local function buildItems()
-				if not holder then
-					return
-				end
-
-				for index, itemName in ipairs(values) do
-					local item = {
-						name = itemName;
-						index = index;
-					}
-
-					local itemButton = library:Create("TextButton", {
-						Name = "TextLabel_" .. tostring(index);
-						Font = library.Font;
-						TextColor3 = library.FontColor;
-						BorderColor3 = Color3.fromRGB(0, 0, 0);
-						Text = tostring(itemName);
-						BackgroundTransparency = 1;
-						BackgroundColor3 = Color3.fromRGB(255, 255, 255);
-						Size = UDim2.new(1, 0, 0, rowHeight);
-						BorderSizePixel = 0;
-						ZIndex = 22;
-						TextSize = 14;
-						TextXAlignment = Enum.TextXAlignment.Center;
-						TextYAlignment = Enum.TextYAlignment.Center;
-						TextWrapped = false;
-						TextScaled = false;
-						TextTruncate = Enum.TextTruncate.AtEnd;
-						AutomaticSize = Enum.AutomaticSize.None;
-						AutoButtonColor = false;
-						LayoutOrder = index;
-						Parent = holder;
-					}, {
-						instancep = "TextColor3";
-						tinstance = library.FontColor;
-					}, {
-						instancep = "Font";
-						tinstance = library.Font;
-					})
-
-					library:Create("UIStroke", {
-						ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-						Color = library.UIstroke;
-						Thickness = 1;
-						Parent = itemButton;
-					}, {
-						instancep = "Color";
-						tinstance = library.UIstroke;
-					})
-
-					library:Create("UITextSizeConstraint", {
-						MaxTextSize = 42;
-						Parent = itemButton;
-					})
-
-					item.button = itemButton
-					elements[index] = item
-
-					item.connection = itemButton.Activated:Connect(function()
-						if destroyed or not isOpen then
-							return
-						end
-
-						local previous = getValue()
-
-						if multi then
-							if selectedIndices[index] then
-								selectedIndices[index] = nil
-							else
-								selectedIndices[index] = true
-							end
-						else
-							picked = itemName
-							Dropdown:Close()
-						end
-
-						updateUI()
-
-						if not equalValues(previous, getValue()) then
-							notifyChanged()
-						end
-					end)
-				end
-			end
-
-			local function pointInside(guiObject, point)
-				if not guiObject or not guiObject.Parent or not guiObject.Visible then
-					return false
-				end
-
-				local position = guiObject.AbsolutePosition
-				local size = guiObject.AbsoluteSize
-
-				return point.X >= position.X
-					and point.X <= position.X + size.X
-					and point.Y >= position.Y
-					and point.Y <= position.Y + size.Y
-			end
-
-			local function createPopup()
-				if popupHolder or destroyed then
-					return
-				end
-
-				popupHolder = library:Create("Frame", {
-					Name = "holder";
-					BackgroundColor3 = library.MainColor;
-					BorderColor3 = Color3.fromRGB(0, 0, 0);
-					BorderSizePixel = 0;
-					Size = UDim2.fromOffset(48, 0);
-					AutomaticSize = Enum.AutomaticSize.None;
-					ZIndex = 20;
-					Visible = false;
-					Parent = screengui;
-				}, {
-					instancep = "BackgroundColor3";
-					tinstance = library.MainColor;
-				})
-
-				library:Create("UICorner", {
-					CornerRadius = UDim.new(0, 4);
-					Parent = popupHolder;
-				})
-
-				library:Create("UIPadding", {
-					PaddingTop = UDim.new(0, outerPadding);
-					PaddingBottom = UDim.new(0, outerPadding);
-					PaddingRight = UDim.new(0, outerPadding);
-					PaddingLeft = UDim.new(0, outerPadding);
-					Parent = popupHolder;
-				})
-
-				library:Create("UIStroke", {
-					Color = library.SecondaryColor;
-					Thickness = 1;
-					Parent = popupHolder;
-				}, {
-					instancep = "Color";
-					tinstance = library.SecondaryColor;
-				})
-
-				holder = library:Create("ScrollingFrame", {
-					Name = "ScrollingFrame";
-					Active = true;
-					ScrollingDirection = Enum.ScrollingDirection.Y;
-					ScrollBarImageColor3 = Color3.fromRGB(0, 0, 0);
-					ScrollBarThickness = 0;
-					BackgroundColor3 = Color3.fromRGB(255, 255, 255);
-					BackgroundTransparency = 1;
-					BorderColor3 = Color3.fromRGB(0, 0, 0);
-					BorderSizePixel = 0;
-					Size = UDim2.fromOffset(scrollingWidth, 44);
-					AutomaticCanvasSize = Enum.AutomaticSize.None;
-					AutomaticSize = Enum.AutomaticSize.None;
-					CanvasSize = UDim2.fromOffset(0, 0);
-					ClipsDescendants = true;
-					ZIndex = 21;
-					Parent = popupHolder;
-				})
-
-				library:Create("UIListLayout", {
-					Padding = UDim.new(0, rowGap);
-					HorizontalAlignment = Enum.HorizontalAlignment.Center;
-					SortOrder = Enum.SortOrder.LayoutOrder;
-					Parent = holder;
-				})
-
-				library:Create("UIPadding", {
-					PaddingTop = UDim.new(0, innerPadding);
-					PaddingBottom = UDim.new(0, innerPadding);
-					PaddingRight = UDim.new(0, innerPadding);
-					PaddingLeft = UDim.new(0, innerPadding);
-					Parent = holder;
-				})
-
-				Dropdown.Popup = popupHolder
-				Dropdown.Holder = holder
-
-				buildItems()
-				updateItems()
-				updateHolderSize()
-
-				connectPopup(
-					mini:GetPropertyChangedSignal("AbsolutePosition"),
-					positionHolder
-				)
-
-				connectPopup(
-					mini:GetPropertyChangedSignal("AbsoluteSize"),
-					positionHolder
-				)
-
-				connectPopup(
-					screengui:GetPropertyChangedSignal("AbsolutePosition"),
-					positionHolder
-				)
-
-				connectPopup(
-					screengui:GetPropertyChangedSignal("AbsoluteSize"),
-					positionHolder
-				)
-
-				connectPopup(UserInputService.InputBegan, function(input)
-					if destroyed or not isOpen then
-						return
-					end
-
-					local inputType = input.UserInputType
-
-					if inputType ~= Enum.UserInputType.MouseButton1
-						and inputType ~= Enum.UserInputType.MouseButton2
-						and inputType ~= Enum.UserInputType.Touch then
-						return
-					end
-
-					local point = Vector2.new(input.Position.X, input.Position.Y)
-
-					if not screengui.IgnoreGuiInset then
-						local inset = GuiService:GetGuiInset()
-						point = point - inset
-					end
-
-					if pointInside(mini, point)
-						or pointInside(popupHolder, point) then
-						return
-					end
-
-					Dropdown:Close()
-				end)
-
-				if popupHolder then
-					popupHolder.Visible = true
-				end
-			end
-
-			local function setValue(value, silent)
-				if destroyed then
-					return false
-				end
-
-				local previous = getValue()
-
-				if multi then
-					table.clear(selectedIndices)
-
-					local selections
-
-					if type(value) == "table" then
-						selections = value
-					elseif value ~= nil then
-						selections = { value }
-					else
-						selections = {}
-					end
-
-					for _, selection in ipairs(selections) do
-						local index = findIndex(selection)
-
-						if index then
-							selectedIndices[index] = true
-						end
-					end
-				else
-					local index = findIndex(value)
-					picked = index and values[index] or nil
-				end
-
-				updateUI()
-
-				local changed = not equalValues(previous, getValue())
-
-				if changed and not silent then
-					notifyChanged()
-				end
-
-				return changed
-			end
-
-			function Dropdown:GetValue()
-				return getValue()
-			end
-
-			function Dropdown:GetIndex()
-				if multi then
-					local indices = {}
-
-					for index in ipairs(values) do
-						if selectedIndices[index] then
-							table.insert(indices, index)
-						end
-					end
-
-					return indices
-				end
-
-				return picked ~= nil and table.find(values, picked) or nil
-			end
-
-			function Dropdown:GetValues()
-				return table.clone(values)
-			end
-
-			function Dropdown:SetValue(value, silent)
-				return setValue(value, silent == true)
-			end
-
-			function Dropdown:GetInstance()
-				return selectedLabel
-			end
-
-			function Dropdown:SetText(text)
-				if not destroyed then
-					label.Text = tostring(text or name)
-				end
-
-				return self
-			end
-
-			function Dropdown:SetCallback(fn)
-				assert(
-					fn == nil or type(fn) == "function",
-					"Dropdown:SetCallback expects a function or nil"
-				)
-
-				callback = fn
-				return self
-			end
-
-			function Dropdown:Open()
-				if destroyed or #values == 0 then
-					return self
-				end
-
-				local previous = library.windowinstances.Dropdownbox
-
-				if previous and previous ~= self
-					and type(previous.Close) == "function" then
-					previous:Close()
-				end
-
-				library.windowinstances.Dropdownbox = self
-
-				if isOpen then
-					updateUI()
-					return self
-				end
-
-				isOpen = true
-				createPopup()
-
-				return self
-			end
-
-			function Dropdown:Close()
-				isOpen = false
-
-				if library.windowinstances.Dropdownbox == self then
-					library.windowinstances.Dropdownbox = nil
-				end
-
-				destroyPopup()
-				return self
-			end
-
-			function Dropdown:Refresh(newValues, defaultValue, silent)
-				if destroyed then
-					return self
-				end
-
-				local refreshed = copyUnique(newValues)
-				local previous = getValue()
-
-				destroyItems()
-				table.clear(values)
-				table.clear(selectedIndices)
-				picked = nil
-
-				for _, value in ipairs(refreshed) do
-					table.insert(values, value)
-				end
-
-				if defaultValue ~= nil then
-					setValue(defaultValue, true)
-				else
-					if multi then
-						for _, oldValue in ipairs(previous) do
-							local index = table.find(values, oldValue)
-
-							if index then
-								selectedIndices[index] = true
-							end
-						end
-					elseif previous ~= nil and table.find(values, previous) then
-						picked = previous
-					end
-
-					updateUI()
-				end
-
-				if isOpen and holder then
-					buildItems()
-					updateUI()
-					holder.CanvasPosition = Vector2.zero
-				end
-
-				if silent == false and not equalValues(previous, getValue()) then
-					notifyChanged()
-				end
-
-				return self
-			end
-
-			function Dropdown:SetValues(newValues, defaultValue, silent)
-				return self:Refresh(newValues, defaultValue, silent)
-			end
-
-			function Dropdown:Clear(silent)
-				return self:Refresh({}, nil, silent)
-			end
-
-			function Dropdown:AddItem(itemName)
-				if destroyed then
-					return nil
-				end
-
-				local index = table.find(values, itemName)
-
-				if not index then
-					local updated = table.clone(values)
-					table.insert(updated, itemName)
-					self:Refresh(updated)
-					index = table.find(values, itemName)
-				end
-
-				if not index then
-					return nil
-				end
-
-				-- No item button is created while the popup is closed.
-				return elements[index] or {
-					name = values[index];
-					index = index;
-				}
-			end
-
-			function Dropdown:RemoveItem(itemName, silent)
-				if destroyed then
-					return false
-				end
-
-				local index = table.find(values, itemName)
-
-				if not index then
-					return false
-				end
-
-				local updated = table.clone(values)
-				table.remove(updated, index)
-				self:Refresh(updated, nil, silent)
-
-				return true
-			end
-
-			local function cleanup()
-				if destroyed then
-					return
-				end
-
-				Dropdown:Close()
-				destroyed = true
-
-				for _, connection in ipairs(connections) do
-					connection:Disconnect()
-				end
-
-				table.clear(connections)
-
-				if library.Options[name] == option then
-					library.Options[name] = nil
-				end
-
-				option.Controller = nil
-				changedEvent:Destroy()
-			end
-
-			function Dropdown:Destroy()
-				if destroyed then
-					return
-				end
-
-				cleanup()
-				main:Destroy()
-			end
-
-			connect(main.Destroying, cleanup)
-
-			connect(button.Activated, function()
-				if destroyed then
-					return
-				end
-
-				if isOpen then
-					Dropdown:Close()
-				else
-					Dropdown:Open()
-				end
-			end)
-
-			local forwarded = {
-				"GetValue",
-				"GetIndex",
-				"GetValues",
-				"SetValue",
-				"SetValues",
-				"Refresh",
-				"Clear",
-				"AddItem",
-				"RemoveItem",
-				"GetInstance",
-				"SetText",
-				"SetCallback",
-				"Open",
-				"Close",
-				"Destroy",
-			}
-
-			for _, methodName in ipairs(forwarded) do
-				local method = Dropdown[methodName]
-
-				option[methodName] = function(_, ...)
-					return method(Dropdown, ...)
-				end
-			end
-
-			Dropdown.Instance = selectedLabel
-			Dropdown.Main = main
-			Dropdown.Header = label
-			Dropdown.Option = option
-			Dropdown.OnChanged = changedEvent.Event
-
-			-- Initialization updates the selection without creating a popup.
-			Dropdown:Refresh(opts.Values or {}, opts.Default, true)
-
-			if opts.Tooltip then
-				attachTooltip(main, opts.Tooltip)
-			end
-
-			return Dropdown
-		end
+    opts = opts or {}
+
+    library.Options = library.Options or {}
+    library.windowinstances = library.windowinstances or {}
+
+    local UserInputService = game:GetService("UserInputService")
+    local GuiService = game:GetService("GuiService")
+
+    local existing = library.Options[name]
+
+    if existing then
+        if existing.Type == "Dropdown"
+            and existing.Controller
+            and type(existing.Controller.Refresh) == "function" then
+
+            local controller = existing.Controller
+
+            if opts.Text ~= nil then
+                controller:SetText(opts.Text)
+            end
+
+            if opts.Callback ~= nil then
+                controller:SetCallback(opts.Callback)
+            end
+
+            if opts.Values ~= nil then
+                controller:Refresh(opts.Values, opts.Default)
+            elseif opts.Default ~= nil then
+                controller:SetValue(opts.Default, true)
+            end
+
+            return controller
+        end
+
+        warn("An option named '" .. tostring(name) .. "' already exists.")
+        return nil
+    end
+
+    local Dropdown = {}
+    local values = {}
+    local elements = {}
+    local selectedIndices = {}
+    local connections = {}
+    local popupConnections = {}
+
+    local picked = nil
+    local isOpen = false
+    local destroyed = false
+    local multi = opts.Multipick == true
+    local callback = opts.Callback
+
+    local popupHolder = nil
+    local holder = nil
+
+    local rowHeight = 20
+    local rowGap = 4
+    local innerPadding = 4
+    local outerPadding = 2
+    local scrollingWidth = 205
+
+    local requestedVisible = tonumber(opts.MaxVisibleItems) or 10
+
+    if requestedVisible ~= requestedVisible then
+        requestedVisible = 10
+    end
+
+    local maxVisibleItems = math.clamp(
+        math.floor(requestedVisible),
+        1,
+        30
+    )
+
+    local regularFont = Font.new(
+        "rbxasset://fonts/families/GothamSSm.json",
+        Enum.FontWeight.Regular,
+        Enum.FontStyle.Normal
+    )
+
+    local changedEvent = Instance.new("BindableEvent")
+
+    local option = {
+        Type = "Dropdown";
+        Name = name;
+        Value = multi and {} or nil;
+        Values = values;
+        OnChanged = changedEvent.Event;
+        Controller = Dropdown;
+    }
+
+    library.Options[name] = option
+
+    local function connect(signal, fn)
+        local connection = signal:Connect(fn)
+        table.insert(connections, connection)
+        return connection
+    end
+
+    local function connectPopup(signal, fn)
+        local connection = signal:Connect(fn)
+        table.insert(popupConnections, connection)
+        return connection
+    end
+
+    local function copyUnique(source)
+        local result = {}
+        local seen = {}
+
+        if type(source) ~= "table" then
+            return result
+        end
+
+        for _, value in ipairs(source) do
+            local supported = type(value) == "string"
+                or (
+                    type(value) == "number"
+                    and value == value
+                    and value > -math.huge
+                    and value < math.huge
+                )
+
+            if supported and not seen[value] then
+                seen[value] = true
+                table.insert(result, value)
+            end
+        end
+
+        return result
+    end
+
+    local function findIndex(value)
+        if type(value) == "number" then
+            if value % 1 == 0 and value >= 1 and value <= #values then
+                return value
+            end
+
+            return nil
+        end
+
+        return table.find(values, value)
+    end
+
+    local function getValue()
+        if not multi then
+            return picked
+        end
+
+        local selected = {}
+
+        for index, value in ipairs(values) do
+            if selectedIndices[index] then
+                table.insert(selected, value)
+            end
+        end
+
+        return selected
+    end
+
+    local function equalValues(a, b)
+        if type(a) ~= type(b) then
+            return false
+        end
+
+        if type(a) ~= "table" then
+            return a == b
+        end
+
+        if #a ~= #b then
+            return false
+        end
+
+        for index, value in ipairs(a) do
+            if b[index] ~= value then
+                return false
+            end
+        end
+
+        return true
+    end
+
+    -- Main row.
+
+    local main = library:Create("Frame", {
+        Name = "Dropdown";
+        Size = UDim2.new(0.95, 0, 0, 20);
+        BackgroundTransparency = 1;
+        LayoutOrder = #elementsholder:GetChildren();
+        Parent = elementsholder;
+    })
+
+    local holder2 = library:Create("Frame", {
+        Name = "Holder2";
+        Size = UDim2.fromScale(1, 1);
+        BackgroundTransparency = 1;
+        Parent = main;
+    })
+
+    library:Create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal;
+        VerticalAlignment = Enum.VerticalAlignment.Center;
+        SortOrder = Enum.SortOrder.LayoutOrder;
+        Parent = holder2;
+    })
+
+    local label = library:Create("TextLabel", {
+        Name = "Label";
+        Size = UDim2.new(0.7936, 0, 1, 0);
+        BackgroundTransparency = 1;
+
+        -- Only opts.Text is displayed, never the internal name.
+        Text = tostring(opts.Text or "");
+
+        TextColor3 = library.FontColor;
+        Font = library.Font;
+        TextSize = 13;
+        TextXAlignment = Enum.TextXAlignment.Left;
+        LayoutOrder = 1;
+        Parent = holder2;
+    }, {
+        instancep = "TextColor3";
+        tinstance = library.FontColor;
+    }, {
+        instancep = "Font";
+        tinstance = library.Font;
+    })
+
+    library:Create("UIPadding", {
+        PaddingLeft = UDim.new(0, 7);
+        Parent = label;
+    })
+
+    library:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+        Color = library.UIstroke;
+        Thickness = 1;
+        Parent = label;
+    }, {
+        instancep = "Color";
+        tinstance = library.UIstroke;
+    })
+
+    local mini = library:Create("Frame", {
+        Name = "mini";
+        Size = UDim2.new(0.03, 50, 1, 0);
+        BackgroundColor3 = library.AccentColor;
+        BorderSizePixel = 0;
+        LayoutOrder = 2;
+        Parent = holder2;
+    }, {
+        instancep = "BackgroundColor3";
+        tinstance = library.AccentColor;
+    })
+
+    library:Create("UICorner", {
+        CornerRadius = UDim.new(0, 4);
+        Parent = mini;
+    })
+
+    library:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+        Color = library.SecondaryColor;
+        Thickness = 1;
+        Parent = mini;
+    }, {
+        instancep = "Color";
+        tinstance = library.SecondaryColor;
+    })
+
+    local selectedLabel = library:Create("TextLabel", {
+        Name = "selected";
+        Size = UDim2.fromScale(1, 1);
+        BackgroundTransparency = 1;
+        Text = "-";
+        TextColor3 = library.FontColor;
+        Font = library.Font;
+        TextSize = 14;
+        TextWrapped = true;
+        TextScaled = true;
+        Parent = mini;
+    }, {
+        instancep = "TextColor3";
+        tinstance = library.FontColor;
+    }, {
+        instancep = "Font";
+        tinstance = library.Font;
+    })
+
+    library:Create("UITextSizeConstraint", {
+        MaxTextSize = 14;
+        Parent = selectedLabel;
+    })
+
+    local button = library:Create("TextButton", {
+        Name = "Hitbox";
+        Size = UDim2.fromScale(1, 1);
+        BackgroundTransparency = 1;
+        Text = "";
+        AutoButtonColor = false;
+        ZIndex = 3;
+        Parent = mini;
+    })
+
+    local function heightFor(rows)
+        if rows == 0 then
+            return 0
+        end
+
+        return innerPadding * 2
+            + rows * rowHeight
+            + math.max(0, rows - 1) * rowGap
+    end
+
+    local function positionHolder()
+        if destroyed or not popupHolder or not popupHolder.Parent then
+            return
+        end
+
+        local basePosition = screengui.AbsolutePosition
+        local screenSize = screengui.AbsoluteSize
+        local triggerPosition = mini.AbsolutePosition
+        local triggerSize = mini.AbsoluteSize
+
+        local width = popupHolder.Size.X.Offset
+        local height = popupHolder.Size.Y.Offset
+
+        local x = triggerPosition.X - basePosition.X + triggerSize.X
+        local y = triggerPosition.Y - basePosition.Y + triggerSize.Y
+
+        if y + height > screenSize.Y then
+            y = triggerPosition.Y - basePosition.Y - height
+        end
+
+        x = math.clamp(x, 0, math.max(0, screenSize.X - width))
+        y = math.clamp(y, 0, math.max(0, screenSize.Y - height))
+
+        popupHolder.Position = UDim2.fromOffset(x, y)
+    end
+
+    local function destroyItems()
+        for _, item in ipairs(elements) do
+            if item.connection then
+                item.connection:Disconnect()
+            end
+
+            item.button:Destroy()
+        end
+
+        table.clear(elements)
+    end
+
+    local function destroyPopup()
+        for _, connection in ipairs(popupConnections) do
+            connection:Disconnect()
+        end
+
+        table.clear(popupConnections)
+        destroyItems()
+
+        if popupHolder then
+            popupHolder:Destroy()
+        end
+
+        popupHolder = nil
+        holder = nil
+
+        Dropdown.Popup = nil
+        Dropdown.Holder = nil
+    end
+
+    local function updateSelectedText()
+        local current = getValue()
+        local text = "-"
+
+        if multi then
+            local display = {}
+
+            for _, value in ipairs(current) do
+                table.insert(display, tostring(value))
+            end
+
+            if #display > 0 then
+                text = table.concat(display, ", ")
+            end
+        elseif current ~= nil then
+            text = tostring(current)
+        end
+
+        -- Truncate only the mini-frame text.
+        local length = utf8.len(text)
+
+        if length and length > 4 then
+            local cutoff = utf8.offset(text, 5)
+            text = string.sub(text, 1, cutoff - 1) .. "..."
+        elseif not length and #text > 4 then
+            text = string.sub(text, 1, 4) .. "..."
+        end
+
+        selectedLabel.Text = text
+        option.Value = current
+    end
+
+    local function updateItems()
+        for index, item in ipairs(elements) do
+            local selected = (
+                multi and selectedIndices[index] == true
+            ) or (
+                not multi and picked == item.name
+            )
+
+            item.button.Text = tostring(item.name)
+
+            if selected then
+                item.button.Font = library.Font
+            else
+                item.button.FontFace = regularFont
+            end
+        end
+    end
+
+    local function updateHolderSize()
+        if destroyed or not popupHolder or not holder then
+            return
+        end
+
+        if #values == 0 then
+            Dropdown:Close()
+            return
+        end
+
+        local visibleRows = math.min(#values, maxVisibleItems)
+        local holderHeight = heightFor(visibleRows)
+
+        holder.Size = UDim2.fromOffset(scrollingWidth, holderHeight)
+        holder.CanvasSize = UDim2.fromOffset(0, heightFor(#values))
+        holder.ScrollingEnabled = #values > maxVisibleItems
+
+        popupHolder.Size = UDim2.fromOffset(
+            scrollingWidth + outerPadding * 2,
+            holderHeight + outerPadding * 2
+        )
+
+        positionHolder()
+    end
+
+    local function updateUI()
+        updateSelectedText()
+
+        if isOpen then
+            updateItems()
+            updateHolderSize()
+        end
+    end
+
+    local function notifyChanged()
+        local value = getValue()
+        option.Value = value
+
+        changedEvent:Fire(
+            type(value) == "table" and table.clone(value) or value
+        )
+
+        if type(callback) == "function" then
+            pcall(
+                callback,
+                type(value) == "table" and table.clone(value) or value
+            )
+        end
+    end
+
+    local function buildItems()
+        if not holder then
+            return
+        end
+
+        for index, itemName in ipairs(values) do
+            local item = {
+                name = itemName;
+                index = index;
+            }
+
+            local itemButton = library:Create("TextButton", {
+                Name = "TextLabel_" .. tostring(index);
+                FontFace = regularFont;
+                TextColor3 = library.FontColor;
+                BorderColor3 = Color3.fromRGB(0, 0, 0);
+                Text = tostring(itemName);
+                BackgroundTransparency = 1;
+                BackgroundColor3 = Color3.fromRGB(255, 255, 255);
+                Size = UDim2.new(1, 0, 0, rowHeight);
+                BorderSizePixel = 0;
+                ZIndex = 22;
+                TextSize = 14;
+                TextXAlignment = Enum.TextXAlignment.Center;
+                TextYAlignment = Enum.TextYAlignment.Center;
+                TextWrapped = false;
+                TextScaled = false;
+                TextTruncate = Enum.TextTruncate.AtEnd;
+                AutomaticSize = Enum.AutomaticSize.None;
+                AutoButtonColor = false;
+                LayoutOrder = index;
+                Parent = holder;
+            }, {
+                instancep = "TextColor3";
+                tinstance = library.FontColor;
+            })
+
+            library:Create("UIStroke", {
+                ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+                Color = library.UIstroke;
+                Thickness = 1;
+                Parent = itemButton;
+            }, {
+                instancep = "Color";
+                tinstance = library.UIstroke;
+            })
+
+            library:Create("UITextSizeConstraint", {
+                MaxTextSize = 42;
+                Parent = itemButton;
+            })
+
+            item.button = itemButton
+            elements[index] = item
+
+            item.connection = itemButton.Activated:Connect(function()
+                if destroyed or not isOpen then
+                    return
+                end
+
+                local previous = getValue()
+
+                if multi then
+                    if selectedIndices[index] then
+                        selectedIndices[index] = nil
+                    else
+                        selectedIndices[index] = true
+                    end
+                else
+                    picked = itemName
+                    Dropdown:Close()
+                end
+
+                updateUI()
+
+                if not equalValues(previous, getValue()) then
+                    notifyChanged()
+                end
+            end)
+        end
+    end
+
+    local function pointInside(guiObject, point)
+        if not guiObject or not guiObject.Parent or not guiObject.Visible then
+            return false
+        end
+
+        local position = guiObject.AbsolutePosition
+        local size = guiObject.AbsoluteSize
+
+        return point.X >= position.X
+            and point.X <= position.X + size.X
+            and point.Y >= position.Y
+            and point.Y <= position.Y + size.Y
+    end
+
+    local function createPopup()
+        if popupHolder or destroyed then
+            return
+        end
+
+        popupHolder = library:Create("Frame", {
+            Name = "holder";
+            BackgroundColor3 = library.MainColor;
+            BorderColor3 = Color3.fromRGB(0, 0, 0);
+            BorderSizePixel = 0;
+            Size = UDim2.fromOffset(48, 0);
+            AutomaticSize = Enum.AutomaticSize.None;
+            ZIndex = 20;
+            Visible = false;
+            Parent = screengui;
+        }, {
+            instancep = "BackgroundColor3";
+            tinstance = library.MainColor;
+        })
+
+        library:Create("UICorner", {
+            CornerRadius = UDim.new(0, 4);
+            Parent = popupHolder;
+        })
+
+        library:Create("UIPadding", {
+            PaddingTop = UDim.new(0, outerPadding);
+            PaddingBottom = UDim.new(0, outerPadding);
+            PaddingRight = UDim.new(0, outerPadding);
+            PaddingLeft = UDim.new(0, outerPadding);
+            Parent = popupHolder;
+        })
+
+        library:Create("UIStroke", {
+            Color = library.SecondaryColor;
+            Thickness = 1;
+            Parent = popupHolder;
+        }, {
+            instancep = "Color";
+            tinstance = library.SecondaryColor;
+        })
+
+        holder = library:Create("ScrollingFrame", {
+            Name = "ScrollingFrame";
+            Active = true;
+            ScrollingDirection = Enum.ScrollingDirection.Y;
+            ScrollBarImageColor3 = Color3.fromRGB(0, 0, 0);
+            ScrollBarThickness = 0;
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255);
+            BackgroundTransparency = 1;
+            BorderColor3 = Color3.fromRGB(0, 0, 0);
+            BorderSizePixel = 0;
+            Size = UDim2.fromOffset(scrollingWidth, 44);
+            AutomaticCanvasSize = Enum.AutomaticSize.None;
+            AutomaticSize = Enum.AutomaticSize.None;
+            CanvasSize = UDim2.fromOffset(0, 0);
+            ClipsDescendants = true;
+            ZIndex = 21;
+            Parent = popupHolder;
+        })
+
+        library:Create("UIListLayout", {
+            Padding = UDim.new(0, rowGap);
+            HorizontalAlignment = Enum.HorizontalAlignment.Center;
+            SortOrder = Enum.SortOrder.LayoutOrder;
+            Parent = holder;
+        })
+
+        library:Create("UIPadding", {
+            PaddingTop = UDim.new(0, innerPadding);
+            PaddingBottom = UDim.new(0, innerPadding);
+            PaddingRight = UDim.new(0, innerPadding);
+            PaddingLeft = UDim.new(0, innerPadding);
+            Parent = holder;
+        })
+
+        Dropdown.Popup = popupHolder
+        Dropdown.Holder = holder
+
+        buildItems()
+        updateItems()
+        updateHolderSize()
+
+        connectPopup(
+            mini:GetPropertyChangedSignal("AbsolutePosition"),
+            positionHolder
+        )
+
+        connectPopup(
+            mini:GetPropertyChangedSignal("AbsoluteSize"),
+            positionHolder
+        )
+
+        connectPopup(
+            screengui:GetPropertyChangedSignal("AbsolutePosition"),
+            positionHolder
+        )
+
+        connectPopup(
+            screengui:GetPropertyChangedSignal("AbsoluteSize"),
+            positionHolder
+        )
+
+        connectPopup(UserInputService.InputBegan, function(input)
+            if destroyed or not isOpen then
+                return
+            end
+
+            local inputType = input.UserInputType
+
+            if inputType ~= Enum.UserInputType.MouseButton1
+                and inputType ~= Enum.UserInputType.MouseButton2
+                and inputType ~= Enum.UserInputType.Touch then
+                return
+            end
+
+            local point = Vector2.new(input.Position.X, input.Position.Y)
+
+            if not screengui.IgnoreGuiInset then
+                local inset = GuiService:GetGuiInset()
+                point = point - inset
+            end
+
+            if pointInside(mini, point)
+                or pointInside(popupHolder, point) then
+                return
+            end
+
+            Dropdown:Close()
+        end)
+
+        if popupHolder then
+            popupHolder.Visible = true
+        end
+    end
+
+    local function setValue(value, silent)
+        if destroyed then
+            return false
+        end
+
+        local previous = getValue()
+
+        if multi then
+            table.clear(selectedIndices)
+
+            local selections
+
+            if type(value) == "table" then
+                selections = value
+            elseif value ~= nil then
+                selections = { value }
+            else
+                selections = {}
+            end
+
+            for _, selection in ipairs(selections) do
+                local index = findIndex(selection)
+
+                if index then
+                    selectedIndices[index] = true
+                end
+            end
+        else
+            local index = findIndex(value)
+            picked = index and values[index] or nil
+        end
+
+        updateUI()
+
+        local changed = not equalValues(previous, getValue())
+
+        if changed and not silent then
+            notifyChanged()
+        end
+
+        return changed
+    end
+
+    function Dropdown:GetValue()
+        return getValue()
+    end
+
+    function Dropdown:GetIndex()
+        if multi then
+            local indices = {}
+
+            for index in ipairs(values) do
+                if selectedIndices[index] then
+                    table.insert(indices, index)
+                end
+            end
+
+            return indices
+        end
+
+        return picked ~= nil and table.find(values, picked) or nil
+    end
+
+    function Dropdown:GetValues()
+        return table.clone(values)
+    end
+
+    function Dropdown:SetValue(value, silent)
+        return setValue(value, silent == true)
+    end
+
+    function Dropdown:GetInstance()
+        return selectedLabel
+    end
+
+    function Dropdown:SetText(text)
+        if not destroyed then
+            -- Never fall back to the internal name.
+            label.Text = tostring(text or "")
+        end
+
+        return self
+    end
+
+    function Dropdown:SetCallback(fn)
+        assert(
+            fn == nil or type(fn) == "function",
+            "Dropdown:SetCallback expects a function or nil"
+        )
+
+        callback = fn
+        return self
+    end
+
+    function Dropdown:Open()
+        if destroyed or #values == 0 then
+            return self
+        end
+
+        local previous = library.windowinstances.Dropdownbox
+
+        if previous and previous ~= self
+            and type(previous.Close) == "function" then
+            previous:Close()
+        end
+
+        library.windowinstances.Dropdownbox = self
+
+        if isOpen then
+            updateUI()
+            return self
+        end
+
+        isOpen = true
+        createPopup()
+
+        return self
+    end
+
+    function Dropdown:Close()
+        isOpen = false
+
+        if library.windowinstances.Dropdownbox == self then
+            library.windowinstances.Dropdownbox = nil
+        end
+
+        destroyPopup()
+        return self
+    end
+
+    function Dropdown:Refresh(newValues, defaultValue, silent)
+        if destroyed then
+            return self
+        end
+
+        local refreshed = copyUnique(newValues)
+        local previous = getValue()
+
+        destroyItems()
+        table.clear(values)
+        table.clear(selectedIndices)
+        picked = nil
+
+        for _, value in ipairs(refreshed) do
+            table.insert(values, value)
+        end
+
+        if defaultValue ~= nil then
+            setValue(defaultValue, true)
+        else
+            if multi then
+                for _, oldValue in ipairs(previous) do
+                    local index = table.find(values, oldValue)
+
+                    if index then
+                        selectedIndices[index] = true
+                    end
+                end
+            elseif previous ~= nil and table.find(values, previous) then
+                picked = previous
+            end
+
+            updateUI()
+        end
+
+        if isOpen and holder then
+            buildItems()
+            updateUI()
+
+            if holder then
+                holder.CanvasPosition = Vector2.zero
+            end
+        end
+
+        if silent == false and not equalValues(previous, getValue()) then
+            notifyChanged()
+        end
+
+        return self
+    end
+
+    function Dropdown:SetValues(newValues, defaultValue, silent)
+        return self:Refresh(newValues, defaultValue, silent)
+    end
+
+    function Dropdown:Clear(silent)
+        return self:Refresh({}, nil, silent)
+    end
+
+    function Dropdown:AddItem(itemName)
+        if destroyed then
+            return nil
+        end
+
+        local index = table.find(values, itemName)
+
+        if not index then
+            local updated = table.clone(values)
+            table.insert(updated, itemName)
+
+            self:Refresh(updated)
+            index = table.find(values, itemName)
+        end
+
+        if not index then
+            return nil
+        end
+
+        return elements[index] or {
+            name = values[index];
+            index = index;
+        }
+    end
+
+    function Dropdown:RemoveItem(itemName, silent)
+        if destroyed then
+            return false
+        end
+
+        local index = table.find(values, itemName)
+
+        if not index then
+            return false
+        end
+
+        local updated = table.clone(values)
+        table.remove(updated, index)
+
+        self:Refresh(updated, nil, silent)
+        return true
+    end
+
+    local function cleanup()
+        if destroyed then
+            return
+        end
+
+        Dropdown:Close()
+        destroyed = true
+
+        for _, connection in ipairs(connections) do
+            connection:Disconnect()
+        end
+
+        table.clear(connections)
+
+        if library.Options[name] == option then
+            library.Options[name] = nil
+        end
+
+        option.Controller = nil
+        changedEvent:Destroy()
+    end
+
+    function Dropdown:Destroy()
+        if destroyed then
+            return
+        end
+
+        cleanup()
+        main:Destroy()
+    end
+
+    connect(main.Destroying, cleanup)
+
+    connect(button.Activated, function()
+        if destroyed then
+            return
+        end
+
+        if isOpen then
+            Dropdown:Close()
+        else
+            Dropdown:Open()
+        end
+    end)
+
+    local forwarded = {
+        "GetValue",
+        "GetIndex",
+        "GetValues",
+        "SetValue",
+        "SetValues",
+        "Refresh",
+        "Clear",
+        "AddItem",
+        "RemoveItem",
+        "GetInstance",
+        "SetText",
+        "SetCallback",
+        "Open",
+        "Close",
+        "Destroy",
+    }
+
+    for _, methodName in ipairs(forwarded) do
+        local method = Dropdown[methodName]
+
+        option[methodName] = function(_, ...)
+            return method(Dropdown, ...)
+        end
+    end
+
+    Dropdown.Instance = selectedLabel
+    Dropdown.Main = main
+    Dropdown.Header = label
+    Dropdown.Option = option
+    Dropdown.OnChanged = changedEvent.Event
+
+    Dropdown:Refresh(opts.Values or {}, opts.Default, true)
+
+    if opts.Tooltip then
+        attachTooltip(main, opts.Tooltip)
+    end
+
+    return Dropdown
+end
 
 		---------------------------------------------------------------
 		-- AddInput
