@@ -57,7 +57,7 @@ screengui.ClipToDeviceSafeArea = false
 screengui.SafeAreaCompatibility = Enum.SafeAreaCompatibility.None;
 screengui.ScreenInsets = Enum.ScreenInsets.None;
 screengui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screengui.Parent = LocalPlayer.PlayerGui --parentgui(screengui)
+parentgui(screengui)
 
 local modal = Instance.new("TextButton")
 modal.BackgroundTransparency = 1
@@ -3857,7 +3857,7 @@ function library:NewWindow(configuration)
 				Name = "Label";
 				Size = UDim2.new(0.7936, 0, 1, 0);
 				BackgroundTransparency = 1;
-				Text = tostring(opts.Text or name);
+				Text = opts.Text;
 				TextColor3 = library.FontColor;
 				Font = library.Font;
 				TextSize = 13;
