@@ -3937,7 +3937,17 @@ function library:NewWindow(configuration)
         instancep = "Font";
         tinstance = library.Font;
     })
-
+			
+library:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+        Color = library.UIstroke;
+        Thickness = 1;
+        Parent = selectedLabel;
+    }, {
+        instancep = "Color";
+        tinstance = library.UIstroke;
+    })
+			
     library:Create("UITextSizeConstraint", {
         MaxTextSize = 14;
         Parent = selectedLabel;
