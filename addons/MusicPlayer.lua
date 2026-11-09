@@ -9,7 +9,7 @@ local MusicModule = {
     SpotifyLoginModule = nil,
     YouTubeResolver = nil,
 
-    Root = "nocturne.bz/player",
+    Root = "NocturnaProductions/player",
     Show = false,
     PollInterval = 5,
     MaxDownloadBytes = 40 * 1024 * 1024,
