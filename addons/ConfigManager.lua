@@ -3,7 +3,7 @@ local HttpService = game:GetService("HttpService")
 local ConfigManager = {
     Library = nil,
 
-    Folder = "Nocturne.bz/Configs",
+    Folder = "NocturnaProductions/Configs",
     DefaultConfig = "Default",
     CurrentConfig = "",
 
