@@ -9,7 +9,7 @@ local ThemeManager = {}
 
 ThemeManager.Library = nil
 
-ThemeManager.Folder = "NocturnaProductions/Themes"
+ThemeManager.Folder = "NocturnaProductions/Settings"
 ThemeManager.AssetsFolder = "NocturnaProductions/Assets"
 
 ThemeManager.DefaultTheme = "Default"
