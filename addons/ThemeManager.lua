@@ -9,8 +9,8 @@ local ThemeManager = {}
 
 ThemeManager.Library = nil
 
-ThemeManager.Folder = "Nocturnebz/Themes"
-ThemeManager.AssetsFolder = "Nocturnebz/Assets"
+ThemeManager.Folder = "NocturnaProductions/Themes"
+ThemeManager.AssetsFolder = "NocturnaProductions/Assets"
 
 ThemeManager.DefaultTheme = "Default"
 ThemeManager.CurrentTheme = "Default"
@@ -116,6 +116,15 @@ ThemeManager.BuiltInThemes = {
 		Font = Enum.Font.Code,
 	},
 
+	Kicia = {
+		AccentColor = Color3.fromRGB(189, 147, 249),
+		MainColor = Color3.fromRGB(40, 42, 54),
+		SecondaryColor = Color3.fromRGB(68, 71, 90),
+		FontColor = Color3.fromRGB(248, 248, 242),
+		UIstroke = Color3.fromRGB(20, 21, 29),
+		Font = Enum.Font.Code,
+	},
+	
 	Rose = {
 		AccentColor = Color3.fromRGB(245, 125, 165),
 		MainColor = Color3.fromRGB(26, 18, 24),
