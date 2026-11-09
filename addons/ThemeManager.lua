@@ -117,9 +117,9 @@ ThemeManager.BuiltInThemes = {
 	},
 
 	Kicia = {
-		AccentColor = Color3.fromRGB(189, 147, 249),
-		MainColor = Color3.fromRGB(40, 42, 54),
-		SecondaryColor = Color3.fromRGB(68, 71, 90),
+		AccentColor = Color3.fromRGB(255,94,94),
+		MainColor = Color3.fromRGB(21,22,28),
+		SecondaryColor = Color3.fromRGB(35,37,47),
 		FontColor = Color3.fromRGB(248, 248, 242),
 		UIstroke = Color3.fromRGB(20, 21, 29),
 		Font = Enum.Font.Code,
