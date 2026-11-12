@@ -403,10 +403,7 @@ function library:Toggle()
 		BackgroundColor3 = bgcfg.Color;
 		ZIndex = -100;
 		Parent = screengui;
-	}, {
-		instancep = "BackgroundColor3";
-		tinstance = bgcfg.Color;
-	}, {
+	},{
 		instancep = "BackgroundTransparency";
 		tinstance = bgcfg.Transparency;
 	})
@@ -540,7 +537,10 @@ function library:NewWindow(configuration)
         BackgroundTransparency = 0.1;
         BorderSizePixel = 0;
         Parent = mainWindow;
-    })
+    }, {
+		instancep = "BackgroundColor3",
+		tinstance = library.MainColor
+	})
 
     -- Name section (logo / viewport)
     local nameFrame = library:Create("Frame", {
