@@ -6612,7 +6612,7 @@ function window:WinNotice(message, data)
     -- Confirm button
     local noticeConfirmButton = library:Create("TextButton", {
         Name = "Library_WinNotice_ConfirmButton",
-        Size = UDim2.new(0, 100, 0, 30),
+        Size = UDim2.new(0, 115, 0, 30),
         BackgroundColor3 = Color3.fromRGB(255, 0, 0),
         BackgroundTransparency = 0,
         BorderSizePixel = 0,
@@ -6656,7 +6656,7 @@ function window:WinNotice(message, data)
     -- Cancel button
     local noticeCancelButton = library:Create("TextButton", {
         Name = "Library_WinNotice_CancelButton",
-        Size = UDim2.new(0, 100, 0, 30),
+        Size = UDim2.new(0, 115, 0, 30),
         BackgroundColor3 = library.MainColor,
         BackgroundTransparency = 0,
         BorderSizePixel = 0,
