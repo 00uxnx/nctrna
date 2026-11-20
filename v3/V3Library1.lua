@@ -6451,301 +6451,300 @@ end
 
     local TweenService = game:GetService("TweenService")
 
+
 function window:WinNotice(message, data)
     data = data or {}
-    local Data = {
-        type = tostring(data.type or "Notice");
-        Button1Text = tostring(data.Button1Text or "Confirm");
-        Button2Text = tostring(data.Button2Text or "Cancel");
+
+    local noticeData = {
+        Type = tostring(data.type or "Notice"),
+        Button1Text = tostring(data.Button1Text or "Confirm"),
+        Button2Text = tostring(data.Button2Text or "Cancel")
     }
+
     message = tostring(message or "")
 
-    local winnotice = {}
-    local closing = false
+    local noticeController = {}
+    local isClosing = false
 
     local noticeFrame = library:Create("Frame", {
-        Name = "WinNotice";
-        Size = UDim2.new(1, 0, 1, 0);
-        BackgroundColor3 = Color3.new(0, 0, 0);
-        BackgroundTransparency = 0;
-        Parent = mainWindow;
-        ZIndex = 5;
-        Visible = true;
+        Name = "Library_WinNotice_Overlay",
+        Size = UDim2.fromScale(1, 1),
+        Position = UDim2.fromScale(0, 0),
+        BackgroundColor3 = Color3.new(0, 0, 0),
+        BackgroundTransparency = 0.35,
+        BorderSizePixel = 0,
+        Parent = mainWindow,
+        ZIndex = 100,
+        Visible = true
     })
 
-    local mainn = library:Create("CanvasGroup", {
-        Name = "WinNoticeMain";
-        Size = UDim2.new(0.397, 0, 0.214, 0);
-        Position = UDim2.new(0.5, 0, 0.5, 0);
-        AnchorPoint = Vector2.new(0.5, 0.5);
-        BackgroundColor3 = library.MainColor;
-        GroupTransparency = 0;
-        Parent = noticeFrame;
-        ZIndex = 5;
-        Visible = true;
-    })
-
-    library:Create("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-        Color = library.SecondaryColor;
-        LineJoinMode = Enum.LineJoinMode.Round;
-        Thickness = 1;
-        Parent = mainn;
-    }, {
-        instancep = "Color";
-        tinstance = library.SecondaryColor;
+    local noticeMain = library:Create("CanvasGroup", {
+        Name = "Library_WinNotice_Container",
+        Size = UDim2.new(0.397, 0, 0.214, 0),
+        Position = UDim2.fromScale(0.5, 0.5),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = library.MainColor,
+        BackgroundTransparency = 0,
+        GroupTransparency = 0,
+        BorderSizePixel = 0,
+        ClipsDescendants = false,
+        Parent = noticeFrame,
+        ZIndex = 101,
+        Visible = true
     })
 
     library:Create("UICorner", {
-        CornerRadius = UDim.new(0, 2);
-        Parent = mainn;
-    })
-
-    -- Added explicit ZIndex = 6 and fixed heights
-    local tn = library:Create("TextLabel", {
-        Name = "WinNoticeText";
-        Size = UDim2.new(1, 0, 0, 24);
-        Position = UDim2.new(0, 0, 0, 0);
-        BackgroundTransparency = 1;
-        TextColor3 = library.FontColor;
-        Text = Data.type;
-        TextWrapped = true;
-        TextAlignment = Enum.TextAlignment.Left;
-        Parent = mainn;
-        Font = library.Font;
-        TextSize = 14;
-        ZIndex = 6;
-    }, {
-        instancep = "TextColor3";
-        tinstance = library.FontColor;
-    }, {
-        instancep = "Font";
-        tinstance = library.Font;
-    })
-
-    library:Create("UITextSizeConstraint", {
-        MaxTextSize = 14;
-        Parent = tn;
-    })
-
-    library:Create("UIPadding", {
-        PaddingLeft = UDim.new(0, 10);
-        PaddingRight = UDim.new(0, 10);
-        PaddingTop = UDim.new(0, 0);
-        PaddingBottom = UDim.new(0, 0);
-        Parent = mainn;
+        Name = "Library_WinNotice_ContainerCorner",
+        CornerRadius = UDim.new(0, 4),
+        Parent = noticeMain
     })
 
     library:Create("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-        Color = library.UIstroke;
-        LineJoinMode = Enum.LineJoinMode.Round;
-        Thickness = 1;
-        Parent = mainn;
+        Name = "Library_WinNotice_ContainerStroke",
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        Color = library.SecondaryColor,
+        Thickness = 1,
+        Parent = noticeMain
     }, {
-        instancep = "Color";
-        tinstance = library.UIstroke;
-    })
-
-    -- Adjusted height to fill the space above the buttons
-    local mainwarntext = library:Create("TextLabel", {
-        Name = "WarningText";
-        Size = UDim2.new(1, 0, 1, -60);
-        Position = UDim2.new(0, 0, 0, 24);
-        BackgroundTransparency = 1;
-        TextColor3 = library.FontColor;
-        Text = message;
-        TextWrapped = true;
-        TextAlignment = Enum.TextAlignment.Left;
-        TextYAlignment = Enum.TextYAlignment.Top;
-        Parent = mainn;
-        Font = library.Font;
-        TextSize = 15;
-        ZIndex = 6;
-    }, {
-        instancep = "TextColor3";
-        tinstance = library.FontColor;
-    }, {
-        instancep = "Font";
-        tinstance = library.Font;
-    })
-
-    library:Create("UITextSizeConstraint", {
-        MaxTextSize = 15;
-        Parent = mainwarntext;
+        instancep = "Color",
+        tinstance = library.SecondaryColor
     })
 
     library:Create("UIPadding", {
-        PaddingLeft = UDim.new(0, 10);
-        PaddingRight = UDim.new(0, 10);
-        PaddingTop = UDim.new(0, 5);
-        PaddingBottom = UDim.new(0, 0);
-        Parent = mainwarntext;
+        Name = "Library_WinNotice_ContainerPadding",
+        PaddingLeft = UDim.new(0, 10),
+        PaddingRight = UDim.new(0, 10),
+        Parent = noticeMain
     })
 
-    library:Create("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-        Color = library.UIstroke;
-        LineJoinMode = Enum.LineJoinMode.Round;
-        Thickness = 1;
-        Parent = mainwarntext;
+    -- Header
+    local noticeTitle = library:Create("TextLabel", {
+        Name = "Library_WinNotice_TitleLabel",
+        Size = UDim2.new(1, 0, 0, 25),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        TextColor3 = library.FontColor,
+        Text = noticeData.Type,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        Parent = noticeMain,
+        Font = library.Font,
+        TextSize = 14,
+        ZIndex = 102,
+        Visible = true
     }, {
-        instancep = "Color";
-        tinstance = library.UIstroke;
+        instancep = "TextColor3",
+        tinstance = library.FontColor
+    }, {
+        instancep = "Font",
+        tinstance = library.Font
     })
 
-    -- Buttons frame now uses absolute size and anchors to bottom
-    local buttons = library:Create("Frame", {
-        Name = "Buttons";
-        Size = UDim2.new(1, 0, 0, 35);
-        Position = UDim2.new(0, 0, 1, -35);
-        BackgroundTransparency = 1;
-        Parent = mainn;
-        ZIndex = 6;
+    library:Create("UITextSizeConstraint", {
+        Name = "Library_WinNotice_TitleConstraint",
+        MaxTextSize = 14,
+        Parent = noticeTitle
+    })
+
+    -- Message
+    local noticeMessage = library:Create("TextLabel", {
+        Name = "Library_WinNotice_MessageLabel",
+        Size = UDim2.new(1, 0, 1, -70),
+        Position = UDim2.new(0, 0, 0, 27),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        TextColor3 = library.FontColor,
+        Text = message,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        Parent = noticeMain,
+        Font = library.Font,
+        TextSize = 15,
+        ZIndex = 102,
+        Visible = true
+    }, {
+        instancep = "TextColor3",
+        tinstance = library.FontColor
+    }, {
+        instancep = "Font",
+        tinstance = library.Font
+    })
+
+    library:Create("UITextSizeConstraint", {
+        Name = "Library_WinNotice_MessageConstraint",
+        MaxTextSize = 15,
+        Parent = noticeMessage
+    })
+
+    library:Create("UIPadding", {
+        Name = "Library_WinNotice_MessagePadding",
+        PaddingTop = UDim.new(0, 5),
+        PaddingLeft = UDim.new(0, 0),
+        PaddingRight = UDim.new(0, 0),
+        Parent = noticeMessage
+    })
+
+    -- Button container
+    local noticeButtonContainer = library:Create("Frame", {
+        Name = "Library_WinNotice_ButtonContainer",
+        Size = UDim2.new(1, 0, 0, 35),
+        Position = UDim2.new(0, 0, 1, -40),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Parent = noticeMain,
+        ZIndex = 103,
+        Visible = true
     })
 
     library:Create("UIListLayout", {
-        Padding = UDim.new(0, 15);
-        FillDirection = Enum.FillDirection.Horizontal;
-        HorizontalAlignment = Enum.HorizontalAlignment.Center;
-        VerticalAlignment = Enum.VerticalAlignment.Center;
-        SortOrder = Enum.SortOrder.LayoutOrder;
-        Parent = buttons;
+        Name = "Library_WinNotice_ButtonLayout",
+        Padding = UDim.new(0, 15),
+        FillDirection = Enum.FillDirection.Horizontal,
+        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = noticeButtonContainer
     })
 
-    local button1 = library:Create("TextButton", {
-        Name = "Button1";
-        Size = UDim2.new(0, 100, 0, 30);
-        BackgroundColor3 = Color3.fromRGB(255, 0, 0);
-        TextColor3 = library.FontColor;
-        Font = library.Font;
-        TextSize = 15;
-        Text = Data.Button1Text;
-        TextAlignment = Enum.TextAlignment.Center;
-        Parent = buttons;
-        ZIndex = 7;
+    -- Confirm button
+    local noticeConfirmButton = library:Create("TextButton", {
+        Name = "Library_WinNotice_ConfirmButton",
+        Size = UDim2.new(0, 100, 0, 30),
+        BackgroundColor3 = Color3.fromRGB(255, 0, 0),
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0,
+        TextColor3 = library.FontColor,
+        Font = library.Font,
+        TextSize = 15,
+        Text = noticeData.Button1Text,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        AutoButtonColor = true,
+        Parent = noticeButtonContainer,
+        ZIndex = 104,
+        Visible = true,
+        LayoutOrder = 1
     }, {
-        instancep = "TextColor3";
-        tinstance = library.FontColor;
+        instancep = "TextColor3",
+        tinstance = library.FontColor
     }, {
-        instancep = "Font";
-        tinstance = library.Font;
+        instancep = "Font",
+        tinstance = library.Font
     })
 
-    library:Create("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-        Color = library.UIstroke;
-        LineJoinMode = Enum.LineJoinMode.Round;
-        Thickness = 1;
-        Parent = button1;
-    }, {
-        instancep = "Color";
-        tinstance = library.UIstroke;
-    })
-
-    library:Create("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-        Color = library.SecondaryColor;
-        LineJoinMode = Enum.LineJoinMode.Round;
-        Thickness = 2;
-        Parent = button1;
-    }, {
-        instancep = "Color";
-        tinstance = library.SecondaryColor;
-    })
-
-    library:Create("UITextSizeConstraint", {
-        MaxTextSize = 15;
-        Parent = button1;
-    })
-
-    local button2 = library:Create("TextButton", {
-        Name = "Button2";
-        Size = UDim2.new(0, 100, 0, 30);
-        BackgroundColor3 = library.MainColor;
-        TextColor3 = library.FontColor;
-        Font = library.Font;
-        TextSize = 15;
-        Text = Data.Button2Text;
-        TextAlignment = Enum.TextAlignment.Center;
-        Parent = buttons;
-        ZIndex = 7;
-    }, {
-        instancep = "TextColor3";
-        tinstance = library.FontColor;
-    }, {
-        instancep = "Font";
-        tinstance = library.Font;
-    }, {
-        instancep = "BackgroundColor3";
-        tinstance = library.MainColor;
+    library:Create("UICorner", {
+        Name = "Library_WinNotice_ConfirmCorner",
+        CornerRadius = UDim.new(0, 3),
+        Parent = noticeConfirmButton
     })
 
     library:Create("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
-        Color = library.UIstroke;
-        LineJoinMode = Enum.LineJoinMode.Round;
-        Thickness = 1;
-        Parent = button2;
+        Name = "Library_WinNotice_ConfirmStroke",
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        Color = library.SecondaryColor,
+        Thickness = 1,
+        Parent = noticeConfirmButton
     }, {
-        instancep = "Color";
-        tinstance = library.UIstroke;
+        instancep = "Color",
+        tinstance = library.SecondaryColor
+    })
+
+    -- Cancel button
+    local noticeCancelButton = library:Create("TextButton", {
+        Name = "Library_WinNotice_CancelButton",
+        Size = UDim2.new(0, 100, 0, 30),
+        BackgroundColor3 = library.MainColor,
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0,
+        TextColor3 = library.FontColor,
+        Font = library.Font,
+        TextSize = 15,
+        Text = noticeData.Button2Text,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        AutoButtonColor = true,
+        Parent = noticeButtonContainer,
+        ZIndex = 104,
+        Visible = true,
+        LayoutOrder = 2
+    }, {
+        instancep = "TextColor3",
+        tinstance = library.FontColor
+    }, {
+        instancep = "Font",
+        tinstance = library.Font
+    }, {
+        instancep = "BackgroundColor3",
+        tinstance = library.MainColor
+    })
+
+    library:Create("UICorner", {
+        Name = "Library_WinNotice_CancelCorner",
+        CornerRadius = UDim.new(0, 3),
+        Parent = noticeCancelButton
     })
 
     library:Create("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
-        Color = library.SecondaryColor;
-        LineJoinMode = Enum.LineJoinMode.Round;
-        Thickness = 2;
-        Parent = button2;
+        Name = "Library_WinNotice_CancelStroke",
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        Color = library.SecondaryColor,
+        Thickness = 1,
+        Parent = noticeCancelButton
     }, {
-        instancep = "Color";
-        tinstance = library.SecondaryColor;
+        instancep = "Color",
+        tinstance = library.SecondaryColor
     })
 
-    library:Create("UITextSizeConstraint", {
-        MaxTextSize = 15;
-        Parent = button2;
-    })
-
-    function winnotice:Close(val)
-        if closing then return end
-        closing = true
-
-        if winnotice.OnClose then
-            winnotice.OnClose(val)
+    -- Close function
+    function noticeController:Close(value)
+        if isClosing then
+            return
         end
 
-        local tweenInfo = TweenInfo.new(
+        isClosing = true
+
+        if self.OnClose then
+            task.spawn(self.OnClose, value)
+        end
+
+        local animationInfo = TweenInfo.new(
             0.3,
             Enum.EasingStyle.Quad,
             Enum.EasingDirection.InOut
         )
 
-        TweenService:Create(mainn, tweenInfo, {
-            GroupTransparency = 1;
-            Position = mainn.Position + UDim2.new(0, 0, 0, 24);
+        TweenService:Create(noticeMain, animationInfo, {
+            GroupTransparency = 1,
+            Position = noticeMain.Position + UDim2.new(0, 0, 0, 24)
         }):Play()
 
-        TweenService:Create(noticeFrame, tweenInfo, {
-            BackgroundTransparency = 1;
+        TweenService:Create(noticeFrame, animationInfo, {
+            BackgroundTransparency = 1
         }):Play()
 
         task.delay(0.3, function()
-            noticeFrame:Destroy()
+            if noticeFrame and noticeFrame.Parent then
+                noticeFrame:Destroy()
+            end
         end)
     end
 
-    button1.Activated:Connect(function()
-        winnotice:Close(true)
+    noticeConfirmButton.Activated:Connect(function()
+        noticeController:Close(true)
     end)
 
-    button2.Activated:Connect(function()
-        winnotice:Close(false)
+    noticeCancelButton.Activated:Connect(function()
+        noticeController:Close(false)
     end)
 
-    return winnotice
+    return noticeController
 end
+
 
     -- Register window
     window.MainFrame = mainWindow
