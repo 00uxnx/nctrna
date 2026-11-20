@@ -1,6 +1,4 @@
 -- services
-warn("init")
-
 local cloneref = (cloneref or clonereference or function(instance: any)
 	return instance
 end)
@@ -16,6 +14,25 @@ local Mouse = LocalPlayer:GetMouse();
 
 local Toggles = {}
 local Options = {}
+
+local Languages = {
+    "English", 
+    "Spanish",
+    "French",
+    "German",
+    "Italian",
+    "Portuguese",
+    "Russian",
+    "Japanese",
+    "Korean",
+    "Chinese",
+}
+
+local Translations = {
+    English = {}, Spanish = {}, French = {}, German = {},
+    Italian = {}, Portuguese = {}, Russian = {},
+    Japanese = {}, Korean = {}, Chinese = {},
+}
 
 local function newSignal()
 	local signal = {}
@@ -176,6 +193,9 @@ local library = {
 	Font = Enum.Font.Code;
 	UIstroke = Color3.new(0,0,0);
 
+    Lang = "English";
+    Languages = Languages;
+    
 	ExtraConfiguration = {
 		UIToggledBackground = true;
 		UIToggledBackgroundConfiguration = {
@@ -186,6 +206,7 @@ local library = {
 
 			Extra = {
 				effbg = "Rain";
+
 				snowconf = {
 					Color = Color3.fromRGB(255,255,255);
 					Transparency = 0.75;
@@ -201,6 +222,14 @@ local library = {
 					Speed = 1;
 					emitamount = 20
 				};
+
+                Fallconf = {
+                    Color = Color3.fromRGB(255,255,255);
+                    Transparency = 0.75;
+                    Scale = 1;
+                    Speed = 1;
+                    emitamount = 20
+                };
 			}
 		};
 		
@@ -234,100 +263,177 @@ local keyshorts = {
 }
 
 local themekeys = {"AccentColor", "MainColor", "SecondaryColor", "FontColor", "UIstroke"}
+local fontRegistry = {}
+local translatableRegistry = {}
+local FontByLanguage = {
+    English = nil,
+    Spanish = nil,
+    French = nil,
+    German = nil,
+    Italian = nil,
+    Portuguese = nil,
+    Russian  = nil,
+    Japanese = Enum.Font.SourceSansPro,
+    Korean = Enum.Font.SourceSansPro,
+    Chinese = Enum.Font.SourceSansPro,
+}
+
+local function isTextInstance(instance)
+    return instance:IsA("TextLabel")
+        or instance:IsA("TextButton")
+        or instance:IsA("TextBox")
+end
+
+local function applyLanguageFont(instance, language)
+    if not isTextInstance(instance) then
+        return
+    end
+
+    if fontRegistry[instance] == nil then
+        fontRegistry[instance] = instance.Font
+        instance.Destroying:Connect(function()
+            fontRegistry[instance] = nil
+        end)
+    end
+
+    local targetFont = FontByLanguage[language]
+    instance.Font = targetFont or fontRegistry[instance]
+end
+
 
 local function findthemekey(instancep, value)
-	if instancep == "Font" then
-		return "Font"
-	end
+    if instancep == "Font" then
+        return "Font"
+    end
 
-	for _, key in ipairs(themekeys) do
-		if library[key] == value then
-			return key
-		end
-	end
+    for _, key in ipairs(themekeys) do
+        if library[key] == value then
+            return key
+        end
+    end
 
-	return nil
+    return nil
+end
+
+translate = function(text, language)
+    if type(text) ~= "string" or text == "" then
+        return text
+    end
+    local langTable = Translations[language] or Translations.English
+    return langTable[text] or Translations.English[text] or text
+end
+
+local function registerTranslatable(instance, originalText)
+    translatableRegistry[instance] = originalText
+    instance.Destroying:Connect(function()
+        translatableRegistry[instance] = nil
+    end)
+end
+
+function library:UpdateLanguage(language)
+    if language then
+        library.Lang = language
+    end
+    for instance, originalText in next, translatableRegistry do
+        if instance and instance.Parent then
+            instance.Text = translate(originalText, library.Lang)
+            applyLanguageFont(instance, library.Lang)
+        end
+    end
 end
 
 function library:AddToRegistry(instance, instancep, tinstance)
-	local success, err = pcall(function()
-		local entry = {
-			Instance = instance;
-			InstanceProperty = instancep;
-			themetarget = tinstance;
-			ThemeKey = findthemekey(instancep, tinstance);
-		}
+    local success, err = pcall(function()
+        local entry = {
+            Instance = instance;
+            InstanceProperty = instancep;
+            themetarget = tinstance;
+            ThemeKey = findthemekey(instancep, tinstance);
+        }
 
-		table.insert(library.Registry, entry)
+        table.insert(library.Registry, entry)
 
-		instance.Destroying:Connect(function()
-			for i = #library.Registry, 1, -1 do
-				if library.Registry[i] == entry then
-					table.remove(library.Registry, i)
-				end
-			end
-		end)
-	end)
+        instance.Destroying:Connect(function()
+            for i = #library.Registry, 1, -1 do
+                if library.Registry[i] == entry then
+                    table.remove(library.Registry, i)
+                end
+            end
+        end)
+    end)
 
-	if not success then
-		warn("[library] AddToRegistry failed: " .. tostring(err))
-	end
+    if not success then
+        warn("[library] AddToRegistry failed: " .. tostring(err))
+    end
 end
 
 function library:UpdateTheme(theme)
-	if type(theme) == "table" then
-		for key, value in next, theme do
-			self[key] = value
-		end
-	end
+    if type(theme) == "table" then
+        for key, value in next, theme do
+            self[key] = value
+        end
+    end
 
-	for _, entry in next, self.Registry do
-		local key = entry.ThemeKey
+    for _, entry in next, self.Registry do
+        local key = entry.ThemeKey
 
-		if key then
-			local value = self[key]
+        if key then
+            local value = self[key]
 
-			if value ~= nil then
-				pcall(function()
-					entry.Instance[entry.InstanceProperty] = value
-				end)
-			end
-		end
-	end
+            if value ~= nil then
+                pcall(function()
+                    entry.Instance[entry.InstanceProperty] = value
+                end)
+            end
+        end
+    end
 end
 
 function library:Create(Class, Properties, ...)
-	local _Instance = Class
+    local _Instance = Class
 
-	if type(Class) == "string" then
-		_Instance = Instance.new(Class)
-	end
+    if type(Class) == "string" then
+        _Instance = Instance.new(Class)
+    end
 
-	local hasBorderSizePixel = pcall(function()
-		return _Instance.BorderSizePixel
-	end)
+    local hasBorderSizePixel = pcall(function()
+        return _Instance.BorderSizePixel
+    end)
 
-	if hasBorderSizePixel then
-		_Instance.BorderSizePixel = 0
-	end
+    local istext = isTextInstance(_Instance)
 
-	--// Apply properties
-	for Property, Value in next, Properties do
-		_Instance[Property] = Value
-	end
+    if hasBorderSizePixel then
+        _Instance.BorderSizePixel = 0
+    end
 
-	--// Registry
-	for _, registry in next, {...} do
-		if registry then
-			library:AddToRegistry(
-				_Instance,
-				registry.instancep,
-				registry.tinstance
-			)
-		end
-	end
+    if istext then
+        _Instance.Text = translate(_Instance.Text, library.Lang)
+    end
 
-	return _Instance
+    for Property, Value in next, Properties do
+        if Property == "Text" and istext and type(Value) == "string" then
+            registerTranslatable(_Instance, Value)
+            _Instance[Property] = translate(Value, library.Lang)
+        else
+            _Instance[Property] = Value
+        end
+    end
+
+    if istext then
+        applyLanguageFont(_Instance, library.Lang)
+    end
+
+    for _, registry in next, {...} do
+        if registry then
+            library:AddToRegistry(
+                _Instance,
+                registry.instancep,
+                registry.tinstance
+            )
+        end
+    end
+
+    return _Instance
 end
 
 function library:Toggle()
@@ -511,7 +617,7 @@ function library:NewWindow(configuration)
     -- Main window
     local mainWindow = library:Create("CanvasGroup", {
         Name = "MainWindow";
-        Size = UDim2.fromOffset(786, 504);
+        Size = UDim2.fromOffset(728, 620);
         Position = (configuration.Center ~= false)
             and UDim2.new(0.5, 0, 0.5, 0)
             or UDim2.new(0.4246, 0, 0.296, 0);
@@ -3700,7 +3806,7 @@ function library:NewWindow(configuration)
     local picked = nil
     local isOpen = false
     local destroyed = false
-    local multi = opts.Multipick == true
+    local multi = opts.Multi == true or opts.Multipick == true
     local callback = opts.Callback
 
     local popupHolder = nil
@@ -3831,8 +3937,6 @@ function library:NewWindow(configuration)
         return true
     end
 
-    -- Main row.
-
     local main = library:Create("Frame", {
         Name = "Dropdown";
         Size = UDim2.new(0.95, 0, 0, 20);
@@ -3859,10 +3963,7 @@ function library:NewWindow(configuration)
         Name = "Label";
         Size = UDim2.new(0.7936, 0, 1, 0);
         BackgroundTransparency = 1;
-
-        -- Only opts.Text is displayed, never the internal name.
         Text = tostring(opts.Text or "");
-
         TextColor3 = library.FontColor;
         Font = library.Font;
         TextSize = 13;
@@ -3937,8 +4038,8 @@ function library:NewWindow(configuration)
         instancep = "Font";
         tinstance = library.Font;
     })
-			
-library:Create("UIStroke", {
+
+    library:Create("UIStroke", {
         ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
         Color = library.UIstroke;
         Thickness = 1;
@@ -3947,7 +4048,7 @@ library:Create("UIStroke", {
         instancep = "Color";
         tinstance = library.UIstroke;
     })
-			
+
     library:Create("UITextSizeConstraint", {
         MaxTextSize = 14;
         Parent = selectedLabel;
@@ -4005,6 +4106,14 @@ library:Create("UIStroke", {
                 item.connection:Disconnect()
             end
 
+            if item.hoverEnter then
+                item.hoverEnter:Disconnect()
+            end
+
+            if item.hoverLeave then
+                item.hoverLeave:Disconnect()
+            end
+
             item.button:Destroy()
         end
 
@@ -4035,20 +4144,19 @@ library:Create("UIStroke", {
         local text = "-"
 
         if multi then
-            local display = {}
+            local count = #current
 
-            for _, value in ipairs(current) do
-                table.insert(display, tostring(value))
-            end
-
-            if #display > 0 then
-                text = table.concat(display, ", ")
+            if count == 0 then
+                text = "-"
+            elseif count == 1 then
+                text = tostring(current[1])
+            else
+                text = tostring(count) .. "x"
             end
         elseif current ~= nil then
             text = tostring(current)
         end
 
-        -- Truncate only the mini-frame text.
         local length = utf8.len(text)
 
         if length and length > 4 then
@@ -4062,21 +4170,37 @@ library:Create("UIStroke", {
         option.Value = current
     end
 
-    local function updateItems()
-        for index, item in ipairs(elements) do
-            local selected = (
-                multi and selectedIndices[index] == true
-            ) or (
-                not multi and picked == item.name
-            )
+    local function refreshItemStyle(item)
+        local selected = (multi and selectedIndices[item.index] == true)
+            or (not multi and picked == item.name)
 
-            item.button.Text = tostring(item.name)
+        item.selected = selected
+        item.button.Text = tostring(item.name)
 
-            if selected then
-                item.button.Font = library.Font
+        if selected then
+            item.button.Font = library.Font
+
+            if multi then
+                item.button.BackgroundColor3 = library.AccentColor
+                item.button.BackgroundTransparency = 0.55
             else
-                item.button.FontFace = regularFont
+                item.button.BackgroundTransparency = 1
             end
+        else
+            item.button.FontFace = regularFont
+
+            if item.hovered then
+                item.button.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                item.button.BackgroundTransparency = 0.88
+            else
+                item.button.BackgroundTransparency = 1
+            end
+        end
+    end
+
+    local function updateItems()
+        for _, item in ipairs(elements) do
+            refreshItemStyle(item)
         end
     end
 
@@ -4184,6 +4308,31 @@ library:Create("UIStroke", {
 
             item.button = itemButton
             elements[index] = item
+
+            item.hoverEnter = itemButton.MouseEnter:Connect(function()
+                if destroyed then
+                    return
+                end
+
+                item.hovered = true
+
+                if not item.selected then
+                    itemButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                    itemButton.BackgroundTransparency = 0.88
+                end
+            end)
+
+            item.hoverLeave = itemButton.MouseLeave:Connect(function()
+                if destroyed then
+                    return
+                end
+
+                item.hovered = false
+
+                if not item.selected then
+                    itemButton.BackgroundTransparency = 1
+                end
+            end)
 
             item.connection = itemButton.Activated:Connect(function()
                 if destroyed or not isOpen then
@@ -4413,7 +4562,7 @@ library:Create("UIStroke", {
         if multi then
             local indices = {}
 
-            for index in ipairs(values) do
+            for index = 1, #values do
                 if selectedIndices[index] then
                     table.insert(indices, index)
                 end
@@ -4439,7 +4588,6 @@ library:Create("UIStroke", {
 
     function Dropdown:SetText(text)
         if not destroyed then
-            -- Never fall back to the internal name.
             label.Text = tostring(text or "")
         end
 
@@ -5712,6 +5860,7 @@ end
     -- ══════════════════════════════════════════════════════════
 
     local tabs = {}
+    local Notice = nil
     local currentTab = nil
 
     function window:NewTab(name, image, desc)
@@ -6299,6 +6448,287 @@ end
 
         return tab
     end
+
+    function window:WinNotice(message, data)
+    local Data = data
+    local winnotice = {}
+    local closing = false
+
+    local noticeFrame = library:Create("Frame", {
+        Name = "WinNotice";
+        Size = UDim2.new(1, 0, 1, 0);
+        BackgroundColor3 = Color3.new(0, 0, 0);
+        BackgroundTransparency = 0;
+        Parent = mainWindow;
+        ZIndex = 5;
+        Visible = true;
+    })
+
+    local mainn = library:Create("CanvasGroup", {
+        Name = "WinNoticeMain";
+        Size = UDim2.new(0.397, 0, 0.214, 0);
+        Position = UDim2.new(0.5, 0, 0.5, 0);
+        AnchorPoint = Vector2.new(0.5, 0.5);
+        BackgroundColor3 = library.MainColor;
+        GroupTransparency = 0;
+        Parent = noticeFrame;
+        ZIndex = 5;
+        Visible = true;
+    })
+
+    library:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+        Color = library.SecondaryColor;
+        LineJoinMode = Enum.LineJoinMode.Round;
+        Thickness = 1;
+        Parent = mainn;
+    }, {
+        instancep = "Color";
+        tinstance = library.SecondaryColor;
+    })
+
+    library:Create("UICorner", {
+        CornerRadius = UDim.new(0, 2);
+        Parent = mainn;
+    })
+
+    local tn = library:Create("TextLabel", {
+        Name = "WinNoticeText";
+        Size = UDim2.new(1, 0, 0.179, 0);
+        Position = UDim2.new(0, 0, 0, 0);
+        BackgroundTransparency = 1;
+        TextColor3 = library.FontColor;
+        Text = Data.type;
+        TextWrapped = true;
+        TextAlignment = Enum.TextAlignment.Left;
+        Parent = mainn;
+        Font = library.Font;
+        TextSize = 14;
+        ZIndex = 1;
+    }, {
+        instancep = "TextColor3";
+        tinstance = library.FontColor;
+    }, {
+        instancep = "Font";
+        tinstance = library.Font;
+    })
+
+    library:Create("UITextSizeConstraint", {
+        MaxTextSize = 14;
+        Parent = tn;
+    })
+
+    library:Create("UIPadding", {
+        PaddingLeft = UDim.new(0, 10);
+        PaddingRight = UDim.new(0, 0);
+        PaddingTop = UDim.new(0, 0);
+        PaddingBottom = UDim.new(0, 0);
+        Parent = mainn;
+    })
+
+    library:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+        Color = library.UIstroke;
+        LineJoinMode = Enum.LineJoinMode.Round;
+        Thickness = 1;
+        Parent = mainn;
+    }, {
+        instancep = "Color";
+        tinstance = library.UIstroke;
+    })
+
+    local mainwarntext = library:Create("TextLabel", {
+        Name = "WarningText";
+        Size = UDim2.new(1, 0, 0.609, 0);
+        Position = UDim2.new(0, 0, 0.179, 0);
+        BackgroundTransparency = 1;
+        TextColor3 = library.FontColor;
+        Text = message;
+        TextWrapped = true;
+        TextAlignment = Enum.TextAlignment.Left;
+        Parent = mainn;
+        Font = library.Font;
+        TextSize = 15;
+    }, {
+        instancep = "TextColor3";
+        tinstance = library.FontColor;
+    }, {
+        instancep = "Font";
+        tinstance = library.Font;
+    })
+
+    library:Create("UITextSizeConstraint", {
+        MaxTextSize = 15;
+        Parent = mainwarntext;
+    })
+
+    library:Create("UIPadding", {
+        PaddingLeft = UDim.new(0, 10);
+        PaddingRight = UDim.new(0, 0);
+        PaddingTop = UDim.new(0, 5);
+        PaddingBottom = UDim.new(0, 0);
+        Parent = mainwarntext;
+    })
+
+    library:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+        Color = library.UIstroke;
+        LineJoinMode = Enum.LineJoinMode.Round;
+        Thickness = 1;
+        Parent = mainwarntext;
+    }, {
+        instancep = "Color";
+        tinstance = library.UIstroke;
+    })
+
+    local buttons = library:Create("Frame", {
+        Name = "Buttons";
+        Size = UDim2.new(1, 0, 0.205, 0);
+        Position = UDim2.new(0, 0, 0.788, 0);
+        BackgroundTransparency = 1;
+        Parent = mainn;
+    })
+
+    library:Create("UIListLayout", {
+        Padding = UDim.new(0, 15);
+        FillDirection = Enum.FillDirection.Horizontal;
+        HorizontalAlignment = Enum.HorizontalAlignment.Center;
+        VerticalAlignment = Enum.VerticalAlignment.Center;
+        SortOrder = Enum.SortOrder.LayoutOrder;
+        Parent = buttons;
+    })
+
+    local button1 = library:Create("TextButton", {
+        Name = "Button1";
+        Size = UDim2.new(0, 100, 0, 30);
+        BackgroundColor3 = Color3.fromRGB(255, 0, 0);
+        TextColor3 = library.FontColor;
+        Font = library.Font;
+        TextSize = 15;
+        Text = data.Button1Text;
+        TextAlignment = Enum.TextAlignment.Center;
+        Parent = buttons;
+    }, {
+        instancep = "TextColor3";
+        tinstance = library.FontColor;
+    }, {
+        instancep = "Font";
+        tinstance = library.Font;
+    })
+
+    library:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+        Color = library.UIstroke;
+        LineJoinMode = Enum.LineJoinMode.Round;
+        Thickness = 1;
+        Parent = button1;
+    }, {
+        instancep = "Color";
+        tinstance = library.UIstroke;
+    })
+
+    library:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+        Color = library.SecondaryColor;
+        LineJoinMode = Enum.LineJoinMode.Round;
+        Thickness = 2;
+        Parent = button1;
+    }, {
+        instancep = "Color";
+        tinstance = library.SecondaryColor;
+    })
+
+    library:Create("UITextSizeConstraint", {
+        MaxTextSize = 15;
+        Parent = button1;
+    })
+
+    local button2 = library:Create("TextButton", {
+        Name = "Button2";
+        Size = UDim2.new(0, 100, 0, 30);
+        BackgroundColor3 = library.MainColor;
+        TextColor3 = library.FontColor;
+        Font = library.Font;
+        TextSize = 15;
+        Text = data.Button2Text;
+        TextAlignment = Enum.TextAlignment.Center;
+        Parent = buttons;
+    }, {
+        instancep = "TextColor3";
+        tinstance = library.FontColor;
+    }, {
+        instancep = "Font";
+        tinstance = library.Font;
+    }, {
+        instancep = "BackgroundColor3";
+        tinstance = library.MainColor;
+    })
+
+    library:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual;
+        Color = library.UIstroke;
+        LineJoinMode = Enum.LineJoinMode.Round;
+        Thickness = 1;
+        Parent = button2;
+    }, {
+        instancep = "Color";
+        tinstance = library.UIstroke;
+    })
+
+    library:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+        Color = library.SecondaryColor;
+        LineJoinMode = Enum.LineJoinMode.Round;
+        Thickness = 2;
+        Parent = button2;
+    }, {
+        instancep = "Color";
+        tinstance = library.SecondaryColor;
+    })
+
+    library:Create("UITextSizeConstraint", {
+        MaxTextSize = 15;
+        Parent = button2;
+    })
+
+    function winnotice:Close(val)
+        if closing then return end
+        closing = true
+
+        if winnotice.OnClose then
+            winnotice.OnClose(val)
+        end
+
+        local tweenInfo = TweenInfo.new(
+            0.3,
+            Enum.EasingStyle.Quad,
+            Enum.EasingDirection.InOut
+        )
+
+        TweenService:Create(mainn, tweenInfo, {
+            GroupTransparency = 1;
+            Position = mainn.Position + UDim2.new(0, 0, 0, 24);
+        }):Play()
+
+        TweenService:Create(noticeFrame, tweenInfo, {
+            BackgroundTransparency = 1;
+        }):Play()
+
+        task.delay(0.3, function()
+            noticeFrame:Destroy()
+        end)
+    end
+
+    button1.Activated:Connect(function()
+        winnotice:Close(true)
+    end)
+
+    button2.Activated:Connect(function()
+        winnotice:Close(false)
+    end)
+
+    return winnotice
+end
 
     -- Register window
     window.MainFrame = mainWindow
