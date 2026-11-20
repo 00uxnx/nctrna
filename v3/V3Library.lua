@@ -266,16 +266,16 @@ local themekeys = {"AccentColor", "MainColor", "SecondaryColor", "FontColor", "U
 local fontRegistry = {}
 local translatableRegistry = {}
 local FontByLanguage = {
-    English = nil,
-    Spanish = nil,
-    French = nil,
-    German = nil,
-    Italian = nil,
+    English    = nil,
+    Spanish    = nil,
+    French     = nil,
+    German     = nil,
+    Italian    = nil,
     Portuguese = nil,
-    Russian  = nil,
-    Japanese = Enum.Font.SourceSansPro,
-    Korean = Enum.Font.SourceSansPro,
-    Chinese = Enum.Font.SourceSansPro,
+    Russian    = nil,
+    Japanese   = Enum.Font.SourceSans,
+    Korean     = Enum.Font.SourceSans,
+    Chinese    = Enum.Font.SourceSans,
 }
 
 local function isTextInstance(instance)
