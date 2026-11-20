@@ -1,5 +1,4 @@
 -- services
-print("test1")
 local cloneref = (cloneref or clonereference or function(instance: any)
 	return instance
 end)
@@ -267,16 +266,16 @@ local themekeys = {"AccentColor", "MainColor", "SecondaryColor", "FontColor", "U
 local fontRegistry = {}
 local translatableRegistry = {}
 local FontByLanguage = {
-    English    = nil,
-    Spanish    = nil,
-    French     = nil,
-    German     = nil,
-    Italian    = nil,
+    English = nil,
+    Spanish = nil,
+    French = nil,
+    German = nil,
+    Italian = nil,
     Portuguese = nil,
-    Russian    = nil,
-    Japanese   = Enum.Font.SourceSans,
-    Korean     = Enum.Font.SourceSans,
-    Chinese    = Enum.Font.SourceSans,
+    Russian  = nil,
+    Japanese = Enum.Font.SourceSansPro,
+    Korean = Enum.Font.SourceSansPro,
+    Chinese = Enum.Font.SourceSansPro,
 }
 
 local function isTextInstance(instance)
@@ -6450,8 +6449,17 @@ end
         return tab
     end
 
-    function window:WinNotice(message, data)
-    local Data = data
+    local TweenService = game:GetService("TweenService")
+
+function window:WinNotice(message, data)
+    data = data or {}
+    local Data = {
+        type = tostring(data.type or "Notice");
+        Button1Text = tostring(data.Button1Text or "Confirm");
+        Button2Text = tostring(data.Button2Text or "Cancel");
+    }
+    message = tostring(message or "")
+
     local winnotice = {}
     local closing = false
 
@@ -6493,9 +6501,10 @@ end
         Parent = mainn;
     })
 
+    -- Added explicit ZIndex = 6 and fixed heights
     local tn = library:Create("TextLabel", {
         Name = "WinNoticeText";
-        Size = UDim2.new(1, 0, 0.179, 0);
+        Size = UDim2.new(1, 0, 0, 24);
         Position = UDim2.new(0, 0, 0, 0);
         BackgroundTransparency = 1;
         TextColor3 = library.FontColor;
@@ -6505,7 +6514,7 @@ end
         Parent = mainn;
         Font = library.Font;
         TextSize = 14;
-        ZIndex = 1;
+        ZIndex = 6;
     }, {
         instancep = "TextColor3";
         tinstance = library.FontColor;
@@ -6521,7 +6530,7 @@ end
 
     library:Create("UIPadding", {
         PaddingLeft = UDim.new(0, 10);
-        PaddingRight = UDim.new(0, 0);
+        PaddingRight = UDim.new(0, 10);
         PaddingTop = UDim.new(0, 0);
         PaddingBottom = UDim.new(0, 0);
         Parent = mainn;
@@ -6538,18 +6547,21 @@ end
         tinstance = library.UIstroke;
     })
 
+    -- Adjusted height to fill the space above the buttons
     local mainwarntext = library:Create("TextLabel", {
         Name = "WarningText";
-        Size = UDim2.new(1, 0, 0.609, 0);
-        Position = UDim2.new(0, 0, 0.179, 0);
+        Size = UDim2.new(1, 0, 1, -60);
+        Position = UDim2.new(0, 0, 0, 24);
         BackgroundTransparency = 1;
         TextColor3 = library.FontColor;
         Text = message;
         TextWrapped = true;
         TextAlignment = Enum.TextAlignment.Left;
+        TextYAlignment = Enum.TextYAlignment.Top;
         Parent = mainn;
         Font = library.Font;
         TextSize = 15;
+        ZIndex = 6;
     }, {
         instancep = "TextColor3";
         tinstance = library.FontColor;
@@ -6565,7 +6577,7 @@ end
 
     library:Create("UIPadding", {
         PaddingLeft = UDim.new(0, 10);
-        PaddingRight = UDim.new(0, 0);
+        PaddingRight = UDim.new(0, 10);
         PaddingTop = UDim.new(0, 5);
         PaddingBottom = UDim.new(0, 0);
         Parent = mainwarntext;
@@ -6582,12 +6594,14 @@ end
         tinstance = library.UIstroke;
     })
 
+    -- Buttons frame now uses absolute size and anchors to bottom
     local buttons = library:Create("Frame", {
         Name = "Buttons";
-        Size = UDim2.new(1, 0, 0.205, 0);
-        Position = UDim2.new(0, 0, 0.788, 0);
+        Size = UDim2.new(1, 0, 0, 35);
+        Position = UDim2.new(0, 0, 1, -35);
         BackgroundTransparency = 1;
         Parent = mainn;
+        ZIndex = 6;
     })
 
     library:Create("UIListLayout", {
@@ -6606,9 +6620,10 @@ end
         TextColor3 = library.FontColor;
         Font = library.Font;
         TextSize = 15;
-        Text = data.Button1Text;
+        Text = Data.Button1Text;
         TextAlignment = Enum.TextAlignment.Center;
         Parent = buttons;
+        ZIndex = 7;
     }, {
         instancep = "TextColor3";
         tinstance = library.FontColor;
@@ -6651,9 +6666,10 @@ end
         TextColor3 = library.FontColor;
         Font = library.Font;
         TextSize = 15;
-        Text = data.Button2Text;
+        Text = Data.Button2Text;
         TextAlignment = Enum.TextAlignment.Center;
         Parent = buttons;
+        ZIndex = 7;
     }, {
         instancep = "TextColor3";
         tinstance = library.FontColor;
