@@ -263,43 +263,6 @@ local keyshorts = {
 }
 
 local themekeys = {"AccentColor", "MainColor", "SecondaryColor", "FontColor", "UIstroke"}
-local fontRegistry = {}
-local translatableRegistry = {}
-local FontByLanguage = {
-    English    = nil,
-    Spanish    = nil,
-    French     = nil,
-    German     = nil,
-    Italian    = nil,
-    Portuguese = nil,
-    Russian    = nil,
-    Japanese   = Enum.Font.SourceSans,
-    Korean     = Enum.Font.SourceSans,
-    Chinese    = Enum.Font.SourceSans,
-}
-
-local function isTextInstance(instance)
-    return instance:IsA("TextLabel")
-        or instance:IsA("TextButton")
-        or instance:IsA("TextBox")
-end
-
-local function applyLanguageFont(instance, language)
-    if not isTextInstance(instance) then
-        return
-    end
-
-    if fontRegistry[instance] == nil then
-        fontRegistry[instance] = instance.Font
-        instance.Destroying:Connect(function()
-            fontRegistry[instance] = nil
-        end)
-    end
-
-    local targetFont = FontByLanguage[language]
-    instance.Font = targetFont or fontRegistry[instance]
-end
-
 
 local function findthemekey(instancep, value)
     if instancep == "Font" then
@@ -315,12 +278,219 @@ local function findthemekey(instancep, value)
     return nil
 end
 
-translate = function(text, language)
-    if type(text) ~= "string" or text == "" then
-        return text
+local translatableRegistry = {}
+
+local function isTextInstance(instance)
+    return instance:IsA("TextLabel")
+        or instance:IsA("TextButton")
+        or instance:IsA("TextBox")
+end
+
+local LanguageCodes = {
+    English = "en";
+    Spanish = "es";
+    French = "fr";
+    German = "de";
+    Italian = "it";
+    Portuguese = "pt";
+    Russian = "ru";
+    Japanese = "ja";
+    Korean = "ko";
+    Chinese = "zh-CN";
+}
+
+local cacheFolder = "NocturnaProductions/Cache"
+local cacheFile = cacheFolder .. "/translations.json"
+
+local translationCache = {}
+local translationQueue = {}
+local processingQueue = false
+
+local httpRequest = (syn and syn.request)
+    or (http and http.request)
+    or http_request
+    or request
+    or (fluxus and fluxus.request)
+
+local warnedNoHttp = false
+
+--// ------------------------------------------------------------
+--// DISK CACHE
+--// ------------------------------------------------------------
+
+local cacheDirty = false
+local saveScheduled = false
+
+local function ensureCacheFolder()
+    if typeof(isfolder) ~= "function" then return false end
+    if typeof(makefolder) ~= "function" then return false end
+    if isfolder(cacheFolder) then return true end
+    local ok = pcall(makefolder, cacheFolder)
+    return ok
+end
+
+local function loadCacheFromDisk()
+    if typeof(isfile) ~= "function" then return end
+    if typeof(readfile) ~= "function" then return end
+    if not ensureCacheFolder() then return end
+    if not isfile(cacheFile) then return end
+
+    local ok, raw = pcall(readfile, cacheFile)
+    if not ok or type(raw) ~= "string" or raw == "" then return end
+
+    local decoded
+    local httpOk, result = pcall(function()
+        return game:GetService("HttpService"):JSONDecode(raw)
+    end)
+    if httpOk then decoded = result end
+    if type(decoded) ~= "table" then return end
+
+    for language, entries in next, decoded do
+        if type(language) == "string" and type(entries) == "table" then
+            translationCache[language] = translationCache[language] or {}
+            for text, translated in next, entries do
+                if type(text) == "string" and type(translated) == "string" then
+                    translationCache[language][text] = translated
+                end
+            end
+        end
     end
-    local langTable = Translations[language] or Translations.English
-    return langTable[text] or Translations.English[text] or text
+end
+
+local function saveCacheToDisk()
+    if not cacheDirty then return end
+    if typeof(writefile) ~= "function" then return end
+    if not ensureCacheFolder() then return end
+
+    local ok, encoded = pcall(function()
+        return game:GetService("HttpService"):JSONEncode(translationCache)
+    end)
+    if not ok or type(encoded) ~= "string" then return end
+
+    pcall(writefile, cacheFile, encoded)
+    cacheDirty = false
+end
+
+local function scheduleSave()
+    if saveScheduled then return end
+    saveScheduled = true
+    task.delay(3, function()
+        saveScheduled = false
+        saveCacheToDisk()
+    end)
+end
+
+--// ------------------------------------------------------------
+--// NETWORK
+--// ------------------------------------------------------------
+
+local function fetchTranslation(text, language)
+    local code = LanguageCodes[language]
+    if not code then return nil end
+    if not httpRequest then
+        if not warnedNoHttp then
+            warnedNoHttp = true
+            warn("[library] No HTTP request function available — auto-translate is disabled. Fill in Translations manually if needed.")
+        end
+        return nil
+    end
+
+    local url = "https://translate.googleapis.com/translate_a/single"
+        .. "?client=gtx&sl=en&tl=" .. code
+        .. "&dt=t&q=" .. game:GetService("HttpService"):UrlEncode(text)
+
+    local ok, res = pcall(httpRequest, { Url = url; Method = "GET" })
+    if not ok or not res or res.StatusCode ~= 200 or not res.Body then
+        return nil
+    end
+
+    local ok2, decoded = pcall(function()
+        return game:GetService("HttpService"):JSONDecode(res.Body)
+    end)
+    if not ok2 or not decoded or not decoded[1] or not decoded[1][1] then
+        return nil
+    end
+
+    local translated = decoded[1][1][1]
+    if type(translated) ~= "string" then return nil end
+    return translated
+end
+
+local function applyTranslation(text, language, translated)
+    translationCache[language] = translationCache[language] or {}
+    translationCache[language][text] = translated
+    cacheDirty = true
+    scheduleSave()
+
+    if library.Lang ~= language then return end
+
+    for instance, originalText in next, translatableRegistry do
+        if instance and instance.Parent and originalText == text then
+            instance.Text = translated
+        end
+    end
+end
+
+local function processQueue()
+    if processingQueue then return end
+    processingQueue = true
+
+    task.spawn(function()
+        while #translationQueue > 0 do
+            local job = table.remove(translationQueue, 1)
+            if job then
+                local cache = translationCache[job.language]
+                if not cache or not cache[job.text] then
+                    local translated = fetchTranslation(job.text, job.language)
+                    if translated then
+                        applyTranslation(job.text, job.language, translated)
+                    end
+                end
+            end
+            task.wait(0.15)
+        end
+        processingQueue = false
+        saveCacheToDisk()
+    end)
+end
+
+local function enqueueTranslation(text, language)
+    if language == "English" or not LanguageCodes[language] then return end
+    local cache = translationCache[language]
+    if cache and cache[text] then return end
+    for _, job in ipairs(translationQueue) do
+        if job.text == text and job.language == language then return end
+    end
+    table.insert(translationQueue, { text = text; language = language })
+    processQueue()
+end
+
+translate = function(text, language)
+    if type(text) ~= "string" or text == "" then return text end
+    if language == "English" or not language then return text end
+
+    local manual = Translations[language]
+    if manual and manual[text] then return manual[text] end
+
+    local cache = translationCache[language]
+    if cache and cache[text] then return cache[text] end
+
+    enqueueTranslation(text, language)
+    return text
+end
+
+function library:UpdateLanguage(language)
+    if language then
+        library.Lang = language
+    end
+
+    for instance, originalText in next, translatableRegistry do
+        if instance and instance.Parent then
+            instance.Text = translate(originalText, library.Lang)
+        end
+    end
+
+    saveCacheToDisk()
 end
 
 local function registerTranslatable(instance, originalText)
@@ -330,17 +500,7 @@ local function registerTranslatable(instance, originalText)
     end)
 end
 
-function library:UpdateLanguage(language)
-    if language then
-        library.Lang = language
-    end
-    for instance, originalText in next, translatableRegistry do
-        if instance and instance.Parent then
-            instance.Text = translate(originalText, library.Lang)
-            applyLanguageFont(instance, library.Lang)
-        end
-    end
-end
+loadCacheFromDisk()
 
 function library:AddToRegistry(instance, instancep, tinstance)
     local success, err = pcall(function()
@@ -417,10 +577,6 @@ function library:Create(Class, Properties, ...)
         else
             _Instance[Property] = Value
         end
-    end
-
-    if istext then
-        applyLanguageFont(_Instance, library.Lang)
     end
 
     for _, registry in next, {...} do
@@ -726,7 +882,7 @@ function library:NewWindow(configuration)
     -- Tabs list
     local tabsHolder = library:Create("ScrollingFrame", {
         Name = "Tabs";
-        Size = UDim2.new(1, 0, 0, 419);
+        Size = UDim2.new(1, 0, 0.156, 419);
         Position = UDim2.new(0, 0, 0.169, 0);
         BackgroundTransparency = 1;
         ScrollBarThickness = 0;
