@@ -413,38 +413,62 @@ end
 -- ============================================================
 
 local function fetchTranslation(text, language)
+    local service = game:GetService("HttpService")
     local code = LanguageCodes[language]
 
-    if not code then
+    if type(text) ~= "string" or text == "" or not code then
         return nil
+    end
+
+    if language == "English" then
+        return text
     end
 
     if type(httpRequest) ~= "function" then
         if not warnedNoHttp then
             warnedNoHttp = true
+
             warn(
-                "[library] Automatic translation needs an HTTP "
-                .. "request function. Original text will be kept."
+                "[library] No HTTP request function is available. "
+                .. "Changing providers cannot fix missing HTTP support."
             )
         end
 
         return nil
     end
 
+    -- MyMemory accepts a maximum of 500 UTF-8 bytes per query.
+    if #text > 500 then
+        warn(
+            "[library] Skipping translation: text exceeds 500 bytes."
+        )
+
+        return nil
+    end
+
     local url =
-        "https://translate.googleapis.com/translate_a/single"
-        .. "?client=gtx"
-        .. "&sl=en"
-        .. "&tl=" .. HttpService:UrlEncode(code)
-        .. "&dt=t"
-        .. "&q=" .. HttpService:UrlEncode(text)
+        "https://api.mymemory.translated.net/get"
+        .. "?q=" .. service:UrlEncode(text)
+        .. "&langpair=" .. service:UrlEncode("en|" .. code)
 
-    local ok, response = pcall(httpRequest, {
-        Url = url;
-        Method = "GET";
-    })
+    local requestOk, response = pcall(function()
+        return httpRequest({
+            Url = url;
+            Method = "GET";
+        })
+    end)
 
-    if not ok or type(response) ~= "table" then
+    if not requestOk then
+        warn(
+            "[library] Translation transport error: "
+            .. tostring(response)
+        )
+
+        return nil
+    end
+
+    if type(response) ~= "table" then
+        warn("[library] Translation returned an invalid HTTP response.")
         return nil
     end
 
@@ -453,38 +477,56 @@ local function fetchTranslation(text, language)
     )
 
     if status and status ~= 200 then
+        warn(
+            "[library] Translation HTTP status: "
+            .. tostring(status)
+        )
+
         return nil
     end
 
     local body = response.Body or response.body
 
     if type(body) ~= "string" or body == "" then
+        warn("[library] Translation returned an empty response body.")
         return nil
     end
 
-    local decodedOk, decoded = pcall(function()
-        return HttpService:JSONDecode(body)
+    local decodeOk, data = pcall(function()
+        return service:JSONDecode(body)
     end)
 
-    if not decodedOk
-        or type(decoded) ~= "table"
-        or type(decoded[1]) ~= "table" then
+    if not decodeOk or type(data) ~= "table" then
+        warn("[library] Translation response was not valid JSON.")
         return nil
     end
 
-    -- Responses can contain multiple translated segments.
-    local segments = {}
+    -- Do not cache quota warnings or API error messages as translations.
+    if tonumber(data.responseStatus) ~= 200 then
+        warn(
+            "[library] Translation provider error: "
+            .. tostring(
+                data.responseDetails
+                or data.responseStatus
+                or "Unknown error"
+            )
+        )
 
-    for _, segment in ipairs(decoded[1]) do
-        if type(segment) == "table"
-            and type(segment[1]) == "string" then
-            segments[#segments + 1] = segment[1]
-        end
+        return nil
     end
 
-    local translated = table.concat(segments)
+    if data.quotaFinished == true then
+        warn("[library] Translation provider quota exhausted.")
+        return nil
+    end
 
-    if translated == "" then
+    local responseData = data.responseData
+    local translated = type(responseData) == "table"
+        and responseData.translatedText
+
+    if type(translated) ~= "string"
+        or not translated:find("%S") then
+        warn("[library] Translation response contained no translated text.")
         return nil
     end
 
