@@ -11,7 +11,8 @@ local Lighting = cloneref(game:GetService('Lighting'));
 local RenderStepped = RunService.RenderStepped;
 local LocalPlayer = Players.LocalPlayer;
 local Mouse = LocalPlayer:GetMouse();
-
+local HttpService = cloneref(game:GetService('HttpService');
+	
 local Toggles = {}
 local Options = {}
 
